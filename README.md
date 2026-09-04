@@ -1,0 +1,135 @@
+# Simple Interior Tech — Website
+
+A single-page marketing site for a bespoke furniture business. Plain HTML/CSS/JS,
+no build step, no framework — open `index.html` in a browser or deploy the
+folder as-is to any static host.
+
+## What's here
+
+```
+index.html              The whole page (hero, gallery, contact, etc.)
+assets/css/styles.css   All styling
+assets/js/main.js       Lightbox, analytics hooks, contact form handling
+assets/img/             Photos (currently placeholders — see below)
+assets/icons/           Favicon + app icons
+assets/site.webmanifest PWA-style manifest (used for icons)
+```
+
+## 1. Real photos (do this first)
+
+Every photo on the site is currently a **placeholder** — a plain toned panel
+labelled with what should go there. They are not stock photos; they exist so
+the layout can be reviewed before real photography is ready. Replace them
+before launch:
+
+| Slot | File(s) to replace | Recommended size |
+|---|---|---|
+| Hero | `assets/img/hero.jpg` | ~1920×1280, landscape |
+| Category cards | `assets/img/work/wardrobes.jpg`, `tables.jpg`, `tv-stands.jpg`, `custom-joinery.jpg` | ~1000×750 |
+| Gallery | `assets/img/gallery/project-01.jpg` … `project-10.jpg`, plus matching `-thumb.jpg` versions | full: ~1200×900, thumb: ~480×360 |
+| Social preview | `assets/img/og-image.jpg` | 1200×630 (shown when the link is shared on WhatsApp/social) |
+
+Keep the same filenames to avoid editing HTML, or update the `src`/`data-full`
+paths in `index.html` if you rename files. Update each `alt` attribute and
+each gallery `data-caption` to describe the real project.
+
+To add more than 10 gallery photos: copy one `<button class="gallery-item">`
+block in the "Our Work" section of `index.html`, point it at new image files,
+and update the alt text and caption. No other changes are needed — the grid
+and lightbox both handle any number of items automatically.
+
+**Keep photo treatment consistent** (same lighting/white balance/crop ratio)
+— this matters more than anything else for how professional the site looks.
+
+## 2. Contact details
+
+Search `index.html` for these placeholders and replace every instance
+(WhatsApp appears in the header, hero, contact section, footer and the
+floating button — the phone number appears twice in each `wa.me` link, once
+digits-only for the link and once formatted for display):
+
+- `34600000000` — WhatsApp number in `https://wa.me/...` links (digits only,
+  country code first, no `+` or spaces)
+- `+34 600 000 000` — the same number, formatted for display
+- `hello@simpleinteriortech.example` — email address (`.example` is a
+  placeholder domain that intentionally never resolves)
+- Service area text in the Contact section and the JSON-LD block in `<head>`
+
+The WhatsApp links include a pre-filled message ("Hi, I'd like a quote
+for…") via the `?text=` parameter — edit the URL-encoded text there if you
+want different wording.
+
+## 3. Contact form
+
+The form has no backend by default. `assets/js/main.js` handles it like this:
+
+- If `<form id="contact-form">`'s `action` attribute is a real URL (e.g. a
+  [Formspree](https://formspree.io) endpoint), it POSTs there and shows a
+  success/error message in place.
+- Otherwise it falls back to opening the visitor's email app with the
+  message pre-filled, addressed to `data-fallback-email` on the form.
+
+**Before launch**, either:
+1. Sign up for a form service (Formspree's free tier works well) and put
+   your endpoint in the form's `action` attribute, replacing
+   `REPLACE_WITH_FORM_ENDPOINT`, or
+2. Leave it on the mailto fallback, but test it on a real phone — some
+   users won't have an email app configured, so WhatsApp is the more
+   reliable channel and is emphasized throughout the page.
+
+## 4. Testimonials
+
+Deliberately left out. The brief is explicit: don't invent quotes. Once you
+have 2–3 real ones (first name + area), add a `<section id="testimonials">`
+between "How It Works" and "Contact" — a template is left as an HTML comment
+in `index.html` showing the markup and classes to use (`.testimonial-grid`,
+`.testimonial`, already styled in `styles.css`).
+
+## 5. Analytics
+
+`assets/js/main.js` tracks page views and every WhatsApp/email/phone/form
+click, and forwards them to `window.gtag` (Google Analytics 4) or
+`window.plausible` (Plausible) automatically if either is present — you
+don't need to touch the JS. To turn it on:
+
+1. Pick a provider (GA4 or Plausible are both fine; Plausible is
+   simpler and cookie-free).
+2. Paste that provider's tracking snippet into `<head>` in `index.html`
+   where the "Analytics" comment is.
+3. Done — clicks on WhatsApp/email/phone links and gallery opens will show
+   up as events in that provider's dashboard.
+
+Until a provider is configured, events are still logged to the browser
+console and `localStorage` (`sit_events`) so you can verify tracking is
+firing correctly during testing.
+
+## 6. Logo
+
+There's no logo file yet — the header/footer use a plain text wordmark plus
+a simple monogram badge (the "S" in a rounded square). If a real logo
+exists, replace the `.brand-mark` markup in the header and the favicon set
+in `assets/icons/` (regenerate at the same sizes: 16, 32, 180, 192, 512px).
+
+## 7. Google Business Profile
+
+Add the link in the footer's "Explore" column once a profile exists — the
+spot is marked with an HTML comment.
+
+## Deploying
+
+This is a static site — any static host works (Netlify, Vercel, GitHub
+Pages, Cloudflare Pages, S3+CloudFront, etc.). There's no build step: just
+upload the folder. Make sure the host serves HTTPS and point your custom
+domain at it.
+
+## Testing checklist before launch
+
+- [ ] Real photos in place, captions updated
+- [ ] WhatsApp number correct everywhere (test the `wa.me` links on a phone)
+- [ ] Email and phone links tested on a phone (`mailto:` and `tel:` open
+      correctly)
+- [ ] Contact form tested end-to-end (a real submission actually arrives)
+- [ ] Analytics snippet installed and an event confirmed in the dashboard
+- [ ] Custom domain + HTTPS live
+- [ ] Shared the URL in WhatsApp once to confirm the link preview (uses
+      `assets/img/og-image.jpg`) looks right

@@ -43,17 +43,21 @@ and lightbox both handle any number of items automatically.
 
 ## 2. Contact details
 
-Search `index.html` for these placeholders and replace every instance
-(WhatsApp appears in the header, hero, contact section, footer and the
-floating button — the phone number appears twice in each `wa.me` link, once
-digits-only for the link and once formatted for display):
+WhatsApp/phone (`+234 813 692 5971`) and email (`simpleinteriortech@gmail.com`)
+are live throughout the site (header, hero, contact section, footer and the
+floating button). If either ever needs to change again, search `index.html`
+for:
 
-- `34600000000` — WhatsApp number in `https://wa.me/...` links (digits only,
-  country code first, no `+` or spaces)
-- `+34 600 000 000` — the same number, formatted for display
-- `hello@simpleinteriortech.example` — email address (`.example` is a
-  placeholder domain that intentionally never resolves)
-- Service area text in the Contact section and the JSON-LD block in `<head>`
+- `2348136925971` — digits-only, used in every `https://wa.me/...` link and
+  every `tel:` link (country code first, no `+` or spaces)
+- `+234 813 692 5971` — the same number, formatted for display
+- `simpleinteriortech@gmail.com` — email address, used in `mailto:` links,
+  the contact form's fallback address, and the JSON-LD block in `<head>`
+
+Still a placeholder and not yet updated: the **service area** text in the
+Contact section and the JSON-LD block currently says "Málaga, Spain" —
+update this to the real service area (the phone number now suggests Nigeria,
+so this likely needs to change too).
 
 The WhatsApp links include a pre-filled message ("Hi, I'd like a quote
 for…") via the `?text=` parameter — edit the URL-encoded text there if you

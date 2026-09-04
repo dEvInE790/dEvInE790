@@ -54,10 +54,9 @@ for:
 - `simpleinteriortech@gmail.com` — email address, used in `mailto:` links,
   the contact form's fallback address, and the JSON-LD block in `<head>`
 
-Still a placeholder and not yet updated: the **service area** text in the
-Contact section and the JSON-LD block currently says "Málaga, Spain" —
-update this to the real service area (the phone number now suggests Nigeria,
-so this likely needs to change too).
+Service area is set to "Nigeria (nationwide)" in the Contact section and
+`areaServed` in the JSON-LD block. If the business only covers specific
+cities or states, narrow this down (e.g. "Lagos and surrounding areas").
 
 The WhatsApp links include a pre-filled message ("Hi, I'd like a quote
 for…") via the `?text=` parameter — edit the URL-encoded text there if you

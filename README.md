@@ -118,12 +118,45 @@ in `assets/icons/` (regenerate at the same sizes: 16, 32, 180, 192, 512px).
 Add the link in the footer's "Explore" column once a profile exists — the
 spot is marked with an HTML comment.
 
-## Deploying
+## Deploying (GitHub Pages + simpleinterior.com)
 
-This is a static site — any static host works (Netlify, Vercel, GitHub
-Pages, Cloudflare Pages, S3+CloudFront, etc.). There's no build step: just
-upload the folder. Make sure the host serves HTTPS and point your custom
-domain at it.
+This repo is set up to deploy on **GitHub Pages** at the custom domain
+**simpleinterior.com**. The `CNAME` file in the repo root already tells
+GitHub Pages which domain to serve; two things still need to happen outside
+this repo, since neither is available through the automation used to build
+this site:
+
+1. **Turn on Pages** (one-time, in the GitHub UI): repo → **Settings** →
+   **Pages** → under "Build and deployment", set Source to "Deploy from a
+   branch", branch to `main`, folder to `/ (root)` → **Save**. GitHub will
+   show "simpleinterior.com" as the custom domain automatically (read from
+   the `CNAME` file).
+
+2. **Point DNS at GitHub Pages**, at whichever service manages
+   `simpleinterior.com`'s DNS (your registrar, or wherever you set its
+   nameservers):
+
+   | Type | Host/Name | Value |
+   |---|---|---|
+   | A | `@` (apex/root) | `185.199.108.153` |
+   | A | `@` (apex/root) | `185.199.109.153` |
+   | A | `@` (apex/root) | `185.199.110.153` |
+   | A | `@` (apex/root) | `185.199.111.153` |
+   | CNAME | `www` | `dEvInE790.github.io` |
+
+   (AAAA records for IPv6 are optional: `2606:50c0:8000::153`,
+   `2606:50c0:8001::153`, `2606:50c0:8002::153`, `2606:50c0:8003::153`,
+   all on `@`.)
+
+DNS changes can take anywhere from a few minutes to ~48 hours to propagate.
+Once GitHub detects the domain resolving correctly, go back to **Settings →
+Pages** and check **Enforce HTTPS** — the certificate provisions
+automatically after that.
+
+Any other static host works too (Netlify, Vercel, Cloudflare Pages,
+S3+CloudFront, etc.) if you'd rather not use GitHub Pages — there's no
+build step, just upload the folder and point the host's own custom-domain
+settings at `simpleinterior.com` instead of using the steps above.
 
 ## Testing checklist before launch
 

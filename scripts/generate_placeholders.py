@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+"""
+Generates the placeholder imagery used across the site (hero, "What We
+Build" category cards, "Our Work" gallery, and the social share image):
+a consistent wood/charcoal backdrop with a simple line-art furniture icon
+and a "— concept" caption, so nothing here is ever mistaken for a real
+finished piece.
+
+These are intentionally NOT stock photos and NOT AI-generated photorealistic
+images of furniture -- using either as "Our Work" content would misrepresent
+the business's actual craftsmanship to visitors. They exist purely so the
+layout and gallery can be reviewed before real project photography exists.
+See README.md ("1. Real photos") for what to do once real photos are ready.
+
+Requires Pillow: pip install Pillow
+Run from anywhere -- output paths are relative to this script's location:
+    python3 scripts/generate_placeholders.py
+"""
+import os
+import random
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+FONT_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
+DARK = (34, 30, 27)
+WOOD = (122, 78, 49)
+CREAM = (245, 240, 232)
+CREAM_DIM = (226, 214, 199)
+
+def lerp(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+def backdrop(w, h, seed):
+    rnd = random.Random(seed)
+    img = Image.new("RGB", (w, h), DARK)
+    px = img.load()
+    diag = w + h
+    for y in range(h):
+        for x in range(0, w, 2):
+            t = min(1, max(0, (x + y) / diag))
+            c = lerp(DARK, WOOD, t)
+            px[x, y] = c
+            if x + 1 < w:
+                px[x + 1, y] = c
+    img = img.filter(ImageFilter.GaussianBlur(0.6))
+
+    grain = Image.effect_noise((w, h), 22).convert("L")
+    grain_rgb = Image.merge("RGB", (grain, grain, grain))
+    img = Image.blend(img, grain_rgb, 0.025)
+
+    plank_w = w / rnd.choice([6, 7, 8])
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    odraw = ImageDraw.Draw(overlay)
+    x = 0
+    while x < w:
+        odraw.line([(x, 0), (x, h)], fill=(0, 0, 0, 35), width=2)
+        x += plank_w
+    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+
+    vign = Image.new("L", (w, h), 0)
+    vd = ImageDraw.Draw(vign)
+    vd.ellipse([-w * 0.3, -h * 0.3, w * 1.3, h * 1.3], fill=255)
+    vign = vign.filter(ImageFilter.GaussianBlur(min(w, h) * 0.15))
+    dark_layer = Image.new("RGB", (w, h), (0, 0, 0))
+    img = Image.composite(img, dark_layer, vign.point(lambda p: 255 - int((255 - p) * 0.55)))
+    return img
+
+# --- furniture line icons, drawn inside a bounding box (x0, y0, x1, y1) ---
+
+def icon_wardrobe(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    d.rectangle([x0, y0, x1, y1], outline=c, width=lw)
+    mx = (x0 + x1) / 2
+    d.line([mx, y0, mx, y1], fill=c, width=lw)
+    cy = y0 + (y1 - y0) * 0.55
+    d.line([mx - (x1 - x0) * 0.06, cy, mx - (x1 - x0) * 0.06, cy + (y1 - y0) * 0.12], fill=c, width=lw)
+    d.line([mx + (x1 - x0) * 0.06, cy, mx + (x1 - x0) * 0.06, cy + (y1 - y0) * 0.12], fill=c, width=lw)
+
+def icon_sliding_wardrobe(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    d.rectangle([x0, y0, x1, y1], outline=c, width=lw)
+    w = x1 - x0
+    panel = w * 0.58
+    d.rectangle([x0, y0, x0 + panel, y1], outline=c, width=lw)
+    d.rectangle([x1 - panel, y0, x1, y1], outline=c, width=lw)
+
+def icon_table(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    top_h = (y1 - y0) * 0.12
+    d.rectangle([x0, y0, x1, y0 + top_h], outline=c, width=lw)
+    inset = (x1 - x0) * 0.08
+    d.line([x0 + inset, y0 + top_h, x0 + inset, y1], fill=c, width=lw)
+    d.line([x1 - inset, y0 + top_h, x1 - inset, y1], fill=c, width=lw)
+
+def icon_coffee_table(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    top_y0 = y0 + (y1 - y0) * 0.35
+    top_h = (y1 - y0) * 0.14
+    d.rectangle([x0, top_y0, x1, top_y0 + top_h], outline=c, width=lw)
+    n = 4
+    for i in range(1, n):
+        px = x0 + (x1 - x0) * i / n
+        d.line([px, top_y0, px, top_y0 + top_h], fill=c, width=max(1, lw // 2))
+    inset = (x1 - x0) * 0.1
+    d.line([x0 + inset, top_y0 + top_h, x0 + inset, y1], fill=c, width=lw)
+    d.line([x1 - inset, top_y0 + top_h, x1 - inset, y1], fill=c, width=lw)
+
+def icon_tv_console(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    w = x1 - x0
+    h = y1 - y0
+    tv_w = w * 0.62
+    tv_h = h * 0.4
+    tvx0 = x0 + (w - tv_w) / 2
+    d.rectangle([tvx0, y0, tvx0 + tv_w, y0 + tv_h], outline=c, width=lw)
+    mx = tvx0 + tv_w / 2
+    d.line([mx, y0 + tv_h, mx, y0 + tv_h + h * 0.08], fill=c, width=lw)
+    console_y0 = y0 + tv_h + h * 0.2
+    d.rectangle([x0, console_y0, x1, y1], outline=c, width=lw)
+    mid = (x0 + x1) / 2
+    d.line([mid, console_y0, mid, y1], fill=c, width=max(1, lw // 2))
+
+def icon_floating_console(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    w = x1 - x0
+    h = y1 - y0
+    tv_w = w * 0.55
+    tv_h = h * 0.35
+    tvx0 = x0 + (w - tv_w) / 2
+    d.rectangle([tvx0, y0, tvx0 + tv_w, y0 + tv_h], outline=c, width=lw)
+    cons_y0 = y1 - h * 0.22
+    d.rectangle([x0, cons_y0, x1, y1], outline=c, width=lw)
+    d.line([x0 + w * 0.15, cons_y0, x0 + w * 0.15, y1], fill=c, width=max(1, lw // 2))
+    d.line([x1 - w * 0.15, cons_y0, x1 - w * 0.15, y1], fill=c, width=max(1, lw // 2))
+
+def icon_bookshelf(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    d.rectangle([x0, y0, x1, y1], outline=c, width=lw)
+    for i in (1, 2):
+        py = y0 + (y1 - y0) * i / 3
+        d.line([x0, py, x1, py], fill=c, width=lw)
+    for i in (1, 2):
+        px = x0 + (x1 - x0) * i / 3
+        d.line([px, y0, px, y1], fill=c, width=max(1, lw // 2))
+
+def icon_kitchen_island(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    w = x1 - x0
+    top_h = (y1 - y0) * 0.16
+    body_x0 = x0 + w * 0.1
+    body_x1 = x1 - w * 0.1
+    d.rectangle([body_x0, y0, body_x1, y0 + top_h], outline=c, width=lw)
+    d.rectangle([body_x0 + w * 0.03, y0 + top_h, body_x1 - w * 0.03, y1], outline=c, width=lw)
+    mid = (body_x0 + body_x1) / 2
+    d.line([mid, y0 + top_h, mid, y1], fill=c, width=max(1, lw // 2))
+
+def icon_loft_wardrobe(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    d.line([x0, y1, x0, y0 + (y1 - y0) * 0.35], fill=c, width=lw)
+    d.line([x0, y0 + (y1 - y0) * 0.35, x1, y0], fill=c, width=lw)
+    d.line([x1, y0, x1, y1], fill=c, width=lw)
+    d.line([x0, y1, x1, y1], fill=c, width=lw)
+    mx = (x0 + x1) / 2
+    d.line([mx, y1, mx, y0 + (y1 - y0) * 0.18], fill=c, width=lw)
+
+def icon_desk_shelving(d, b, c, lw):
+    x0, y0, x1, y1 = b
+    h = y1 - y0
+    shelf_y = y0 + h * 0.18
+    d.line([x0, shelf_y, x1, shelf_y], fill=c, width=lw)
+    for i in range(3):
+        bx = x0 + (x1 - x0) * (0.12 + i * 0.13)
+        d.rectangle([bx, shelf_y - h * 0.14, bx + (x1 - x0) * 0.08, shelf_y], outline=c, width=max(1, lw // 2))
+    desk_y = y0 + h * 0.55
+    d.rectangle([x0, desk_y, x1, desk_y + h * 0.1], outline=c, width=lw)
+    d.line([x0 + (x1 - x0) * 0.1, desk_y + h * 0.1, x0 + (x1 - x0) * 0.1, y1], fill=c, width=lw)
+    d.line([x1 - (x1 - x0) * 0.1, desk_y + h * 0.1, x1 - (x1 - x0) * 0.1, y1], fill=c, width=lw)
+
+def icon_joinery(d, b, c, lw):
+    # carpenter's square -- a common, unambiguous joinery/woodworking symbol
+    x0, y0, x1, y1 = b
+    w = x1 - x0
+    h = y1 - y0
+    arm = w * 0.16
+    d.line([x0, y0, x0, y1], fill=c, width=lw)
+    d.line([x0, y1, x1, y1], fill=c, width=lw)
+    d.line([x0 + arm, y0, x0 + arm, y1 - arm], fill=c, width=lw)
+    d.line([x0 + arm, y1 - arm, x1, y1 - arm], fill=c, width=lw)
+    d.line([x0, y0, x0 + arm, y0], fill=c, width=lw)
+    d.line([x1, y1, x1, y1 - arm], fill=c, width=lw)
+    n = 5
+    for i in range(1, n):
+        tx = x0 + arm + (x1 - (x0 + arm)) * i / n
+        d.line([tx, y1, tx, y1 - arm * 0.5], fill=c, width=max(1, lw // 2))
+    for i in range(1, n):
+        ty = y0 + (y1 - arm - y0) * i / n
+        d.line([x0, ty, x0 + arm * 0.5, ty], fill=c, width=max(1, lw // 2))
+
+ICONS = {
+    "wardrobe": icon_wardrobe,
+    "sliding_wardrobe": icon_sliding_wardrobe,
+    "loft_wardrobe": icon_loft_wardrobe,
+    "table": icon_table,
+    "coffee_table": icon_coffee_table,
+    "tv_console": icon_tv_console,
+    "floating_console": icon_floating_console,
+    "bookshelf": icon_bookshelf,
+    "kitchen_island": icon_kitchen_island,
+    "desk_shelving": icon_desk_shelving,
+    "joinery": icon_joinery,
+}
+
+def render(w, h, seed, icon_key, caption, icon_color=CREAM, icon_scale=0.42, lw_ratio=0.012):
+    img = backdrop(w, h, seed).convert("RGBA")
+
+    box_w = min(w, h) * icon_scale
+    box_h = box_w * 0.72
+    cx, cy = w / 2, h / 2 - h * 0.03
+    box = (cx - box_w / 2, cy - box_h / 2, cx + box_w / 2, cy + box_h / 2)
+    lw = max(2, int(min(w, h) * lw_ratio))
+
+    icon_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    icon_draw = ImageDraw.Draw(icon_layer)
+    ICONS[icon_key](icon_draw, tuple(v + 3 for v in box), (0, 0, 0, 90), lw + 2)  # soft shadow
+    ICONS[icon_key](icon_draw, box, icon_color + (255,), lw)
+    img = Image.alpha_composite(img, icon_layer)
+    draw = ImageDraw.Draw(img)
+
+    if caption:
+        size_cap = max(13, int(min(w, h) * 0.028))
+        font_cap = ImageFont.truetype(FONT_REG, size_cap)
+        cap_y = cy + box_h / 2 + h * 0.06
+        bbox = draw.textbbox((0, 0), caption, font=font_cap)
+        tw = bbox[2] - bbox[0]
+        draw.text(((w - tw) / 2 + 1, cap_y + 1), caption, font=font_cap, fill=(0, 0, 0, 160))
+        draw.text(((w - tw) / 2, cap_y), caption, font=font_cap, fill=CREAM_DIM + (255,))
+
+    draw.rectangle([0, 0, w - 1, h - 1], outline=(255, 255, 255, 40))
+    return img.convert("RGB")
+
+def save(img, path, quality=85):
+    img.save(path, "JPEG", quality=quality, optimize=True)
+    print("wrote", path, img.size)
+
+def main():
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = os.path.join(repo_root, "assets", "img")
+
+    cats = [
+        ("wardrobes", "wardrobe", "FITTED WARDROBES", 2),
+        ("tables", "table", "TABLES", 3),
+        ("tv-stands", "tv_console", "TV STANDS & MEDIA", 4),
+        ("custom-joinery", "joinery", "CUSTOM JOINERY", 5),
+    ]
+    for slug, icon, label, seed in cats:
+        img = render(1000, 750, seed, icon, label, icon_scale=0.5)
+        save(img, os.path.join(out, "work", f"{slug}.jpg"))
+
+    gallery = [
+        ("wardrobe", "Fitted wardrobe — concept"),
+        ("table", "Dining table — concept"),
+        ("tv_console", "Media unit — concept"),
+        ("sliding_wardrobe", "Sliding-door wardrobe — concept"),
+        ("bookshelf", "Bookshelf & storage — concept"),
+        ("kitchen_island", "Kitchen island — concept"),
+        ("floating_console", "Floating TV console — concept"),
+        ("loft_wardrobe", "Built-in wardrobe, sloped ceiling — concept"),
+        ("coffee_table", "Coffee table — concept"),
+        ("desk_shelving", "Study desk & shelving — concept"),
+    ]
+    for i, (icon, cap) in enumerate(gallery, start=1):
+        img = render(1200, 900, 100 + i, icon, cap, icon_scale=0.4)
+        save(img, os.path.join(out, "gallery", f"project-{i:02d}.jpg"))
+        thumb = img.resize((480, 360))
+        save(thumb, os.path.join(out, "gallery", f"project-{i:02d}-thumb.jpg"), 80)
+
+    img = render(1920, 1280, 1, "wardrobe", "", icon_scale=0.46)
+    save(img, os.path.join(out, "hero.jpg"), 88)
+
+    img = render(1200, 630, 6, "wardrobe", "Bespoke wardrobes, tables & fitted furniture", icon_scale=0.35)
+    save(img, os.path.join(out, "og-image.jpg"), 90)
+
+    print("done")
+
+if __name__ == "__main__":
+    main()

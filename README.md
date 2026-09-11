@@ -13,6 +13,10 @@ assets/js/main.js       Lightbox, analytics hooks, contact form handling
 assets/img/             Photos (currently placeholders — see below)
 assets/icons/           Favicon + app icons
 assets/site.webmanifest PWA-style manifest (used for icons)
+wrangler.jsonc          Cloudflare Workers config (tells it to serve this
+                        repo as static assets — see "Deploying" below)
+.assetsignore           Files Cloudflare should NOT publish (its own
+                        config, .git, scripts/, README.md)
 ```
 
 ## 1. Real photos (do this first)
@@ -135,6 +139,13 @@ this GitHub repository. Every push to `main` automatically triggers a new
 build and deployment — no manual upload needed. The custom domain
 `simpleinterior.com` is configured in the Cloudflare project's Domains
 tab.
+
+`wrangler.jsonc` at the repo root tells Cloudflare's deploy command
+(`npx wrangler deploy`) to serve this whole folder as static assets;
+`.assetsignore` keeps Cloudflare from publishing files that shouldn't be
+public (`.git`, this README, the `scripts/` folder, its own config file).
+If a build ever fails with something like "no assets found" or "missing
+entry-point," check that both files are still present at the repo root.
 
 This is a static site with no build step, so it would also run unchanged
 on any other static host (Netlify, Vercel, GitHub Pages, S3+CloudFront,

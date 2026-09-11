@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Warm wood-panelled background">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3A2C21"/>
+      <stop offset="42%" stop-color="#7A6048"/>
+      <stop offset="72%" stop-color="#5E4835"/>
+      <stop offset="100%" stop-color="#2B2018"/>
+    </linearGradient>
+
+    <radialGradient id="spot" cx="0.28" cy="0.34" r="0.75">
+      <stop offset="0%" stop-color="#C79A6D" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#8A6B4E" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="slatShade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.34"/>
+      <stop offset="18%" stop-color="#000000" stop-opacity="0.04"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+      <stop offset="88%" stop-color="#000000" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.32"/>
+    </linearGradient>
+
+    <linearGradient id="readability" x1="0" y1="0" x2="1" y2="0.25">
+      <stop offset="0%" stop-color="#1A120C" stop-opacity="0.72"/>
+      <stop offset="45%" stop-color="#1A120C" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#1A120C" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <radialGradient id="vignette" cx="0.5" cy="0.48" r="0.78">
+      <stop offset="55%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+    </radialGradient>
+
+    <filter id="grainFilter" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="7" result="n"/>
+      <feColorMatrix type="saturate" values="0" in="n" result="ng"/>
+      <feComponentTransfer in="ng">
+        <feFuncA type="linear" slope="0.16"/>
+      </feComponentTransfer>
+    </filter>
+
+    <filter id="woodFilter" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.16" numOctaves="4" seed="21" result="w"/>
+      <feColorMatrix type="saturate" values="0" in="w" result="wg"/>
+      <feComponentTransfer in="wg">
+        <feFuncA type="linear" slope="0.22"/>
+      </feComponentTransfer>
+    </filter>
+
+    <g id="slatSet">
+      <rect x="0" y="0" width="160" height="1080" fill="url(#slatShade)"/>
+    </g>
+  </defs>
+
+  <!-- base wall -->
+  <rect width="1920" height="1080" fill="url(#wall)"/>
+
+  <!-- wood grain texture -->
+  <rect width="1920" height="1080" filter="url(#woodFilter)" opacity="0.5" style="mix-blend-mode:overlay"/>
+
+  <!-- vertical slats -->
+  <g>
+    <use href="#slatSet" x="0"/>
+    <use href="#slatSet" x="160"/>
+    <use href="#slatSet" x="320"/>
+    <use href="#slatSet" x="480"/>
+    <use href="#slatSet" x="640"/>
+    <use href="#slatSet" x="800"/>
+    <use href="#slatSet" x="960"/>
+    <use href="#slatSet" x="1120"/>
+    <use href="#slatSet" x="1280"/>
+    <use href="#slatSet" x="1440"/>
+    <use href="#slatSet" x="1600"/>
+    <use href="#slatSet" x="1760"/>
+  </g>
+
+  <!-- crisp seam lines between slats -->
+  <g stroke="#1C130D" stroke-opacity="0.5" stroke-width="2">
+    <line x1="160" y1="0" x2="160" y2="1080"/>
+    <line x1="320" y1="0" x2="320" y2="1080"/>
+    <line x1="480" y1="0" x2="480" y2="1080"/>
+    <line x1="640" y1="0" x2="640" y2="1080"/>
+    <line x1="800" y1="0" x2="800" y2="1080"/>
+    <line x1="960" y1="0" x2="960" y2="1080"/>
+    <line x1="1120" y1="0" x2="1120" y2="1080"/>
+    <line x1="1280" y1="0" x2="1280" y2="1080"/>
+    <line x1="1440" y1="0" x2="1440" y2="1080"/>
+    <line x1="1600" y1="0" x2="1600" y2="1080"/>
+    <line x1="1760" y1="0" x2="1760" y2="1080"/>
+  </g>
+
+  <!-- warm light wash from upper left -->
+  <rect width="1920" height="1080" fill="url(#spot)"/>
+
+  <!-- soft floor shadow -->
+  <rect y="880" width="1920" height="200" fill="#150E09" opacity="0.45"/>
+
+  <!-- darkening for headline readability on the left -->
+  <rect width="1920" height="1080" fill="url(#readability)"/>
+
+  <!--
+    Fitted-wardrobe line icon, centered so it survives cropping on any
+    viewport (portrait phones crop the sides under object-fit: cover).
+    Matches the same icon style used in "What We Build" and "Our Work"
+    elsewhere on the site, still honestly a sketch, not a real photo.
+  -->
+  <g stroke="#000000" stroke-opacity="0.35" stroke-width="15" fill="none">
+    <rect x="684" y="264" width="560" height="404"/>
+    <line x1="964" y1="264" x2="964" y2="668"/>
+    <rect x="926.4" y="486.2" width="8" height="48.5" stroke="none" fill="#000000" fill-opacity="0.35"/>
+    <rect x="993.6" y="486.2" width="8" height="48.5" stroke="none" fill="#000000" fill-opacity="0.35"/>
+  </g>
+  <g stroke="#F5F0E8" stroke-width="13" fill="none">
+    <rect x="680" y="260" width="560" height="404"/>
+    <line x1="960" y1="260" x2="960" y2="664"/>
+    <rect x="922.4" y="482.2" width="8" height="48.5" stroke="none" fill="#F5F0E8"/>
+    <rect x="989.6" y="482.2" width="8" height="48.5" stroke="none" fill="#F5F0E8"/>
+  </g>
+
+  <!-- vignette -->
+  <rect width="1920" height="1080" fill="url(#vignette)"/>
+
+  <!-- film grain -->
+  <rect width="1920" height="1080" filter="url(#grainFilter)" opacity="0.5"/>
+</svg>

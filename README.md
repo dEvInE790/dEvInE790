@@ -130,10 +130,16 @@ spot is marked with an HTML comment.
 
 ## Deploying
 
-This is a static site — any static host works (Netlify, Vercel, GitHub
-Pages, Cloudflare Pages, S3+CloudFront, etc.). There's no build step: just
-upload the folder. Make sure the host serves HTTPS and point your custom
-domain at it.
+This site is deployed via **Cloudflare Workers**, connected directly to
+this GitHub repository. Every push to `main` automatically triggers a new
+build and deployment — no manual upload needed. The custom domain
+`simpleinterior.com` is configured in the Cloudflare project's Domains
+tab.
+
+This is a static site with no build step, so it would also run unchanged
+on any other static host (Netlify, Vercel, GitHub Pages, S3+CloudFront,
+etc.) if ever needed — just upload the folder and point the host's
+custom-domain settings at it.
 
 ## Testing checklist before launch
 

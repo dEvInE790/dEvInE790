@@ -10,7 +10,7 @@ folder as-is to any static host.
 index.html              The whole page (hero, gallery, contact, etc.)
 assets/css/styles.css   All styling
 assets/js/main.js       Lightbox, analytics hooks, contact form handling
-assets/img/             Photos (currently placeholders — see below)
+assets/img/             Photos — see below
 assets/icons/           Favicon + app icons
 assets/site.webmanifest PWA-style manifest (used for icons)
 wrangler.jsonc          Cloudflare Workers config (tells it to serve this
@@ -21,16 +21,13 @@ wrangler.jsonc          Cloudflare Workers config (tells it to serve this
 
 ## 1. Real photos
 
-The gallery, social preview, and three of the four "What We Build"
-category cards (Fitted Wardrobes, TV Stands & Media Units, Custom Joinery)
-now use real project photos. Only **`assets/img/work/tables.jpg`** is still
-a placeholder — a line-art sketch, not a stock photo — since no table photo
-has been supplied yet. Replace it the same way as the others once one
-exists:
+The gallery, social preview, and all four "What We Build" category cards
+(Fitted Wardrobes, Tables, TV Stands & Media Units, Custom Joinery) now use
+real project photos.
 
 | Slot | File(s) | Recommended size |
 |---|---|---|
-| Category cards | `assets/img/work/wardrobes.jpg`, `tables.jpg` (still placeholder), `tv-stands.jpg`, `custom-joinery.jpg` | ~1000×750 |
+| Category cards | `assets/img/work/wardrobes.jpg`, `tables.jpg`, `tv-stands.jpg`, `custom-joinery.jpg` | ~1000×750 |
 | Gallery | `assets/img/gallery/project-01.jpg` … `project-10.jpg`, plus matching `-thumb.jpg` versions | full: ~1200×900, thumb: ~480×360 |
 | Social preview | `assets/img/og-image.jpg` | 1200×630 (shown when the link is shared on WhatsApp/social) |
 
@@ -44,9 +41,9 @@ Keep the same filenames to avoid editing HTML, or update the `src`/`data-full`
 paths in `index.html` if you rename files. Update each `alt` attribute and
 each gallery `data-caption`/`.cap` text to describe the new project.
 
-To regenerate the `tables.jpg` placeholder (or make a new one for a future
-empty slot), use `scripts/generate_placeholders.py` (`pip install Pillow`,
-then `python3 scripts/generate_placeholders.py`).
+To make a placeholder for a future empty slot, use
+`scripts/generate_placeholders.py` (`pip install Pillow`, then
+`python3 scripts/generate_placeholders.py`).
 
 To add more than 10 gallery photos: copy one `<button class="gallery-item">`
 block in the "Our Work" section of `index.html`, point it at new image files,

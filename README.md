@@ -21,7 +21,7 @@ wrangler.jsonc          Cloudflare Workers config (tells it to serve this
 
 ## 1. Real photos
 
-The hero, gallery, social preview, and three of the four "What We Build"
+The gallery, social preview, and three of the four "What We Build"
 category cards (Fitted Wardrobes, TV Stands & Media Units, Custom Joinery)
 now use real project photos. Only **`assets/img/work/tables.jpg`** is still
 a placeholder — a line-art sketch, not a stock photo — since no table photo
@@ -30,10 +30,15 @@ exists:
 
 | Slot | File(s) | Recommended size |
 |---|---|---|
-| Hero | `assets/img/hero.jpg` | any size, 16:9-ish |
 | Category cards | `assets/img/work/wardrobes.jpg`, `tables.jpg` (still placeholder), `tv-stands.jpg`, `custom-joinery.jpg` | ~1000×750 |
 | Gallery | `assets/img/gallery/project-01.jpg` … `project-10.jpg`, plus matching `-thumb.jpg` versions | full: ~1200×900, thumb: ~480×360 |
 | Social preview | `assets/img/og-image.jpg` | 1200×630 (shown when the link is shared on WhatsApp/social) |
+
+The hero section at the top of the page is a plain dark background (no
+photo) with the headline and buttons on top. To put a photo there instead,
+add an `<img>` back inside `.hero` in `index.html` and restore a
+`.hero-media`/`.hero-media img` rule in `assets/css/styles.css` (removed
+when the background was simplified) so text stays readable over it.
 
 Keep the same filenames to avoid editing HTML, or update the `src`/`data-full`
 paths in `index.html` if you rename files. Update each `alt` attribute and

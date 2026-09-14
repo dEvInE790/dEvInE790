@@ -248,42 +248,7 @@ textarea:focus-visible {
   align-items: flex-end;
   color: #fff;
   overflow: hidden;
-}
-.hero-media {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-.hero-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform-origin: 55% 45%;
-  animation: hero-kenburns 26s ease-in-out infinite alternate;
-}
-@keyframes hero-kenburns {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.12);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-media img {
-    animation: none;
-  }
-}
-.hero-media::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(20, 17, 15, 0.55) 0%,
-    rgba(20, 17, 15, 0.25) 35%,
-    rgba(20, 17, 15, 0.85) 100%
-  );
+  background: var(--color-charcoal);
 }
 .hero-content {
   position: relative;

@@ -51,14 +51,6 @@ and lightbox both handle any number of items automatically.
 **Keep photo treatment consistent** (same lighting/white balance/crop ratio)
 — this matters more than anything else for how professional the site looks.
 
-To add more than 10 gallery photos: copy one `<button class="gallery-item">`
-block in the "Our Work" section of `index.html`, point it at new image files,
-and update the alt text and caption. No other changes are needed — the grid
-and lightbox both handle any number of items automatically.
-
-**Keep photo treatment consistent** (same lighting/white balance/crop ratio)
-— this matters more than anything else for how professional the site looks.
-
 ## 2. Contact details
 
 WhatsApp/phone (`+234 813 692 5971`) and email (`simpleinteriortech@gmail.com`)

@@ -31,11 +31,15 @@ real project photos.
 | Gallery | `assets/img/gallery/project-01.jpg` … `project-10.jpg`, plus matching `-thumb.jpg` versions | full: ~1200×900, thumb: ~480×360 |
 | Social preview | `assets/img/og-image.jpg` | 1200×630 (shown when the link is shared on WhatsApp/social) |
 
-The hero section at the top of the page is a plain dark background (no
-photo) with the headline and buttons on top. To put a photo there instead,
-add an `<img>` back inside `.hero` in `index.html` and restore a
-`.hero-media`/`.hero-media img` rule in `assets/css/styles.css` (removed
-when the background was simplified) so text stays readable over it.
+The hero section at the top of the page uses `assets/img/hero.jpg`, a
+generated wood-panel texture (not a photo) behind the headline and
+buttons — deliberately not a stock or AI-generated photo, since neither
+would be an honest depiction of the business. Regenerate it any time with
+`python3 -c "import sys; sys.path.insert(0,'scripts'); from
+generate_placeholders import backdrop; backdrop(1920,1080,
+seed=42).save('assets/img/hero.jpg','JPEG',quality=88)"` (change `seed`
+for a different variation), or replace it with a real photo of your
+workshop/team once one exists — same filename, no HTML changes needed.
 
 Keep the same filenames to avoid editing HTML, or update the `src`/`data-full`
 paths in `index.html` if you rename files. Update each `alt` attribute and

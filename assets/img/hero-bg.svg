@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <rect width="1600" height="900" fill="#0a0a0a"/>
+
+  <!-- soft diagonal light sweep -->
+  <polygon points="0,900 700,0 1000,0 300,900" fill="#141414"/>
+  <polygon points="500,900 1100,0 1250,0 650,900" fill="#111111"/>
+
+  <!-- thin outline stripes -->
+  <g stroke="#ffffff" stroke-opacity="0.08" stroke-width="2">
+    <line x1="0" y1="150" x2="1600" y2="150"/>
+    <line x1="0" y1="450" x2="1600" y2="450"/>
+    <line x1="0" y1="750" x2="1600" y2="750"/>
+  </g>
+
+  <!-- abstract model silhouette (right side) -->
+  <g transform="translate(1120,120)" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="3">
+    <circle cx="120" cy="40" r="34"/>
+    <path d="M120 74 L120 160 M120 100 L60 180 M120 100 L185 170 M120 160 L70 420 M120 160 L175 420 M60 420 L90 420 M155 420 L185 420"/>
+    <path d="M70 150 Q120 210 175 150" />
+  </g>
+
+  <!-- scattered dots for texture -->
+  <g fill="#ffffff" fill-opacity="0.15">
+    <circle cx="120" cy="120" r="3"/>
+    <circle cx="220" cy="640" r="3"/>
+    <circle cx="1420" cy="200" r="3"/>
+    <circle cx="1500" cy="700" r="3"/>
+    <circle cx="380" cy="300" r="3"/>
+    <circle cx="90" cy="700" r="3"/>
+  </g>
+</svg>

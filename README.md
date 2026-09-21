@@ -1,135 +1,86 @@
-# Simple Interior Tech — Website
+# DIVINE — Fashion Website
 
-A single-page marketing site for a bespoke furniture business. Plain HTML/CSS/JS,
-no build step, no framework — open `index.html` in a browser or deploy the
-folder as-is to any static host.
+A modern, black-and-white fashion website for a clothing brand called
+**DIVINE**. Plain HTML, CSS and JavaScript — no build step, no framework,
+no installs required.
 
 ## What's here
 
 ```
-index.html              The whole page (hero, gallery, contact, etc.)
-assets/css/styles.css   All styling
-assets/js/main.js       Lightbox, analytics hooks, contact form handling
-assets/img/             Photos (currently placeholders — see below)
-assets/icons/           Favicon + app icons
-assets/site.webmanifest PWA-style manifest (used for icons)
+index.html              Homepage — hero banner + product section
+about.html               About Us page
+contact.html             Contact page with a working (demo) form
+cart.html                Shopping cart page
+assets/css/style.css     All styling (black-and-white theme, responsive)
+assets/js/script.js      Product data, cart logic, nav menu, contact form
+assets/img/              Hero graphic, page graphic, and product icons (SVG)
 ```
 
-## 1. Real photos (do this first)
+## How to run it on your laptop
 
-Every photo on the site is currently a **placeholder** — a plain toned panel
-labelled with what should go there. They are not stock photos; they exist so
-the layout can be reviewed before real photography is ready. Replace them
-before launch:
+You don't need to install anything special — it's just static files.
 
-| Slot | File(s) to replace | Recommended size |
-|---|---|---|
-| Hero | `assets/img/hero.jpg` | ~1920×1280, landscape |
-| Category cards | `assets/img/work/wardrobes.jpg`, `tables.jpg`, `tv-stands.jpg`, `custom-joinery.jpg` | ~1000×750 |
-| Gallery | `assets/img/gallery/project-01.jpg` … `project-10.jpg`, plus matching `-thumb.jpg` versions | full: ~1200×900, thumb: ~480×360 |
-| Social preview | `assets/img/og-image.jpg` | 1200×630 (shown when the link is shared on WhatsApp/social) |
+**Easiest way:**
+1. Download / clone this project folder onto your laptop.
+2. Double-click `index.html`. It will open in your default web browser.
+3. Click around — Home, Shop, About, Contact, Cart all work locally.
 
-Keep the same filenames to avoid editing HTML, or update the `src`/`data-full`
-paths in `index.html` if you rename files. Update each `alt` attribute and
-each gallery `data-caption` to describe the real project.
+**Better way (recommended), using a local server:**
+Opening the file directly works fine for this site, but running a tiny local
+server avoids a few browser quirks and is good practice for web projects.
 
-To add more than 10 gallery photos: copy one `<button class="gallery-item">`
-block in the "Our Work" section of `index.html`, point it at new image files,
-and update the alt text and caption. No other changes are needed — the grid
-and lightbox both handle any number of items automatically.
+- If you have [VS Code](https://code.visualstudio.com/), install the
+  **Live Server** extension, right-click `index.html`, and choose
+  "Open with Live Server".
+- If you have Python installed, open a terminal in this folder and run:
+  ```
+  python3 -m http.server 8000
+  ```
+  then visit `http://localhost:8000` in your browser.
+- If you have Node.js installed:
+  ```
+  npx serve .
+  ```
 
-**Keep photo treatment consistent** (same lighting/white balance/crop ratio)
-— this matters more than anything else for how professional the site looks.
+## How the site works
 
-## 2. Contact details
+- **Homepage (`index.html`)** — full-width hero banner (background image is
+  `assets/img/hero-bg.svg`) plus a "Shop Best Sellers" section that lists
+  products.
+- **Products** — defined once, as a plain JavaScript array (`PRODUCTS`) at
+  the top of `assets/js/script.js`. Both the homepage and the cart page read
+  from this same list, so you only ever update a product in one place.
+- **Shopping cart** — clicking "Add to Cart" saves the item to the browser's
+  `localStorage`, so the cart remembers your items even after a page reload
+  (on the same browser/device). The cart icon in the header always shows the
+  current item count. The cart page (`cart.html`) lets you change quantities,
+  remove items, and see a subtotal/shipping/total breakdown.
+- **Checkout** — this is a front-end demo, so the "Checkout" button just
+  shows a message. To take real payments you'd connect it to a service like
+  Stripe Checkout or Shopify.
+- **Contact form** — works entirely in the browser (no backend), so
+  submitting it just shows a confirmation message and doesn't actually send
+  an email yet. To make it send real emails, sign up for a free form service
+  like [Formspree](https://formspree.io) and point the form's `action`
+  attribute at your Formspree endpoint in `contact.html`.
 
-Search `index.html` for these placeholders and replace every instance
-(WhatsApp appears in the header, hero, contact section, footer and the
-floating button — the phone number appears twice in each `wa.me` link, once
-digits-only for the link and once formatted for display):
+## Customizing
 
-- `34600000000` — WhatsApp number in `https://wa.me/...` links (digits only,
-  country code first, no `+` or spaces)
-- `+34 600 000 000` — the same number, formatted for display
-- `hello@simpleinteriortech.example` — email address (`.example` is a
-  placeholder domain that intentionally never resolves)
-- Service area text in the Contact section and the JSON-LD block in `<head>`
+- **Products**: edit the `PRODUCTS` array at the top of `assets/js/script.js`
+  (name, price, image path).
+- **Product images**: currently simple line-art SVG icons in `assets/img/`
+  so the site works instantly with no photos needed. Swap in real product
+  photography by replacing those files (or changing the `image` path in
+  `PRODUCTS` to point at your own `.jpg`/`.png` files).
+- **Colors**: all colors are defined as CSS variables at the top of
+  `assets/css/style.css` (`:root { --black: ...; --white: ...; }`) — change
+  them there to re-theme the whole site.
+- **Text/branding**: search each HTML file for "DIVINE" / "Divine" to update
+  copy, and edit the contact details directly in `contact.html`.
 
-The WhatsApp links include a pre-filled message ("Hi, I'd like a quote
-for…") via the `?text=` parameter — edit the URL-encoded text there if you
-want different wording.
+## Browser support
 
-## 3. Contact form
-
-The form has no backend by default. `assets/js/main.js` handles it like this:
-
-- If `<form id="contact-form">`'s `action` attribute is a real URL (e.g. a
-  [Formspree](https://formspree.io) endpoint), it POSTs there and shows a
-  success/error message in place.
-- Otherwise it falls back to opening the visitor's email app with the
-  message pre-filled, addressed to `data-fallback-email` on the form.
-
-**Before launch**, either:
-1. Sign up for a form service (Formspree's free tier works well) and put
-   your endpoint in the form's `action` attribute, replacing
-   `REPLACE_WITH_FORM_ENDPOINT`, or
-2. Leave it on the mailto fallback, but test it on a real phone — some
-   users won't have an email app configured, so WhatsApp is the more
-   reliable channel and is emphasized throughout the page.
-
-## 4. Testimonials
-
-Deliberately left out. The brief is explicit: don't invent quotes. Once you
-have 2–3 real ones (first name + area), add a `<section id="testimonials">`
-between "How It Works" and "Contact" — a template is left as an HTML comment
-in `index.html` showing the markup and classes to use (`.testimonial-grid`,
-`.testimonial`, already styled in `styles.css`).
-
-## 5. Analytics
-
-`assets/js/main.js` tracks page views and every WhatsApp/email/phone/form
-click, and forwards them to `window.gtag` (Google Analytics 4) or
-`window.plausible` (Plausible) automatically if either is present — you
-don't need to touch the JS. To turn it on:
-
-1. Pick a provider (GA4 or Plausible are both fine; Plausible is
-   simpler and cookie-free).
-2. Paste that provider's tracking snippet into `<head>` in `index.html`
-   where the "Analytics" comment is.
-3. Done — clicks on WhatsApp/email/phone links and gallery opens will show
-   up as events in that provider's dashboard.
-
-Until a provider is configured, events are still logged to the browser
-console and `localStorage` (`sit_events`) so you can verify tracking is
-firing correctly during testing.
-
-## 6. Logo
-
-There's no logo file yet — the header/footer use a plain text wordmark plus
-a simple monogram badge (the "S" in a rounded square). If a real logo
-exists, replace the `.brand-mark` markup in the header and the favicon set
-in `assets/icons/` (regenerate at the same sizes: 16, 32, 180, 192, 512px).
-
-## 7. Google Business Profile
-
-Add the link in the footer's "Explore" column once a profile exists — the
-spot is marked with an HTML comment.
-
-## Deploying
-
-This is a static site — any static host works (Netlify, Vercel, GitHub
-Pages, Cloudflare Pages, S3+CloudFront, etc.). There's no build step: just
-upload the folder. Make sure the host serves HTTPS and point your custom
-domain at it.
-
-## Testing checklist before launch
-
-- [ ] Real photos in place, captions updated
-- [ ] WhatsApp number correct everywhere (test the `wa.me` links on a phone)
-- [ ] Email and phone links tested on a phone (`mailto:` and `tel:` open
-      correctly)
-- [ ] Contact form tested end-to-end (a real submission actually arrives)
-- [ ] Analytics snippet installed and an event confirmed in the dashboard
-- [ ] Custom domain + HTTPS live
-- [ ] Shared the URL in WhatsApp once to confirm the link preview (uses
-      `assets/img/og-image.jpg`) looks right
+Works in all modern browsers (Chrome, Firefox, Safari, Edge). No Internet
+connection is required to browse the site itself — the only external
+resource is the Google Fonts stylesheet, and the site falls back to a
+system font automatically if that can't load.

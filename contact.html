@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DIVINE | Modern Fashion</title>
-<meta name="description" content="DIVINE — modern, minimal fashion in black and white. Shop new-season pieces designed to move with you." />
+<title>Contact | DIVINE</title>
+<meta name="description" content="Get in touch with the DIVINE team — questions, orders, and press." />
 <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -21,10 +21,10 @@
     <a class="brand" href="index.html">Divine</a>
 
     <nav class="site-nav">
-      <a href="index.html" aria-current="page">Home</a>
+      <a href="index.html">Home</a>
       <a href="index.html#shop">Shop</a>
       <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
+      <a href="contact.html" aria-current="page">Contact</a>
       <a class="cart-link" href="cart.html">
         Cart <span class="cart-count" data-cart-count>0</span>
       </a>
@@ -38,47 +38,56 @@
 
 <main id="main">
 
-  <!-- ===== Hero ===== -->
-  <section class="hero">
-    <div class="container hero__content">
-      <p class="hero__eyebrow">New Season Arrivals</p>
-      <h1 class="hero__title">Style, Stripped Back.</h1>
-      <p class="hero__text">
-        Clean silhouettes. No noise. DIVINE is fashion built on contrast —
-        black, white, and everything considered.
-      </p>
-      <a href="#shop" class="btn btn--solid">Shop the Collection</a>
+  <section class="page-header">
+    <div class="container">
+      <h1>Get In Touch</h1>
+      <p>Questions about an order, sizing, or just want to say hi?</p>
     </div>
   </section>
 
-  <!-- ===== Products ===== -->
-  <section class="section" id="shop">
-    <div class="container">
-      <div class="section-heading">
-        <p class="section-heading__eyebrow">The Edit</p>
-        <h2>Shop Best Sellers</h2>
-      </div>
+  <section class="section">
+    <div class="container contact-grid">
 
-      <!-- Product cards are injected here by assets/js/script.js -->
-      <div class="product-grid" id="product-grid"></div>
-    </div>
-  </section>
+      <form id="contact-form" novalidate>
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required />
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required />
+        </div>
+        <div class="form-group">
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="6" required></textarea>
+        </div>
+        <button type="submit" class="btn btn--solid">Send Message</button>
+        <p id="form-status" class="form-status" role="status"></p>
+      </form>
 
-  <!-- ===== Value strip ===== -->
-  <section class="value-strip">
-    <div class="container">
-      <div>
-        <h3>Free Shipping</h3>
-        <p>On every order over $100, no code needed.</p>
-      </div>
-      <div>
-        <h3>Easy Returns</h3>
-        <p>30 days to change your mind, full refund.</p>
-      </div>
-      <div>
-        <h3>Made to Last</h3>
-        <p>Considered fabrics, built for repeat wear.</p>
-      </div>
+      <aside class="contact-info">
+        <h3>Customer Care</h3>
+        <p>Our team typically replies within one business day.</p>
+        <ul class="contact-details">
+          <li>
+            <strong>Email</strong>
+            hello@divine-fashion.example
+          </li>
+          <li>
+            <strong>Phone</strong>
+            +1 (555) 123-4567
+          </li>
+          <li>
+            <strong>Studio</strong>
+            123 Fifth Avenue, New York, NY
+          </li>
+          <li>
+            <strong>Hours</strong>
+            Mon–Fri, 9am–6pm EST
+          </li>
+        </ul>
+      </aside>
+
     </div>
   </section>
 

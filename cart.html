@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DIVINE | Modern Fashion</title>
-<meta name="description" content="DIVINE — modern, minimal fashion in black and white. Shop new-season pieces designed to move with you." />
+<title>Your Cart | DIVINE</title>
+<meta name="description" content="Review the items in your DIVINE shopping cart." />
 <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -21,11 +21,11 @@
     <a class="brand" href="index.html">Divine</a>
 
     <nav class="site-nav">
-      <a href="index.html" aria-current="page">Home</a>
+      <a href="index.html">Home</a>
       <a href="index.html#shop">Shop</a>
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
-      <a class="cart-link" href="cart.html">
+      <a class="cart-link" href="cart.html" aria-current="page">
         Cart <span class="cart-count" data-cart-count>0</span>
       </a>
     </nav>
@@ -38,47 +38,20 @@
 
 <main id="main">
 
-  <!-- ===== Hero ===== -->
-  <section class="hero">
-    <div class="container hero__content">
-      <p class="hero__eyebrow">New Season Arrivals</p>
-      <h1 class="hero__title">Style, Stripped Back.</h1>
-      <p class="hero__text">
-        Clean silhouettes. No noise. DIVINE is fashion built on contrast —
-        black, white, and everything considered.
-      </p>
-      <a href="#shop" class="btn btn--solid">Shop the Collection</a>
+  <section class="page-header">
+    <div class="container">
+      <h1>Your Cart</h1>
+      <p>Review your items before checking out.</p>
     </div>
   </section>
 
-  <!-- ===== Products ===== -->
-  <section class="section" id="shop">
-    <div class="container">
-      <div class="section-heading">
-        <p class="section-heading__eyebrow">The Edit</p>
-        <h2>Shop Best Sellers</h2>
-      </div>
+  <section class="section">
+    <div class="container cart-layout">
+      <!-- Cart rows are injected here by assets/js/script.js -->
+      <div id="cart-container"></div>
 
-      <!-- Product cards are injected here by assets/js/script.js -->
-      <div class="product-grid" id="product-grid"></div>
-    </div>
-  </section>
-
-  <!-- ===== Value strip ===== -->
-  <section class="value-strip">
-    <div class="container">
-      <div>
-        <h3>Free Shipping</h3>
-        <p>On every order over $100, no code needed.</p>
-      </div>
-      <div>
-        <h3>Easy Returns</h3>
-        <p>30 days to change your mind, full refund.</p>
-      </div>
-      <div>
-        <h3>Made to Last</h3>
-        <p>Considered fabrics, built for repeat wear.</p>
-      </div>
+      <!-- Subtotal / total is injected here too -->
+      <div class="cart-summary" id="cart-summary"></div>
     </div>
   </section>
 

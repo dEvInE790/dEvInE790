@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 700">
+  <rect width="600" height="700" fill="#111111"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="3">
+    <!-- coat silhouette -->
+    <path d="M300 90 a45 45 0 1 0 0.1 0" />
+    <path d="M300 136 L300 260" />
+    <path d="M300 160 L180 230 L165 610" />
+    <path d="M300 160 L420 230 L435 610" />
+    <path d="M165 610 L235 610 L245 360" />
+    <path d="M435 610 L365 610 L355 360" />
+    <path d="M245 360 L300 400 L355 360" />
+    <path d="M180 230 L300 300 L420 230" />
+  </g>
+  <g stroke="#ffffff" stroke-opacity="0.15" stroke-width="1">
+    <line x1="0" y1="60" x2="600" y2="60"/>
+    <line x1="0" y1="640" x2="600" y2="640"/>
+  </g>
+</svg>

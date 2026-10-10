@@ -118,44 +118,10 @@
         <h2>Furniture made for your space, not off a shelf</h2>
         <p>Every piece is measured, designed and built to fit — no gaps, no compromises.</p>
       </div>
-      <div class="category-grid">
-        <article class="category-card">
-          <div class="thumb">
-            <img src="assets/img/work/wardrobes.jpg" alt="Children's fitted wardrobe built by Simple Interior Tech" loading="lazy" width="1000" height="750" />
-          </div>
-          <div class="body">
-            <h3>Fitted Wardrobes</h3>
-            <p>Floor-to-ceiling storage built into awkward corners, sloped ceilings and alcoves.</p>
-          </div>
-        </article>
-        <article class="category-card">
-          <div class="thumb">
-            <img src="assets/img/work/tables.jpg" alt="Bespoke dining table with chairs built by Simple Interior Tech" loading="lazy" width="1000" height="750" />
-          </div>
-          <div class="body">
-            <h3>Tables</h3>
-            <p>Dining, coffee and console tables in solid wood, sized exactly to your room.</p>
-          </div>
-        </article>
-        <article class="category-card">
-          <div class="thumb">
-            <img src="assets/img/work/tv-stands.jpg" alt="Fitted TV media wall with wood slat and marble finish, built by Simple Interior Tech" loading="lazy" width="1000" height="750" />
-          </div>
-          <div class="body">
-            <h3>TV Stands &amp; Media Units</h3>
-            <p>Clean, cable-tidy media units designed around your TV and living space.</p>
-          </div>
-        </article>
-        <article class="category-card">
-          <div class="thumb">
-            <img src="assets/img/work/custom-joinery.jpg" alt="Fitted vanity units built into arched alcoves, a salon fit-out by Simple Interior Tech" loading="lazy" width="1000" height="750" />
-          </div>
-          <div class="body">
-            <h3>Custom Joinery</h3>
-            <p>Shelving, desks, window seats and one-off pieces built to solve a specific space.</p>
-          </div>
-        </article>
-      </div>
+      <div class="category-filters" id="category-filters" hidden></div>
+      <p class="state-message" id="category-loading">Loading our work&hellip;</p>
+      <p class="state-message" id="category-empty" hidden>No products to show yet &mdash; check back soon.</p>
+      <div class="category-grid" id="category-grid"></div>
     </div>
   </section>
 
@@ -167,53 +133,9 @@
         <h2>Recent projects</h2>
         <p>Tap any photo for a closer look.</p>
       </div>
-      <div class="gallery-grid">
-        <!--
-          Each figure below is one gallery slot. To add more, copy a
-          <button class="gallery-item"> block and change the image paths,
-          alt text and data-caption. Keep captions short (project + area).
-        -->
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-01.jpg" data-caption="Tufted sofa set">
-          <img src="assets/img/gallery/project-01-thumb.jpg" alt="Tufted sofa set built by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">Tufted sofa set</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-02.jpg" data-caption="TV media wall, backlit panel">
-          <img src="assets/img/gallery/project-02-thumb.jpg" alt="TV media wall with backlit panel, built by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">TV media wall, backlit panel</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-03.jpg" data-caption="Custom shoe & bag storage shelving">
-          <img src="assets/img/gallery/project-03-thumb.jpg" alt="Custom shoe and bag storage shelving built by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">Custom shoe &amp; bag storage shelving</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-04.jpg" data-caption="TV media wall, wood slat & marble finish">
-          <img src="assets/img/gallery/project-04-thumb.jpg" alt="TV media wall with wood slat and marble finish, built by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">TV media wall, wood slat &amp; marble finish</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-05.jpg" data-caption="TV media wall, bedroom fit-out">
-          <img src="assets/img/gallery/project-05-thumb.jpg" alt="TV media wall in a bedroom fit-out by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">TV media wall, bedroom fit-out</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-06.jpg" data-caption="TV media wall, backlit wall lamps">
-          <img src="assets/img/gallery/project-06-thumb.jpg" alt="TV media wall with backlit wall lamps, built by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">TV media wall, backlit wall lamps</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-07.jpg" data-caption="Fitted vanity units, salon fit-out">
-          <img src="assets/img/gallery/project-07-thumb.jpg" alt="Fitted vanity units in a salon fit-out by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">Fitted vanity units, salon fit-out</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-08.jpg" data-caption="Storage cabinet, marble-effect top">
-          <img src="assets/img/gallery/project-08-thumb.jpg" alt="Storage cabinet with marble-effect top built by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">Storage cabinet, marble-effect top</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-09.jpg" data-caption="Children's fitted wardrobe">
-          <img src="assets/img/gallery/project-09-thumb.jpg" alt="Children's fitted wardrobe built by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">Children&rsquo;s fitted wardrobe</span>
-        </button>
-        <button class="gallery-item" type="button" data-full="assets/img/gallery/project-10.jpg" data-caption="Curved lounge sofa set">
-          <img src="assets/img/gallery/project-10-thumb.jpg" alt="Curved lounge sofa set built by Simple Interior Tech" loading="lazy" width="480" height="360" />
-          <span class="cap">Curved lounge sofa set</span>
-        </button>
-      </div>
+      <p class="state-message" id="gallery-loading">Loading our work&hellip;</p>
+      <p class="state-message" id="gallery-empty" hidden>No projects to show yet &mdash; check back soon.</p>
+      <div class="gallery-grid" id="gallery-grid"></div>
     </div>
   </section>
 
@@ -329,19 +251,35 @@
         </p>
       </div>
 
-      <form class="contact-form" id="contact-form" action="REPLACE_WITH_FORM_ENDPOINT" method="POST" data-fallback-email="simpleinteriortech@gmail.com">
+      <form class="contact-form" id="contact-form" novalidate>
         <h3>Or send a message</h3>
         <div class="form-row">
           <label for="name">Name</label>
-          <input type="text" id="name" name="name" autocomplete="name" required />
+          <input type="text" id="name" name="name" autocomplete="name" maxlength="100" required />
         </div>
         <div class="form-row">
-          <label for="contact">Phone or email</label>
-          <input type="text" id="contact" name="contact" autocomplete="tel" required />
+          <label for="phone">Phone / WhatsApp</label>
+          <input type="tel" id="phone" name="phone" autocomplete="tel" maxlength="30" required />
+        </div>
+        <div class="form-row">
+          <label for="email">Email <span class="form-optional">(optional)</span></label>
+          <input type="email" id="email" name="email" autocomplete="email" maxlength="254" />
+        </div>
+        <div class="form-row">
+          <label for="interest">I'm interested in</label>
+          <select id="interest" name="interest">
+            <option value="">Select an option&hellip;</option>
+            <option value="Other">Other</option>
+          </select>
         </div>
         <div class="form-row">
           <label for="message">What do you need?</label>
-          <textarea id="message" name="message" required></textarea>
+          <textarea id="message" name="message" maxlength="2000" required></textarea>
+        </div>
+        <!-- Honeypot: hidden from real visitors; bots that auto-fill every field trip it. -->
+        <div class="form-row form-honeypot visually-hidden" aria-hidden="true">
+          <label for="company">Company</label>
+          <input type="text" id="company" name="company" tabindex="-1" autocomplete="off" />
         </div>
         <button class="btn btn-dark" type="submit" data-track="contact_form_attempt">Send message</button>
         <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
@@ -409,7 +347,11 @@
   <svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16.001 3C9.373 3 4 8.373 4 15c0 2.386.694 4.61 1.887 6.482L4 29l7.717-1.858A11.93 11.93 0 0 0 16 27c6.627 0 12-5.373 12-12S22.627 3 16 3zm.001 21.6c-1.86 0-3.59-.518-5.07-1.417l-.363-.216-4.578 1.102 1.13-4.463-.238-.375A9.55 9.55 0 0 1 5.4 15c0-5.855 4.746-10.6 10.6-10.6S26.6 9.145 26.6 15 21.856 24.6 16.001 24.6zm5.86-7.94c-.32-.16-1.89-.933-2.183-1.04-.293-.107-.507-.16-.72.16-.213.32-.827 1.04-1.014 1.253-.187.213-.373.24-.693.08-.32-.16-1.351-.498-2.573-1.588-.951-.848-1.593-1.895-1.78-2.215-.187-.32-.02-.493.14-.652.144-.144.32-.373.48-.56.16-.187.213-.32.32-.533.107-.213.053-.4-.027-.56-.08-.16-.72-1.735-.987-2.378-.26-.626-.524-.541-.72-.55l-.613-.011c-.213 0-.56.08-.853.4-.293.32-1.12 1.094-1.12 2.668s1.147 3.093 1.307 3.307c.16.213 2.257 3.445 5.468 4.83.764.33 1.36.527 1.825.674.767.244 1.464.21 2.016.127.615-.092 1.89-.773 2.157-1.518.267-.746.267-1.386.187-1.519-.08-.133-.293-.213-.613-.373z"/></svg>
 </a>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 <script src="assets/js/main.js"></script>
+<script src="assets/js/products.js"></script>
+<script src="assets/js/leads.js"></script>
 <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
 </body>
 </html>

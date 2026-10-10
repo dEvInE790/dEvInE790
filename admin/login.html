@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Login | Simple Interior Tech</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" type="image/x-icon" href="../assets/icons/favicon.ico" />
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      Simple Interior Tech
+    </div>
+
+    <section id="login-panel">
+      <h1>Admin Login</h1>
+      <p class="auth-sub">Sign in to manage products and enquiries.</p>
+
+      <form id="login-form" novalidate>
+        <div class="form-row">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" name="email" autocomplete="username" required />
+        </div>
+        <div class="form-row">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" name="password" autocomplete="current-password" required />
+        </div>
+        <p class="form-status" id="login-status" role="status" aria-live="polite"></p>
+        <button class="btn btn-dark" type="submit" style="width:100%">Log in</button>
+      </form>
+
+      <p class="auth-links">
+        <button type="button" class="link-btn" id="show-forgot">Forgot password?</button>
+      </p>
+    </section>
+
+    <section id="forgot-panel" hidden>
+      <h1>Reset your password</h1>
+      <p class="auth-sub">Enter your email and we'll send you a reset link.</p>
+
+      <form id="forgot-form" novalidate>
+        <div class="form-row">
+          <label for="forgot-email">Email</label>
+          <input type="email" id="forgot-email" name="email" autocomplete="username" required />
+        </div>
+        <p class="form-status" id="forgot-status" role="status" aria-live="polite"></p>
+        <button class="btn btn-dark" type="submit" style="width:100%">Send reset link</button>
+      </form>
+
+      <p class="auth-links">
+        <button type="button" class="link-btn" id="show-login">Back to login</button>
+      </p>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-config.js"></script>
+<script src="../assets/js/admin-auth.js"></script>
+<script src="../assets/js/admin-login.js"></script>
+</body>
+</html>

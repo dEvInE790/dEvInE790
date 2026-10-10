@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin | Simple Interior Tech</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" type="image/x-icon" href="../assets/icons/favicon.ico" />
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../assets/css/admin.css" />
+</head>
+<body>
+
+<div class="auth-page" id="loading-screen">
+  <p class="state-message">Checking your session&hellip;</p>
+</div>
+
+<div class="admin-app" id="admin-app" hidden>
+  <header class="admin-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      Simple Interior Tech Admin
+    </div>
+    <button class="btn btn-outline btn-small" id="logout-btn" type="button" style="color:#fff;border-color:rgba(255,255,255,.35)">Log out</button>
+  </header>
+
+  <nav class="admin-tabs">
+    <button class="admin-tab is-active" type="button" data-tab="products">Products</button>
+    <button class="admin-tab" type="button" data-tab="leads">Leads</button>
+  </nav>
+
+  <main class="admin-main">
+
+    <!-- ============ PRODUCTS TAB ============ -->
+    <section class="admin-panel" id="panel-products">
+      <div class="admin-panel-head">
+        <h2>Products</h2>
+        <button class="btn btn-dark btn-small" type="button" id="add-product-btn">+ Add product</button>
+      </div>
+
+      <form class="product-form" id="product-form" hidden novalidate>
+        <h3 id="product-form-title">Add product</h3>
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="product-name">Name</label>
+            <input type="text" id="product-name" maxlength="150" required />
+          </div>
+          <div class="form-row">
+            <label for="product-category">Category</label>
+            <input type="text" id="product-category" maxlength="80" required />
+          </div>
+          <div class="form-row">
+            <label for="product-price">Price</label>
+            <input type="text" id="product-price" maxlength="60" placeholder="e.g. From ₦180,000" />
+          </div>
+          <div class="form-row">
+            <label for="product-sort-order">Sort order</label>
+            <input type="number" id="product-sort-order" value="0" step="1" />
+          </div>
+          <div class="form-row span-2">
+            <label for="product-description">Description</label>
+            <textarea id="product-description" maxlength="500"></textarea>
+          </div>
+          <div class="form-row span-2">
+            <label for="product-image">Photo <span class="form-hint">(JPG/PNG, max 5MB)</span></label>
+            <input type="file" id="product-image" accept="image/*" />
+            <img class="image-preview" id="product-image-preview" hidden alt="" />
+            <p class="form-hint" id="product-image-hint"></p>
+          </div>
+          <div class="form-row form-row-inline span-2">
+            <input type="checkbox" id="product-published" />
+            <label for="product-published">Published (visible on the site)</label>
+          </div>
+        </div>
+        <p class="form-status" id="product-form-status" role="status" aria-live="polite"></p>
+        <div class="form-actions">
+          <button class="btn btn-dark" type="submit" id="product-save-btn">Save product</button>
+          <button class="btn btn-outline" type="button" id="product-cancel-btn">Cancel</button>
+        </div>
+      </form>
+
+      <p class="state-message" id="products-loading">Loading products&hellip;</p>
+      <p class="state-message" id="products-empty" hidden>No products yet &mdash; add your first one above.</p>
+      <div class="item-list" id="products-list"></div>
+    </section>
+
+    <!-- ============ LEADS TAB ============ -->
+    <section class="admin-panel" id="panel-leads" hidden>
+      <div class="admin-panel-head">
+        <h2>Leads</h2>
+      </div>
+      <p class="state-message" id="leads-loading">Loading enquiries&hellip;</p>
+      <p class="state-message" id="leads-empty" hidden>No enquiries yet.</p>
+      <div class="item-list" id="leads-list"></div>
+    </section>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-config.js"></script>
+<script src="../assets/js/admin-auth.js"></script>
+<script src="../assets/js/admin-dashboard.js"></script>
+</body>
+</html>

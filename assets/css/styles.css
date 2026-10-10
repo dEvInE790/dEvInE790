@@ -294,6 +294,46 @@ textarea:focus-visible {
   gap: 14px;
 }
 
+/* ---------- Loading / empty states (products + gallery) ---------- */
+.state-message {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 20px 0;
+}
+.gallery-section .state-message {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+/* ---------- Category filters ---------- */
+.category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 32px;
+}
+.filter-btn {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.filter-btn:hover {
+  border-color: var(--color-wood);
+  color: var(--color-wood);
+}
+.filter-btn.is-active {
+  background: var(--color-wood);
+  border-color: var(--color-wood);
+  color: #fff;
+}
+
 /* ---------- What We Build ---------- */
 .category-grid {
   display: grid;
@@ -342,6 +382,9 @@ textarea:focus-visible {
   color: var(--color-text-muted);
   font-size: 0.95rem;
   margin: 0;
+}
+.category-card[hidden] {
+  display: none;
 }
 
 /* ---------- Gallery ---------- */
@@ -647,7 +690,12 @@ textarea:focus-visible {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.85);
 }
+.form-optional {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 400;
+}
 .form-row input,
+.form-row select,
 .form-row textarea {
   width: 100%;
   padding: 12px 14px;

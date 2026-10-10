@@ -28,6 +28,10 @@
     }
   }
   window.SIT_trackEvent = trackEvent;
+  // Re-run after dynamically-inserted gallery items appear (see products.js) —
+  // safe to call more than once since it only binds listeners to items found
+  // at call time (the initial DOMContentLoaded call is a no-op: 0 items yet).
+  window.SIT_initLightbox = initLightbox;
 
   document.addEventListener("DOMContentLoaded", function () {
     trackEvent("page_view", { path: location.pathname });
@@ -43,7 +47,6 @@
 
     initHeaderScroll();
     initLightbox();
-    initContactForm();
   });
 
   /* ------------------------------------------------------------------
@@ -146,72 +149,6 @@
     );
   }
 
-  /* ------------------------------------------------------------------
-   * Contact form.
-   *
-   * No backend/CMS is in scope for v1, so this posts to an external form
-   * endpoint if one is configured (recommended: https://formspree.io or
-   * similar — put the endpoint in the form's action attribute in
-   * index.html). If no endpoint is configured, it falls back to opening
-   * the visitor's email client with the message pre-filled so nothing is
-   * silently lost — see README "Contact form" section before launch.
-   * ------------------------------------------------------------------ */
-  function initContactForm() {
-    var form = document.getElementById("contact-form");
-    if (!form) return;
-    var status = document.getElementById("form-status");
-    var endpoint = form.getAttribute("action") || "";
-    var usesRealEndpoint = /^https?:\/\//.test(endpoint) && endpoint.indexOf("REPLACE_WITH") === -1;
-
-    form.addEventListener("submit", function (e) {
-      var name = form.elements["name"].value.trim();
-      var contact = form.elements["contact"].value.trim();
-      var message = form.elements["message"].value.trim();
-
-      if (!name || !contact || !message) {
-        e.preventDefault();
-        setStatus("Please fill in your name, a way to reach you, and a short message.", "error");
-        return;
-      }
-
-      if (!usesRealEndpoint) {
-        e.preventDefault();
-        var to = form.getAttribute("data-fallback-email") || "";
-        var subject = encodeURIComponent("Quote request from website — " + name);
-        var body = encodeURIComponent(
-          "Name: " + name + "\nContact: " + contact + "\n\n" + message
-        );
-        window.location.href = "mailto:" + to + "?subject=" + subject + "&body=" + body;
-        setStatus("Opening your email app to send this — if nothing opens, email us directly below.", "success");
-        trackEvent("contact_form_mailto_fallback");
-        return;
-      }
-
-      e.preventDefault();
-      setStatus("Sending…", "");
-      fetch(endpoint, {
-        method: "POST",
-        headers: { Accept: "application/json" },
-        body: new FormData(form)
-      })
-        .then(function (res) {
-          if (res.ok) {
-            setStatus("Thanks — we've received your message and will reply soon.", "success");
-            form.reset();
-            trackEvent("contact_form_submit");
-          } else {
-            throw new Error("Form endpoint returned " + res.status);
-          }
-        })
-        .catch(function () {
-          setStatus("Something went wrong sending that. Please WhatsApp or email us directly instead.", "error");
-          trackEvent("contact_form_error");
-        });
-    });
-
-    function setStatus(text, state) {
-      status.textContent = text;
-      status.setAttribute("data-state", state || "");
-    }
-  }
+  // Contact form submission (save to Supabase leads table) lives in
+  // assets/js/leads.js, loaded after this file.
 })();

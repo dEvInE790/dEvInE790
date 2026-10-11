@@ -1,5 +1,8 @@
 # Simple Interior Tech — Website
 
+> This repo also contains a separate site for **Odinga Arts & Sculpture** in
+> [`odinga-arts/`](odinga-arts/). See its own README for details.
+
 A single-page marketing site for a bespoke furniture business. Plain HTML/CSS/JS,
 no build step, no framework — open `index.html` in a browser or deploy the
 folder as-is to any static host.

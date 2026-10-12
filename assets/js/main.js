@@ -28,10 +28,12 @@
     }
   }
   window.SIT_trackEvent = trackEvent;
-  // Re-run after dynamically-inserted gallery items appear (see products.js) —
-  // safe to call more than once since it only binds listeners to items found
-  // at call time (the initial DOMContentLoaded call is a no-op: 0 items yet).
+  // Re-run after dynamically-inserted gallery/category items appear (see
+  // products.js) — safe to call more than once since each only binds
+  // listeners to items found at call time (the initial DOMContentLoaded
+  // call is a no-op: 0 items yet).
   window.SIT_initLightbox = initLightbox;
+  window.SIT_initProductModal = initProductModal;
 
   document.addEventListener("DOMContentLoaded", function () {
     trackEvent("page_view", { path: location.pathname });
@@ -47,6 +49,7 @@
 
     initHeaderScroll();
     initLightbox();
+    initProductModal();
   });
 
   /* ------------------------------------------------------------------
@@ -147,6 +150,77 @@
       },
       { passive: true }
     );
+  }
+
+  /* ------------------------------------------------------------------
+   * Product details popup — opened from "What We Build" cards. Reads
+   * data-* attributes set on each card by products.js (same pattern as
+   * the gallery lightbox above, which reads data-full/data-caption).
+   * ------------------------------------------------------------------ */
+  var WHATSAPP_NUMBER = "2348136925971"; // same number used site-wide
+
+  function initProductModal() {
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".category-card"));
+    var modal = document.getElementById("product-modal");
+    if (!cards.length || !modal) return;
+
+    var imgEl = modal.querySelector(".product-modal-img");
+    var categoryEl = document.getElementById("product-modal-category");
+    var nameEl = document.getElementById("product-modal-name");
+    var descEl = document.getElementById("product-modal-desc");
+    var waEl = document.getElementById("product-modal-whatsapp");
+    var closeBtn = modal.querySelector(".lightbox-close");
+    var lastFocused = null;
+
+    function open(card) {
+      var name = card.getAttribute("data-name") || "";
+      var category = card.getAttribute("data-category") || "";
+      var description = card.getAttribute("data-description") || "";
+      var image = card.getAttribute("data-full") || "";
+
+      imgEl.src = image;
+      imgEl.alt = name;
+      categoryEl.textContent = category;
+      categoryEl.hidden = !category;
+      nameEl.textContent = name;
+      descEl.textContent = description;
+      descEl.hidden = !description;
+      waEl.href =
+        "https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent("Hi, I'm interested in " + name);
+
+      lastFocused = document.activeElement;
+      modal.hidden = false;
+      document.body.style.overflow = "hidden";
+      closeBtn.focus();
+      trackEvent("product_modal_open", { name: name });
+    }
+
+    function close() {
+      modal.hidden = true;
+      document.body.style.overflow = "";
+      if (lastFocused) lastFocused.focus();
+    }
+
+    cards.forEach(function (card) {
+      card.addEventListener("click", function () {
+        open(card);
+      });
+      card.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+          e.preventDefault();
+          open(card);
+        }
+      });
+    });
+
+    closeBtn.addEventListener("click", close);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) close();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (modal.hidden) return;
+      if (e.key === "Escape") close();
+    });
   }
 
   // Contact form submission (save to Supabase leads table) lives in

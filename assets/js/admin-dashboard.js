@@ -8,6 +8,24 @@
   var editingImageUrl = ""; // existing image_url kept if no new file is chosen on edit
   var selectedFile = null;
 
+  // image_url values can be full Supabase Storage URLs (newly uploaded) or
+  // relative paths left over from the static-site import (e.g.
+  // "assets/img/work/wardrobes.jpg"). This page lives at /admin/, so a
+  // relative path needs to resolve against the site root, not this folder.
+  function resolveImageUrl(url) {
+    if (!url) return "";
+    if (/^https?:\/\//i.test(url)) return url;
+    return "../" + url.replace(/^\/+/, "");
+  }
+
+  // Never let a broken image show the browser's broken-icon — hide it
+  // (or swap to a neutral placeholder) instead.
+  function hideOnError(img) {
+    img.addEventListener("error", function () {
+      img.hidden = true;
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     window.AdminAuth.requireAdminOrRedirect().then(function (result) {
       if (!result) return; // already redirected to login
@@ -80,11 +98,14 @@
     var card = document.createElement("div");
     card.className = "item-card";
 
-    var img = document.createElement("img");
-    img.className = "item-thumb";
-    img.src = p.image_url || "";
-    img.alt = "";
-    card.appendChild(img);
+    if (p.image_url) {
+      var img = document.createElement("img");
+      img.className = "item-thumb";
+      img.src = resolveImageUrl(p.image_url);
+      img.alt = "";
+      hideOnError(img);
+      card.appendChild(img);
+    }
 
     var body = document.createElement("div");
     body.className = "item-body";
@@ -225,6 +246,7 @@
       openProductForm(null);
     });
     cancelBtn.addEventListener("click", closeProductForm);
+    hideOnError(imagePreview);
 
     imageInput.addEventListener("change", function () {
       imageHint.textContent = "";
@@ -276,12 +298,12 @@
     document.getElementById("product-description").value = product ? product.description || "" : "";
     document.getElementById("product-published").checked = product ? !!product.published : false;
 
+    imagePreview.removeAttribute("src");
     if (editingImageUrl) {
-      imagePreview.src = editingImageUrl;
       imagePreview.hidden = false;
+      imagePreview.src = resolveImageUrl(editingImageUrl);
     } else {
       imagePreview.hidden = true;
-      imagePreview.src = "";
     }
 
     title.textContent = product ? "Edit product" : "Add product";

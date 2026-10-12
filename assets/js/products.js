@@ -79,6 +79,8 @@
     products.forEach(function (p) {
       e.categoryGrid.appendChild(buildCategoryCard(p));
     });
+
+    if (typeof window.SIT_initProductModal === "function") window.SIT_initProductModal();
   }
 
   function renderFilters(filtersEl, categoryGrid, products) {
@@ -118,6 +120,13 @@
     var card = document.createElement("article");
     card.className = "category-card";
     card.setAttribute("data-category", p.category || "");
+    card.setAttribute("data-name", p.name || "");
+    card.setAttribute("data-description", p.description || "");
+    card.setAttribute("data-full", p.image_url || "");
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-haspopup", "dialog");
+    card.setAttribute("aria-label", "View details" + (p.name ? " for " + p.name : ""));
 
     var thumb = document.createElement("div");
     thumb.className = "thumb";

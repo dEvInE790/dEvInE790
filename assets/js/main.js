@@ -2,65 +2,65 @@
   "use strict";
 
   /* ------------------------------------------------------------------
-   * Analytics: provider-agnostic click/pageview tracking.
-   * Wire up a real provider (GA4, Plausible, Fathom...) by dropping its
-   * snippet in index.html <head> — this just forwards events to whatever
-   * it finds (window.gtag or window.plausible), and always logs to
-   * console + localStorage so it works before analytics is configured.
+   * Analytics (optional). Forwards contact and gallery clicks to GA4 or
+   * Plausible if their snippet has been added to index.html. Does
+   * nothing otherwise.
    * ------------------------------------------------------------------ */
   function trackEvent(name, params) {
-    params = params || {};
     try {
       if (typeof window.gtag === "function") {
-        window.gtag("event", name, params);
+        window.gtag("event", name, params || {});
       } else if (typeof window.plausible === "function") {
-        window.plausible(name, { props: params });
+        window.plausible(name, { props: params || {} });
       }
     } catch (e) {
       /* analytics must never break the page */
     }
-    try {
-      var log = JSON.parse(localStorage.getItem("sit_events") || "[]");
-      log.push({ name: name, params: params, t: Date.now() });
-      localStorage.setItem("sit_events", JSON.stringify(log.slice(-50)));
-    } catch (e) {
-      /* storage unavailable (private mode, quota) — ignore */
-    }
   }
-  window.SIT_trackEvent = trackEvent;
 
-  document.addEventListener("DOMContentLoaded", function () {
-    trackEvent("page_view", { path: location.pathname });
-
-    // Track every outbound WhatsApp / email / phone / social click.
-    document.querySelectorAll("[data-track]").forEach(function (el) {
-      el.addEventListener("click", function () {
-        trackEvent(el.getAttribute("data-track"), {
-          href: el.getAttribute("href") || ""
-        });
-      });
+  document.querySelectorAll("[data-track]").forEach(function (el) {
+    el.addEventListener("click", function () {
+      trackEvent(el.getAttribute("data-track"));
     });
-
-    initHeaderScroll();
-    initLightbox();
-    initContactForm();
   });
 
+  var year = document.getElementById("year");
+  if (year) year.textContent = new Date().getFullYear();
+
+  initNav();
+  initLightbox();
+
   /* ------------------------------------------------------------------
-   * Header: solid background once the hero photo has scrolled past.
+   * Mobile navigation toggle.
    * ------------------------------------------------------------------ */
-  function initHeaderScroll() {
-    var header = document.querySelector(".site-header");
-    if (!header) return;
-    var toggle = function () {
-      header.classList.toggle("is-scrolled", window.scrollY > 40);
-    };
-    toggle();
-    window.addEventListener("scroll", toggle, { passive: true });
+  function initNav() {
+    var toggle = document.querySelector(".nav-toggle");
+    var nav = document.getElementById("site-nav");
+    if (!toggle || !nav) return;
+
+    function setOpen(open) {
+      toggle.setAttribute("aria-expanded", String(open));
+      nav.classList.toggle("is-open", open);
+    }
+
+    toggle.addEventListener("click", function () {
+      setOpen(toggle.getAttribute("aria-expanded") !== "true");
+    });
+
+    nav.addEventListener("click", function (e) {
+      if (e.target.closest("a")) setOpen(false);
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && nav.classList.contains("is-open")) {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
   }
 
   /* ------------------------------------------------------------------
-   * Lightbox gallery — keyboard + touch friendly, no dependencies.
+   * Gallery lightbox: keyboard, tap and swipe friendly.
    * ------------------------------------------------------------------ */
   function initLightbox() {
     var items = Array.prototype.slice.call(document.querySelectorAll(".gallery-item"));
@@ -72,17 +72,20 @@
     var closeBtn = lightbox.querySelector(".lightbox-close");
     var prevBtn = lightbox.querySelector(".lightbox-prev");
     var nextBtn = lightbox.querySelector(".lightbox-next");
-    var currentIndex = 0;
+    var current = 0;
     var lastFocused = null;
 
     function show(index) {
-      currentIndex = (index + items.length) % items.length;
-      var el = items[currentIndex];
-      var full = el.getAttribute("data-full") || el.querySelector("img").src;
-      var caption = el.getAttribute("data-caption") || "";
-      imgEl.src = full;
-      imgEl.alt = el.querySelector("img").alt || caption;
-      capEl.textContent = caption;
+      current = (index + items.length) % items.length;
+      var item = items[current];
+      var thumb = item.querySelector("img");
+      imgEl.src = item.getAttribute("data-full") || thumb.src;
+      imgEl.alt = thumb.alt;
+      capEl.textContent = thumb.alt + "  (" + (current + 1) + " of " + items.length + ")";
+
+      // Warm the cache for the next photo so swiping feels instant.
+      var next = items[(current + 1) % items.length].getAttribute("data-full");
+      if (next) new Image().src = next;
     }
 
     function open(index) {
@@ -91,7 +94,7 @@
       lightbox.hidden = false;
       document.body.style.overflow = "hidden";
       closeBtn.focus();
-      trackEvent("gallery_open", { index: index });
+      trackEvent("gallery_open", { photo: index + 1 });
     }
 
     function close() {
@@ -100,118 +103,56 @@
       if (lastFocused) lastFocused.focus();
     }
 
-    items.forEach(function (el, i) {
-      el.addEventListener("click", function () {
+    items.forEach(function (item, i) {
+      item.setAttribute("aria-label", "View larger: " + item.querySelector("img").alt);
+      item.addEventListener("click", function () {
         open(i);
       });
     });
 
     closeBtn.addEventListener("click", close);
     prevBtn.addEventListener("click", function () {
-      show(currentIndex - 1);
+      show(current - 1);
     });
     nextBtn.addEventListener("click", function () {
-      show(currentIndex + 1);
+      show(current + 1);
     });
 
+    // Tapping the dark backdrop closes the viewer.
     lightbox.addEventListener("click", function (e) {
-      if (e.target === lightbox) close();
+      if (e.target === lightbox || e.target.classList.contains("lightbox-figure")) close();
     });
 
     document.addEventListener("keydown", function (e) {
       if (lightbox.hidden) return;
       if (e.key === "Escape") close();
-      if (e.key === "ArrowLeft") show(currentIndex - 1);
-      if (e.key === "ArrowRight") show(currentIndex + 1);
+      else if (e.key === "ArrowLeft") show(current - 1);
+      else if (e.key === "ArrowRight") show(current + 1);
+      else if (e.key === "Tab") trapFocus(e);
     });
 
-    // basic swipe support
-    var touchStartX = null;
-    lightbox.addEventListener(
-      "touchstart",
-      function (e) {
-        touchStartX = e.changedTouches[0].clientX;
-      },
-      { passive: true }
-    );
-    lightbox.addEventListener(
-      "touchend",
-      function (e) {
-        if (touchStartX === null) return;
-        var dx = e.changedTouches[0].clientX - touchStartX;
-        if (Math.abs(dx) > 40) show(currentIndex + (dx < 0 ? 1 : -1));
-        touchStartX = null;
-      },
-      { passive: true }
-    );
-  }
-
-  /* ------------------------------------------------------------------
-   * Contact form.
-   *
-   * No backend/CMS is in scope for v1, so this posts to an external form
-   * endpoint if one is configured (recommended: https://formspree.io or
-   * similar — put the endpoint in the form's action attribute in
-   * index.html). If no endpoint is configured, it falls back to opening
-   * the visitor's email client with the message pre-filled so nothing is
-   * silently lost — see README "Contact form" section before launch.
-   * ------------------------------------------------------------------ */
-  function initContactForm() {
-    var form = document.getElementById("contact-form");
-    if (!form) return;
-    var status = document.getElementById("form-status");
-    var endpoint = form.getAttribute("action") || "";
-    var usesRealEndpoint = /^https?:\/\//.test(endpoint) && endpoint.indexOf("REPLACE_WITH") === -1;
-
-    form.addEventListener("submit", function (e) {
-      var name = form.elements["name"].value.trim();
-      var contact = form.elements["contact"].value.trim();
-      var message = form.elements["message"].value.trim();
-
-      if (!name || !contact || !message) {
-        e.preventDefault();
-        setStatus("Please fill in your name, a way to reach you, and a short message.", "error");
-        return;
-      }
-
-      if (!usesRealEndpoint) {
-        e.preventDefault();
-        var to = form.getAttribute("data-fallback-email") || "";
-        var subject = encodeURIComponent("Quote request from website — " + name);
-        var body = encodeURIComponent(
-          "Name: " + name + "\nContact: " + contact + "\n\n" + message
-        );
-        window.location.href = "mailto:" + to + "?subject=" + subject + "&body=" + body;
-        setStatus("Opening your email app to send this — if nothing opens, email us directly below.", "success");
-        trackEvent("contact_form_mailto_fallback");
-        return;
-      }
-
+    function trapFocus(e) {
+      var focusable = [closeBtn, prevBtn, nextBtn];
+      var idx = focusable.indexOf(document.activeElement);
       e.preventDefault();
-      setStatus("Sending…", "");
-      fetch(endpoint, {
-        method: "POST",
-        headers: { Accept: "application/json" },
-        body: new FormData(form)
-      })
-        .then(function (res) {
-          if (res.ok) {
-            setStatus("Thanks — we've received your message and will reply soon.", "success");
-            form.reset();
-            trackEvent("contact_form_submit");
-          } else {
-            throw new Error("Form endpoint returned " + res.status);
-          }
-        })
-        .catch(function () {
-          setStatus("Something went wrong sending that. Please WhatsApp or email us directly instead.", "error");
-          trackEvent("contact_form_error");
-        });
-    });
-
-    function setStatus(text, state) {
-      status.textContent = text;
-      status.setAttribute("data-state", state || "");
+      var step = e.shiftKey ? -1 : 1;
+      focusable[(idx + step + focusable.length) % focusable.length].focus();
     }
+
+    var startX = null;
+    var startY = null;
+    lightbox.addEventListener("touchstart", function (e) {
+      startX = e.changedTouches[0].clientX;
+      startY = e.changedTouches[0].clientY;
+    }, { passive: true });
+    lightbox.addEventListener("touchend", function (e) {
+      if (startX === null) return;
+      var dx = e.changedTouches[0].clientX - startX;
+      var dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        show(current + (dx < 0 ? 1 : -1));
+      }
+      startX = null;
+    }, { passive: true });
   }
 })();

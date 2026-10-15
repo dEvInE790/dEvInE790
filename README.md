@@ -1,135 +1,81 @@
 # Simple Interior Tech — Website
 
-A single-page marketing site for a bespoke furniture business. Plain HTML/CSS/JS,
-no build step, no framework — open `index.html` in a browser or deploy the
-folder as-is to any static host.
-
-## What's here
+A single-page website for Simple Interior Tech, a bespoke furniture and custom joinery
+business. It is plain HTML, CSS and JavaScript, with no build step and no framework.
 
 ```
-index.html              The whole page (hero, gallery, contact, etc.)
+index.html              The whole page
 assets/css/styles.css   All styling
-assets/js/main.js       Lightbox, analytics hooks, contact form handling
-assets/img/             Photos (currently placeholders — see below)
-assets/icons/           Favicon + app icons
-assets/site.webmanifest PWA-style manifest (used for icons)
+assets/js/main.js       Mobile menu, gallery lightbox, optional analytics
+assets/img/source/      Original photos (not published)
+assets/img/projects/    Web-optimised photos generated from source/
+assets/img/og-image.jpg Link preview image for WhatsApp/social (1200×630)
+assets/icons/           Favicon and app icons
+scripts/                Image optimisation script
+wrangler.jsonc          Cloudflare Workers deploy config
+.assetsignore           Files Cloudflare should not publish
 ```
 
-## 1. Real photos (do this first)
+## Sections
 
-Every photo on the site is currently a **placeholder** — a plain toned panel
-labelled with what should go there. They are not stock photos; they exist so
-the layout can be reviewed before real photography is ready. Replace them
-before launch:
+Hero → What We Build (service cards) → Our Work (gallery + lightbox) →
+How It Works → Contact (WhatsApp + email) → Footer, plus a floating WhatsApp
+button.
 
-| Slot | File(s) to replace | Recommended size |
-|---|---|---|
-| Hero | `assets/img/hero.jpg` | ~1920×1280, landscape |
-| Category cards | `assets/img/work/wardrobes.jpg`, `tables.jpg`, `tv-stands.jpg`, `custom-joinery.jpg` | ~1000×750 |
-| Gallery | `assets/img/gallery/project-01.jpg` … `project-10.jpg`, plus matching `-thumb.jpg` versions | full: ~1200×900, thumb: ~480×360 |
-| Social preview | `assets/img/og-image.jpg` | 1200×630 (shown when the link is shared on WhatsApp/social) |
+The Testimonials section is left out on purpose. Add it only when genuine
+customer reviews are available. An HTML comment in `index.html` marks where
+it goes, and its styles already exist (`.testimonial-grid`, `.testimonial`).
 
-Keep the same filenames to avoid editing HTML, or update the `src`/`data-full`
-paths in `index.html` if you rename files. Update each `alt` attribute and
-each gallery `data-caption` to describe the real project.
+## Photos
 
-To add more than 10 gallery photos: copy one `<button class="gallery-item">`
-block in the "Our Work" section of `index.html`, point it at new image files,
-and update the alt text and caption. No other changes are needed — the grid
-and lightbox both handle any number of items automatically.
+Only use photos of work Simple Interior Tech has actually built. Never use
+stock images presented as company projects.
 
-**Keep photo treatment consistent** (same lighting/white balance/crop ratio)
-— this matters more than anything else for how professional the site looks.
+To add or replace a photo:
 
-## 2. Contact details
+1. Put the original in `assets/img/source/` with a short descriptive name,
+   e.g. `walnut-coffee-table.jpg`.
+2. Run `python3 scripts/optimize_images.py` (needs Pillow: `pip install Pillow`).
+   It writes `<name>.jpg` (max 1280px, for the lightbox) and `<name>-sm.jpg`
+   (600px wide, for cards/grid) to `assets/img/projects/`, trims black side
+   bars, and rebuilds `og-image.jpg`.
+3. In `index.html`, copy a gallery `<li>` in the "Our Work" section, point
+   it at the new files, set `width`/`height` to the `-sm` image's size, and
+   write an `alt` description. The alt text is also the lightbox caption.
 
-Search `index.html` for these placeholders and replace every instance
-(WhatsApp appears in the header, hero, contact section, footer and the
-floating button — the phone number appears twice in each `wa.me` link, once
-digits-only for the link and once formatted for display):
+The gallery looks best with a multiple of 12 photos (it uses 2, 3 or 4
+columns depending on screen width).
 
-- `34600000000` — WhatsApp number in `https://wa.me/...` links (digits only,
-  country code first, no `+` or spaces)
-- `+34 600 000 000` — the same number, formatted for display
-- `hello@simpleinteriortech.example` — email address (`.example` is a
-  placeholder domain that intentionally never resolves)
-- Service area text in the Contact section and the JSON-LD block in `<head>`
+## Contact details
 
-The WhatsApp links include a pre-filled message ("Hi, I'd like a quote
-for…") via the `?text=` parameter — edit the URL-encoded text there if you
-want different wording.
+- WhatsApp / phone: `+234 813 692 5971` (`2348136925971` in `wa.me` links)
+- Email: `simpleinteriortech@gmail.com`
 
-## 3. Contact form
+These appear in the hero, contact section, footer, floating button and the
+JSON-LD block in `<head>`. Search and replace all instances when updating.
 
-The form has no backend by default. `assets/js/main.js` handles it like this:
+## Analytics (optional)
 
-- If `<form id="contact-form">`'s `action` attribute is a real URL (e.g. a
-  [Formspree](https://formspree.io) endpoint), it POSTs there and shows a
-  success/error message in place.
-- Otherwise it falls back to opening the visitor's email app with the
-  message pre-filled, addressed to `data-fallback-email` on the form.
+Paste a GA4 or Plausible snippet into `<head>` where the "Analytics" comment
+is. `main.js` then reports WhatsApp, email, phone and gallery clicks as
+events automatically. Nothing is tracked until a snippet is added.
 
-**Before launch**, either:
-1. Sign up for a form service (Formspree's free tier works well) and put
-   your endpoint in the form's `action` attribute, replacing
-   `REPLACE_WITH_FORM_ENDPOINT`, or
-2. Leave it on the mailto fallback, but test it on a real phone — some
-   users won't have an email app configured, so WhatsApp is the more
-   reliable channel and is emphasized throughout the page.
+## Deployment
 
-## 4. Testimonials
+The site is deployed with Cloudflare Workers (static assets) from this
+repository. `wrangler.jsonc` serves the repo root, and `.assetsignore`
+keeps source photos, scripts and config out of the published site.
 
-Deliberately left out. The brief is explicit: don't invent quotes. Once you
-have 2–3 real ones (first name + area), add a `<section id="testimonials">`
-between "How It Works" and "Contact" — a template is left as an HTML comment
-in `index.html` showing the markup and classes to use (`.testimonial-grid`,
-`.testimonial`, already styled in `styles.css`).
+The custom domain `simpleinterior.com` is set in the Cloudflare project's
+**Domains & Routes** settings. Cloudflare issues and renews the HTTPS
+certificate automatically once the domain is attached. To check:
 
-## 5. Analytics
+- `https://simpleinterior.com` loads with a padlock.
+- `http://simpleinterior.com` redirects to HTTPS. If it doesn't, enable
+  **Always Use HTTPS** under SSL/TLS → Edge Certificates.
 
-`assets/js/main.js` tracks page views and every WhatsApp/email/phone/form
-click, and forwards them to `window.gtag` (Google Analytics 4) or
-`window.plausible` (Plausible) automatically if either is present — you
-don't need to touch the JS. To turn it on:
+## Before going live
 
-1. Pick a provider (GA4 or Plausible are both fine; Plausible is
-   simpler and cookie-free).
-2. Paste that provider's tracking snippet into `<head>` in `index.html`
-   where the "Analytics" comment is.
-3. Done — clicks on WhatsApp/email/phone links and gallery opens will show
-   up as events in that provider's dashboard.
-
-Until a provider is configured, events are still logged to the browser
-console and `localStorage` (`sit_events`) so you can verify tracking is
-firing correctly during testing.
-
-## 6. Logo
-
-There's no logo file yet — the header/footer use a plain text wordmark plus
-a simple monogram badge (the "S" in a rounded square). If a real logo
-exists, replace the `.brand-mark` markup in the header and the favicon set
-in `assets/icons/` (regenerate at the same sizes: 16, 32, 180, 192, 512px).
-
-## 7. Google Business Profile
-
-Add the link in the footer's "Explore" column once a profile exists — the
-spot is marked with an HTML comment.
-
-## Deploying
-
-This is a static site — any static host works (Netlify, Vercel, GitHub
-Pages, Cloudflare Pages, S3+CloudFront, etc.). There's no build step: just
-upload the folder. Make sure the host serves HTTPS and point your custom
-domain at it.
-
-## Testing checklist before launch
-
-- [ ] Real photos in place, captions updated
-- [ ] WhatsApp number correct everywhere (test the `wa.me` links on a phone)
-- [ ] Email and phone links tested on a phone (`mailto:` and `tel:` open
-      correctly)
-- [ ] Contact form tested end-to-end (a real submission actually arrives)
-- [ ] Analytics snippet installed and an event confirmed in the dashboard
-- [ ] Custom domain + HTTPS live
-- [ ] Shared the URL in WhatsApp once to confirm the link preview (uses
-      `assets/img/og-image.jpg`) looks right
+- [ ] Tap every WhatsApp and email link on a real phone
+- [ ] Share the URL in a WhatsApp chat to check the link preview
+- [ ] Confirm HTTPS works on the custom domain

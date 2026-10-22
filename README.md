@@ -1,5 +1,8 @@
 # Simple Interior Tech — Website
 
+> This repository also contains a separate website for **Tush Beauty Spa (Houston)** in
+> [`tush-beauty-spa/`](tush-beauty-spa/README.md). It is independent of the Simple Interior Tech site below.
+
 A single-page marketing site for a bespoke furniture business. Plain HTML/CSS/JS,
 no build step, no framework — open `index.html` in a browser or deploy the
 folder as-is to any static host.

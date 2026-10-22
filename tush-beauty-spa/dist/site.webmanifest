@@ -1,0 +1,20 @@
+{
+  "name": "Tush Beauty Spa",
+  "short_name": "Tush Beauty Spa",
+  "start_url": "index.html",
+  "display": "browser",
+  "background_color": "#f7f2ea",
+  "theme_color": "#f7f2ea",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

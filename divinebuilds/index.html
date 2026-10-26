@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Divinebuilds — Websites &amp; Mobile Apps by Divine, Lagos</title>
+  <meta name="description" content="Divinebuilds is the portfolio and app store of Divine, a web and mobile developer in Lagos, Nigeria, building websites and apps with AI. Download apps and see recent work.">
+  <meta name="theme-color" content="#07090c">
+
+  <!-- Open Graph / social previews -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Divinebuilds">
+  <meta property="og:title" content="Divinebuilds — Websites &amp; Mobile Apps">
+  <meta property="og:description" content="I build websites and mobile apps with AI. Download my apps and see what I've built.">
+  <meta property="og:image" content="img/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="nav" id="top">
+    <div class="container nav__inner">
+      <a class="nav__brand" href="#hero" aria-label="Divinebuilds home">
+        <span class="nav__mark" aria-hidden="true">&lt;/&gt;</span>Divinebuilds
+      </a>
+      <button class="nav__toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Open menu">
+        <span></span><span></span>
+      </button>
+      <nav aria-label="Main">
+        <ul class="nav__links" id="nav-links">
+          <li><a href="#apps">Apps</a></li>
+          <li><a href="#websites">Websites</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#contact" class="nav__cta">Contact</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- HERO -->
+    <section class="hero" id="hero">
+      <div class="hero__bg" aria-hidden="true"></div>
+      <div class="container hero__content">
+        <p class="label">// web &amp; mobile developer · Lagos, NG</p>
+        <h1 class="hero__title">Divinebuilds</h1>
+        <p class="hero__tagline mono">
+          <span class="sr-only">I build websites and mobile apps with AI.</span>
+          <span class="typed" aria-hidden="true" data-text="I build websites and mobile apps with AI."></span><span class="cursor" aria-hidden="true"></span>
+        </p>
+        <div class="hero__actions">
+          <a class="btn btn--primary" href="#apps">See my apps</a>
+          <a class="btn btn--ghost" href="#contact">Contact me</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- APPS -->
+    <section class="section" id="apps">
+      <div class="container">
+        <header class="section__head reveal">
+          <p class="label">01 / app store</p>
+          <h2>Apps</h2>
+          <p class="section__lead">Install my apps straight to your phone.</p>
+        </header>
+        <div class="grid grid--apps" id="apps-grid"></div>
+      </div>
+    </section>
+
+    <!-- WEBSITES -->
+    <section class="section" id="websites">
+      <div class="container">
+        <header class="section__head reveal">
+          <p class="label">02 / websites</p>
+          <h2>Websites</h2>
+          <p class="section__lead">Sites I've built for real people and businesses.</p>
+        </header>
+        <div class="grid grid--sites" id="sites-grid"></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="section" id="about">
+      <div class="container about">
+        <div class="reveal">
+          <p class="label">03 / about</p>
+          <h2>Hi, I'm Divine.</h2>
+          <p>I'm a developer from Lagos, Nigeria, learning and building with AI every day. I make websites and mobile apps for real people and businesses, from artist portfolios with their own admin panels to offline-first apps for people who run on cash.</p>
+          <p>Divinebuilds is where everything I make lives, so you can always find it and install it in one place.</p>
+        </div>
+        <div class="about__skills reveal">
+          <p class="label">stack</p>
+          <ul class="skills">
+            <li>HTML</li>
+            <li>CSS</li>
+            <li>JavaScript</li>
+            <li>Supabase</li>
+            <li>React Native</li>
+            <li>Expo</li>
+            <li>Building with AI</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="section" id="contact">
+      <div class="container contact reveal">
+        <p class="label">04 / contact</p>
+        <h2>Let's build something.</h2>
+        <p class="section__lead">Need a website or an app? Send me a message.</p>
+        <div class="contact__actions" id="contact-actions"></div>
+        <dl class="contact__details mono" id="contact-details"></dl>
+        <div class="contact__socials" id="contact-socials"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner mono">
+      <span>Built by Divinebuilds</span>
+      <span>&copy; <span id="year"></span></span>
+    </div>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

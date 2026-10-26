@@ -40,8 +40,12 @@
       var status = STATUS_LABELS[app.status]
         ? '<span class="badge badge--' + esc(app.status) + '">' + STATUS_LABELS[app.status] + "</span>"
         : "";
-      // "download" makes the browser save the APK instead of trying to open it.
-      var apkName = app.apkUrl ? app.apkUrl.split("/").pop() : "";
+      // A file hosted with the site downloads directly; a full link (e.g. an
+      // Expo build page) opens in a new tab, where the browser ignores "download".
+      var apkExternal = /^https?:\/\//i.test(app.apkUrl || "");
+      var apkAttrs = apkExternal
+        ? ' target="_blank" rel="noopener"'
+        : ' download="' + esc(app.apkUrl ? app.apkUrl.split("/").pop() : "") + '"';
 
       return '' +
         '<article class="card app reveal">' +
@@ -53,7 +57,7 @@
           tagsHtml(app.tags) +
           '<div class="app__downloads">' +
             '<div class="download">' +
-              linkButton(app.apkUrl, "Download for Android (APK)", ' download="' + esc(apkName) + '"') +
+              linkButton(app.apkUrl, "Download for Android (APK)", apkAttrs) +
               '<p class="download__note">Your phone may ask you to allow installs from this source. Tap Settings and allow it, then open the file.</p>' +
             "</div>" +
             '<div class="download">' +

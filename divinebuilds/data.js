@@ -44,8 +44,9 @@ const CONFIG = {
    icon          Path to a square icon image (e.g. "img/apps/my-app.png"),
                  or "" to show the app's first letter instead.
    apkUrl        Link to the Android .apk file, or "" for "Coming soon".
-                 Tip: put the file in the downloads/ folder and use
-                 "downloads/my-app.apk".
+                 Either a file in the downloads/ folder ("downloads/my-app.apk",
+                 downloads straight away) or a full link such as an Expo
+                 build page (opens in a new tab).
    testflightUrl Your public TestFlight invite link
                  (https://testflight.apple.com/join/XXXXXX), or "" for "Coming soon".
    status        "live", "beta" or "in-progress" — shown as a small badge.
@@ -56,7 +57,7 @@ const APPS = [
     description: "An offline money tracker for people who earn cash daily.",
     tags: ["Expo", "React Native", "Offline-first"],
     icon: "",
-    apkUrl: "",          // TODO: e.g. "downloads/money-trail.apk"
+    apkUrl: "https://expo.dev/accounts/divineisfly/projects/money-trail/builds/9c454bcb-1c46-4399-8459-5c7f55a63443",
     testflightUrl: "",   // TODO: e.g. "https://testflight.apple.com/join/XXXXXX"
     status: "in-progress"
   }
@@ -77,14 +78,14 @@ const WEBSITES = [
     name: "Odinga Arts / Sculpture",
     description: "Portfolio website for an artist, with a Supabase admin area for managing content, images and login.",
     tags: ["HTML/CSS/JS", "Supabase", "Admin panel"],
-    image: "",
+    image: "img/sites/odinga-arts.jpg",
     url: "https://odingasculpture.com"
   },
   {
-    name: "Simple Furniture",
+    name: "Simple Interior Tech",
     description: "Website for a furniture store, with an admin area built on Supabase.",
     tags: ["HTML/CSS/JS", "Supabase", "Admin panel"],
-    image: "",
-    url: ""              // TODO: add the live link when ready
+    image: "img/sites/simple-interior-tech.jpg",
+    url: "https://simpleinteriortech.co"
   }
 ];

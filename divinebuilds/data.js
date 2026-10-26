@@ -78,7 +78,7 @@ const WEBSITES = [
     name: "Odinga Arts / Sculpture",
     description: "Portfolio website for an artist, with a Supabase admin area for managing content, images and login.",
     tags: ["HTML/CSS/JS", "Supabase", "Admin panel"],
-    image: "",
+    image: "img/sites/odinga-arts.jpg",
     url: "https://odingasculpture.com"
   },
   {

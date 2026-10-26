@@ -98,9 +98,22 @@
     if (CONFIG.whatsapp) {
       var wa = "https://wa.me/" + encodeURIComponent(CONFIG.whatsapp) +
         (CONFIG.whatsappMessage ? "?text=" + encodeURIComponent(CONFIG.whatsappMessage) : "");
-      html += '<a class="btn btn--ghost" href="' + esc(wa) + '" target="_blank" rel="noopener">Chat on WhatsApp</a>';
+      html += '<a class="btn btn--ghost" href="' + esc(wa) + '" target="_blank" rel="noopener">' +
+        "WhatsApp " + esc(CONFIG.phoneDisplay || "+" + CONFIG.whatsapp) + "</a>";
+    }
+    if (CONFIG.youtube) {
+      html += '<a class="btn btn--ghost" href="' + esc(CONFIG.youtube) + '" target="_blank" rel="noopener">YouTube</a>';
     }
     if (actions) actions.innerHTML = html;
+
+    // Plain-text details so people can copy them.
+    var details = document.getElementById("contact-details");
+    if (details) {
+      var rows = "";
+      if (CONFIG.email) rows += "<div><dt>Email</dt><dd>" + esc(CONFIG.email) + "</dd></div>";
+      if (CONFIG.whatsapp) rows += "<div><dt>Phone / WhatsApp</dt><dd>" + esc(CONFIG.phoneDisplay || "+" + CONFIG.whatsapp) + "</dd></div>";
+      details.innerHTML = rows;
+    }
 
     var names = { github: "GitHub", x: "X", instagram: "Instagram", linkedin: "LinkedIn", tiktok: "TikTok" };
     var links = Object.keys(CONFIG.socials || {}).filter(function (k) { return CONFIG.socials[k]; });

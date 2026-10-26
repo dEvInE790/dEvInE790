@@ -241,6 +241,15 @@ p { margin: 0 0 1em; }
 .contact .section__lead { margin-bottom: 28px; }
 .contact__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 20px; }
 .contact__actions .btn { min-width: 180px; }
+@media (max-width: 639px) {
+  .contact__actions { flex-direction: column; align-items: stretch; max-width: 340px; margin-left: auto; margin-right: auto; }
+}
+.contact__details {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 32px;
+  margin: 8px 0 24px; font-size: .9rem;
+}
+.contact__details dt { color: var(--muted); font-size: .75rem; margin-bottom: 2px; }
+.contact__details dd { margin: 0; color: var(--text); user-select: all; overflow-wrap: anywhere; }
 .contact__socials { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .contact__socials a {
   font: .85rem var(--font-mono); color: var(--muted); text-decoration: none;

@@ -13,13 +13,16 @@
 
 /* ---------------------------------------------------------------------
    1. CONFIG
-   Replace every value marked TODO with your real details.
-   Leave a social link as "" (empty) to hide its button.
+   Your contact details. The Contact section shows an Email, WhatsApp and
+   YouTube button, plus the email and phone number as plain text.
+   Extra social links: leave as "" (empty) to hide that button.
    --------------------------------------------------------------------- */
 const CONFIG = {
-  email: "hello@divinebuilds.example",        // TODO: your email address
-  whatsapp: "2340000000000",                   // TODO: WhatsApp number, digits only, with country code (234...), no + or spaces
+  email: "ojigbanidivine607@gmail.com",
+  whatsapp: "2348028139086",                   // digits only, with country code, no + or spaces (used for the wa.me link)
+  phoneDisplay: "+234 802 813 9086",           // how the number is shown on the page
   whatsappMessage: "Hi Divine, I saw Divinebuilds and I'd like to talk about a project.",
+  youtube: "https://www.youtube.com/@ojigbanidivine",
   socials: {
     github: "",      // TODO: e.g. "https://github.com/yourname"
     x: "",           // TODO: e.g. "https://x.com/yourname"

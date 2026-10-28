@@ -90,6 +90,27 @@
     }).join("");
   }
 
+  function renderCerts() {
+    var grid = document.getElementById("certs-grid");
+    if (!grid || typeof CERTIFICATES === "undefined") return;
+
+    grid.innerHTML = CERTIFICATES.map(function (cert) {
+      var verify = cert.verifyUrl
+        ? '<a class="cert__verify" href="' + esc(cert.verifyUrl) + '" target="_blank" rel="noopener">Verify online</a>'
+        : "";
+      return '' +
+        '<article class="card cert reveal">' +
+          '<a class="cert__img" href="' + esc(cert.image) + '" target="_blank" rel="noopener" aria-label="View the ' + esc(cert.title) + ' certificate full size">' +
+            '<img src="' + esc(cert.image) + '" alt="' + esc(cert.title) + ' certificate from ' + esc(cert.issuer) + '" loading="lazy">' +
+          "</a>" +
+          '<p class="cert__issuer mono">' + esc(cert.issuer) + "</p>" +
+          "<h3>" + esc(cert.title) + "</h3>" +
+          '<p class="cert__date">' + esc(cert.date) + "</p>" +
+          verify +
+        "</article>";
+    }).join("");
+  }
+
   function renderContact() {
     if (typeof CONFIG === "undefined") return;
     var actions = document.getElementById("contact-actions");
@@ -183,6 +204,7 @@
 
   renderApps();
   renderSites();
+  renderCerts();
   renderContact();
   setupNav();
   typeTagline();

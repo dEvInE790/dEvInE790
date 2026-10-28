@@ -6,6 +6,7 @@
    1. CONFIG   — your contact details and social links.
    2. APPS     — your app store. One object per app.
    3. WEBSITES — sites you have built. One object per site.
+   4. CERTIFICATES — courses and programs you've completed.
 
    The page reads these arrays and builds the cards automatically.
    ===================================================================== */
@@ -87,5 +88,41 @@ const WEBSITES = [
     tags: ["HTML/CSS/JS", "Supabase", "Admin panel"],
     image: "img/sites/simple-interior-tech.jpg",
     url: "https://simpleinteriortech.co"
+  }
+];
+
+
+/* ---------------------------------------------------------------------
+   4. CERTIFICATES
+   Newest first. Put the certificate photo or scan in img/certificates/.
+
+   title        Course or program name.
+   issuer       Who issued it.
+   date         When it was issued or completed, as you want it shown.
+   image        Path to the certificate image.
+   verifyUrl    Online link that proves it's real (e.g. Udemy's ude.my link),
+                or "" if there isn't one.
+   --------------------------------------------------------------------- */
+const CERTIFICATES = [
+  {
+    title: "Applied Cyber Security Program (12 weeks)",
+    issuer: "Tech Studio Academy",
+    date: "Oct 2026",
+    image: "img/certificates/tech-studio-applied-cyber-security.jpg",
+    verifyUrl: ""
+  },
+  {
+    title: "Cyber Security and Ethical Hacking Course for Beginners",
+    issuer: "Udemy",
+    date: "Aug 17, 2026",
+    image: "img/certificates/udemy-cyber-security-ethical-hacking.jpg",
+    verifyUrl: "https://ude.my/UC-62e6c383-7c0e-48a2-9bd2-afbf63b5f190"
+  },
+  {
+    title: "Introduction to Cybersecurity",
+    issuer: "Cisco Networking Academy",
+    date: "Oct 28, 2025",
+    image: "img/certificates/cisco-intro-to-cybersecurity.jpg",
+    verifyUrl: ""
   }
 ];

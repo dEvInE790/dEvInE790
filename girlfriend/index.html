@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A Very Important Question 💗</title>
+  <meta name="description" content="I have a very important question to ask you…" />
+  <meta property="og:title" content="A Very Important Question 💗" />
+  <meta property="og:description" content="I have a very important question to ask you…" />
+  <meta name="theme-color" content="#ffd9cf" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💗</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Floating hearts layer (filled by script.js) -->
+  <div class="hearts" id="hearts" aria-hidden="true"></div>
+
+  <!-- Cute corner decorations -->
+  <div class="deco deco-tl" aria-hidden="true">🌸</div>
+  <div class="deco deco-tr" aria-hidden="true">✨</div>
+  <div class="deco deco-bl" aria-hidden="true">💌</div>
+  <div class="deco deco-br" aria-hidden="true">🌷</div>
+
+  <main>
+    <!-- ========== SCREEN 1: Intro ========== -->
+    <section class="screen active" id="screen-intro">
+      <div class="card">
+        <div class="big-heart" aria-hidden="true">💌</div>
+        <h1 class="title">I have a very important question to ask you…</h1>
+        <button class="btn btn-primary" id="btn-continue">Continue ❤️</button>
+      </div>
+    </section>
+
+    <!-- ========== SCREEN 2: The Question ========== -->
+    <section class="screen" id="screen-question">
+      <div class="card">
+        <div class="big-heart beat" aria-hidden="true">💝</div>
+        <h1 class="title question">Will you be my girlfriend? 💗</h1>
+        <div class="buttons" id="buttons">
+          <button class="btn btn-yes" id="btn-yes">YES ❤️</button>
+          <button class="btn btn-no" id="btn-no">No</button>
+        </div>
+        <p class="hint" id="hint" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- ========== SCREEN 3: Celebration ========== -->
+    <section class="screen" id="screen-yes">
+      <div class="card card-celebrate">
+        <div class="big-heart bounce" aria-hidden="true">🥰</div>
+        <h1 class="title yay">YAY!!! 💕🎉</h1>
+        <p class="message">You just made me the happiest guy ever!</p>
+        <p class="message">I can’t wait to make beautiful memories with you. ❤️</p>
+        <button class="btn btn-primary" id="btn-restart">Restart the magic 💖</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Confetti canvas for the celebration -->
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>

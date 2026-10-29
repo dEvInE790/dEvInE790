@@ -1,0 +1,259 @@
+/* =========================================================
+   Romantic "Will you be my girlfriend?" — styles
+   Edit the colors below to change the whole look.
+   ========================================================= */
+:root {
+  --peach: #ffe3d8;
+  --peach-2: #ffd0c7;
+  --pink: #ff8fab;
+  --pink-deep: #ff4d7d;
+  --rose: #e63a6d;
+  --celebrate-1: #ff7eb3;
+  --celebrate-2: #ff4f9a;
+  --text: #6b2b3f;
+  --card: rgba(255, 255, 255, 0.55);
+  --shadow: 0 20px 50px rgba(230, 58, 109, 0.18);
+  --font-title: "Dancing Script", cursive;
+  --font-body: "Poppins", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  background: radial-gradient(circle at 20% 20%, #fff1ea 0%, var(--peach) 45%, var(--peach-2) 100%);
+  background-attachment: fixed;
+  overflow: hidden;
+  transition: background 0.8s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.celebrating {
+  background: radial-gradient(circle at 50% 30%, #ffb3d1 0%, var(--celebrate-1) 45%, var(--celebrate-2) 100%);
+  color: #fff;
+}
+
+main { position: relative; z-index: 2; height: 100%; }
+
+/* ---------- Screens & transitions ---------- */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.94) translateY(20px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(.2,.8,.2,1), visibility 0.7s;
+}
+
+.screen.active {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1) translateY(0);
+}
+
+.card {
+  position: relative;
+  width: min(560px, 100%);
+  padding: clamp(32px, 6vw, 56px) clamp(20px, 5vw, 48px);
+  text-align: center;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 32px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.card-celebrate {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 20px 60px rgba(150, 0, 60, 0.25);
+}
+
+.big-heart {
+  font-size: clamp(48px, 12vw, 72px);
+  margin-bottom: 12px;
+  display: inline-block;
+  animation: float 3s ease-in-out infinite;
+}
+.big-heart.beat { animation: heartbeat 1.3s ease-in-out infinite; }
+.big-heart.bounce { animation: bounce 1s ease-in-out infinite; }
+
+.title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: clamp(30px, 7vw, 46px);
+  line-height: 1.25;
+  margin-bottom: 28px;
+  color: var(--rose);
+}
+.title.question { font-size: clamp(36px, 9vw, 58px); }
+.title.yay {
+  color: #fff;
+  font-size: clamp(44px, 12vw, 72px);
+  text-shadow: 0 4px 20px rgba(150, 0, 60, 0.3);
+  margin-bottom: 16px;
+}
+
+.message {
+  font-size: clamp(16px, 4vw, 20px);
+  line-height: 1.6;
+  margin-bottom: 12px;
+  font-weight: 400;
+}
+.message:last-of-type { margin-bottom: 30px; }
+
+.hint {
+  min-height: 1.5em;
+  margin-top: 22px;
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 18px;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 34px;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+.btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+.btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+  box-shadow: 0 10px 25px rgba(255, 77, 125, 0.35);
+}
+.btn-primary:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 14px 30px rgba(255, 77, 125, 0.45); }
+.btn-primary:active { transform: scale(0.97); }
+
+body.celebrating .btn-primary {
+  background: #fff;
+  color: var(--rose);
+  box-shadow: 0 10px 25px rgba(150, 0, 60, 0.25);
+}
+
+.buttons {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 70px;
+}
+
+.btn-yes {
+  color: #fff;
+  font-size: 20px;
+  padding: 16px 42px;
+  background: linear-gradient(135deg, #ff6f91, var(--pink-deep));
+  box-shadow: 0 10px 25px rgba(255, 77, 125, 0.4);
+  animation: pulse 1.6s ease-in-out infinite;
+  transition: transform 0.35s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s ease;
+}
+.btn-yes:hover { animation-play-state: paused; box-shadow: 0 0 0 8px rgba(255, 143, 171, 0.35), 0 14px 30px rgba(255, 77, 125, 0.5); }
+
+.btn-no {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 18px rgba(107, 43, 63, 0.12);
+}
+
+/* When the No button starts running away it floats over the page */
+.btn-no.runaway {
+  position: fixed;
+  z-index: 50;
+  transition: left 0.35s cubic-bezier(.2,.8,.2,1), top 0.35s cubic-bezier(.2,.8,.2,1), transform 0.35s ease;
+}
+
+/* ---------- Floating hearts ---------- */
+.hearts {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+.heart {
+  position: absolute;
+  bottom: -40px;
+  opacity: 0;
+  animation: rise linear forwards;
+  will-change: transform, opacity;
+}
+
+/* ---------- Corner decorations ---------- */
+.deco {
+  position: fixed;
+  z-index: 1;
+  font-size: clamp(26px, 6vw, 40px);
+  opacity: 0.75;
+  pointer-events: none;
+  animation: float 4s ease-in-out infinite;
+}
+.deco-tl { top: 18px; left: 18px; }
+.deco-tr { top: 18px; right: 18px; animation-delay: -1s; }
+.deco-bl { bottom: 18px; left: 18px; animation-delay: -2s; }
+.deco-br { bottom: 18px; right: 18px; animation-delay: -3s; }
+
+/* ---------- Confetti ---------- */
+#confetti {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes rise {
+  0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+  10%  { opacity: var(--o, 0.7); }
+  50%  { transform: translateY(-55vh) translateX(var(--drift, 20px)) rotate(15deg); }
+  90%  { opacity: var(--o, 0.7); }
+  100% { transform: translateY(-115vh) translateX(0) rotate(-10deg); opacity: 0; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  15%      { transform: scale(1.18); }
+  30%      { transform: scale(1); }
+  45%      { transform: scale(1.12); }
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50%      { transform: translateY(-16px) rotate(5deg); }
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 10px 25px rgba(255, 77, 125, 0.4), 0 0 0 0 rgba(255, 143, 171, 0.6); }
+  50%      { box-shadow: 0 10px 25px rgba(255, 77, 125, 0.4), 0 0 0 14px rgba(255, 143, 171, 0); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-6px) rotate(-3deg); }
+  75%      { transform: translateX(6px) rotate(3deg); }
+}
+.shake { animation: shake 0.35s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  .screen { transition: opacity 0.3s ease; transform: none; }
+}

@@ -21,6 +21,8 @@
 
 html, body { height: 100%; }
 
+[hidden] { display: none !important; }
+
 body {
   font-family: var(--font-body);
   color: var(--text);
@@ -110,6 +112,22 @@ main { position: relative; z-index: 2; height: 100%; }
 }
 .message:last-of-type { margin-bottom: 30px; }
 
+.eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pink-deep);
+  margin-bottom: 10px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
 .hint {
   min-height: 1.5em;
   margin-top: 22px;
@@ -130,6 +148,19 @@ main { position: relative; z-index: 2; height: 100%; }
   user-select: none;
   touch-action: manipulation;
 }
+.btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  color: #fff;
+  text-decoration: none;
+  background: linear-gradient(135deg, #2bd36f, #1ea952);
+  box-shadow: 0 10px 25px rgba(30, 169, 82, 0.35);
+}
+.btn-whatsapp:hover { transform: translateY(-3px) scale(1.04); }
+#wa-no { margin-top: 14px; font-size: 16px; padding: 12px 28px; }
+
 .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 
 .btn-primary {

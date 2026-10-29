@@ -19,7 +19,7 @@ const CONFIG = {
   ],
   // After this many dodges the No button lets itself be clicked
   dodgesBeforeGivingUp: 7,
-  noAcceptedMessage: "That's okay… thank you for being honest. 💛 (You can still change your mind!)",
+  noAcceptedMessage: "That's okay… thank you for being honest. 💛 (You can still change your mind!) Tap below to let him know.",
 };
 
 /* ---------- Elements ---------- */
@@ -35,6 +35,7 @@ const btnNo = $("btn-no");
 const btnRestart = $("btn-restart");
 const hint = $("hint");
 const heartsLayer = $("hearts");
+const waNo = $("wa-no");
 
 /* ---------- Screen switching ---------- */
 function showScreen(name) {
@@ -128,6 +129,7 @@ function onNoClick(e) {
   btnNo.classList.add("shake");
   setTimeout(() => btnNo.classList.remove("shake"), 400);
   hint.textContent = CONFIG.noAcceptedMessage;
+  waNo.hidden = false;
 }
 
 function resetNoButton() {
@@ -139,6 +141,7 @@ function resetNoButton() {
   btnNo.style.top = "";
   btnYes.style.transform = "";
   hint.textContent = "";
+  waNo.hidden = true;
 }
 
 /* ---------- Confetti ---------- */

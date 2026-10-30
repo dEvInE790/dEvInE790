@@ -1,0 +1,143 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   TutorHaven design tokens
+   Deep navy (trust), soft mint (growth), warm white (welcome).
+   --------------------------------------------------------------------------- */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-navy-50: #f3f6fb;
+  --color-navy-100: #e4eaf5;
+  --color-navy-200: #c7d2e8;
+  --color-navy-300: #9aabcf;
+  --color-navy-400: #6b80ae;
+  --color-navy-500: #4a5f8f;
+  --color-navy-600: #344874;
+  --color-navy-700: #24365c;
+  --color-navy-800: #182746;
+  --color-navy-900: #0f1c36;
+  --color-navy-950: #0a1428;
+
+  --color-mint-50: #effbf6;
+  --color-mint-100: #d7f5e8;
+  --color-mint-200: #b0ebd3;
+  --color-mint-300: #7fdcb8;
+  --color-mint-400: #4cc897;
+  --color-mint-500: #27ae7c;
+  --color-mint-600: #1a8d64;
+  --color-mint-700: #177152;
+  --color-mint-800: #165a43;
+  --color-mint-900: #134a38;
+
+  --color-cream-50: #fdfcf9;
+  --color-cream-100: #faf7f0;
+  --color-cream-200: #f3eee2;
+  --color-cream-300: #e8e0cd;
+
+  --color-amber-400: #f5b544;
+  --color-amber-500: #e29a1b;
+  --color-coral-50: #fdf0ee;
+  --color-coral-500: #d9533f;
+  --color-coral-600: #b8402e;
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  --shadow-soft: 0 1px 2px rgb(15 28 54 / 0.04), 0 4px 16px -6px rgb(15 28 54 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(15 28 54 / 0.04), 0 18px 40px -16px rgb(15 28 54 / 0.22);
+  --shadow-glow: 0 10px 30px -10px rgb(39 174 124 / 0.55);
+
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-cream-100 font-sans text-navy-900 antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight text-navy-950;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    @apply bg-mint-200 text-navy-950;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-mint-500;
+  }
+  button:not(:disabled), [role='button'] {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .card {
+    @apply rounded-3xl border border-navy-900/[0.06] bg-white shadow-soft;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full border border-mint-600/15 bg-mint-50 px-3 py-1 text-xs font-semibold tracking-wide text-mint-700 uppercase;
+  }
+  .text-muted {
+    @apply text-navy-500;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Skeleton shimmer — a moving highlight across a neutral block. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-navy-100);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.65), transparent);
+  animation: shimmer 1.6s var(--ease-premium) infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .skeleton::after {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

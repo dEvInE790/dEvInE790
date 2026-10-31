@@ -23,6 +23,7 @@ const Billing = lazy(() => import('./pages/dashboard/Billing'))
 const Settings = lazy(() => import('./pages/dashboard/Settings'))
 const TutorListing = lazy(() => import('./pages/dashboard/TutorListing'))
 const AdminUsers = lazy(() => import('./pages/dashboard/AdminUsers'))
+const DemoBar = import.meta.env.VITE_DEMO === 'true' ? lazy(() => import('./demo/DemoBar')) : null
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -69,6 +70,7 @@ export default function App() {
         <AuthProvider>
           <FavouritesProvider>
             <AnimatedRoutes />
+            {DemoBar && <Suspense fallback={null}><DemoBar /></Suspense>}
           </FavouritesProvider>
         </AuthProvider>
       </ToastProvider>

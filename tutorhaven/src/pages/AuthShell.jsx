@@ -9,12 +9,12 @@ import { ease } from '../motion/variants'
 export default function AuthShell({ title, subtitle, children, footer }) {
   return (
     <div className="grid min-h-dvh lg:grid-cols-[1fr_1.05fr]">
-      <PageTransition className="flex flex-col px-5 py-6 sm:px-10 lg:px-16">
+      <PageTransition className="flex min-w-0 flex-col px-5 py-6 sm:px-10 lg:px-16">
         <Link to="/" className="flex w-fit items-center gap-2.5" aria-label="TutorHaven home">
           <LogoMark size={34} />
           <Wordmark />
         </Link>
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
+        <div className="mx-auto flex w-full min-w-0 max-w-md flex-1 flex-col justify-center py-10">
           <h1 className="text-3xl font-bold sm:text-4xl">{title}</h1>
           {subtitle && <p className="mt-2 text-navy-500">{subtitle}</p>}
           <div className="mt-8">{children}</div>

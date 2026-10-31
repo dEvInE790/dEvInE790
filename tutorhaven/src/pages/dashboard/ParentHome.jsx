@@ -98,12 +98,12 @@ export default function ParentHome() {
       <section className="mb-6">
         <h2 className="mb-4 text-lg font-semibold">Your learners</h2>
         {children.loading ? <div className="flex gap-4"><Skeleton className="h-36 w-64 rounded-3xl" /><Skeleton className="h-36 w-64 rounded-3xl" /></div> : (
-          <motion.div className="scrollbar-none -mx-4 flex gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:px-0 lg:grid-cols-3" variants={stagger(0.06)} initial="hidden" animate="show">
+          <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" variants={stagger(0.06)} initial="hidden" animate="show">
             <AnimatePresence mode="popLayout">
               {children.data.map((c) => {
                 const st = s.perChild(c.id)
                 return (
-                  <motion.div key={c.id} layout variants={fadeUp} exit={{ opacity: 0, scale: 0.9 }} whileHover={{ y: -4 }} transition={spring} className="card relative w-64 shrink-0 p-5 sm:w-auto">
+                  <motion.div key={c.id} layout variants={fadeUp} exit={{ opacity: 0, scale: 0.9 }} whileHover={{ y: -4 }} transition={spring} className="card relative p-5">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar name={c.full_name} seed={c.id} size="md" />
@@ -140,7 +140,7 @@ export default function ParentHome() {
                 whileHover={{ y: -4 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setLinkOpen(true)}
-                className="flex w-64 shrink-0 flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-navy-900/12 p-5 text-navy-500 transition-colors hover:border-mint-500 hover:bg-mint-50/50 hover:text-mint-700 sm:w-auto"
+                className="flex min-h-28 flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-navy-900/12 p-5 text-navy-500 transition-colors hover:border-mint-500 hover:bg-mint-50/50 hover:text-mint-700"
               >
                 <span className="grid h-11 w-11 place-items-center rounded-full bg-white shadow-soft"><Plus className="h-5 w-5" /></span>
                 <span className="text-sm font-semibold">Link a child</span>

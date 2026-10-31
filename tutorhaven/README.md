@@ -14,6 +14,26 @@ npm install
 npm run dev
 ```
 
+### Try it without Supabase (demo mode)
+
+```bash
+npm run dev:demo        # http://localhost:5173 with seeded demo data
+```
+
+Demo mode swaps Supabase for an in-browser backend that applies the same rules as the database. It comes with six tutors, sessions, reviews and payments already in place. The sign-in page offers one-click demo accounts (student, parent, tutor, admin); every demo password is `demo1234`. You can also sign up with any email to try onboarding. Data is saved in your browser; use the **Demo** pill (bottom left) to reset it.
+
+`npm run build:demo` produces a static copy in `dist-demo/`. It uses hash URLs, so it works on any static host. Production builds (`npm run build`) contain none of the demo code.
+
+### Automated checks
+
+```bash
+npm run build:demo
+npm run test:e2e                 # role-based end-to-end flows + click-every-button crawl
+npm run test:e2e -- --shots      # also saves mobile/tablet/desktop screenshots to e2e/screenshots
+```
+
+The tests need the `playwright` package and Chromium (`npm i -D playwright && npx playwright install chromium`).
+
 ### 1. Connect Supabase
 
 Open **Project Settings → API** in your Supabase project and copy the values into `tutorhaven/.env`:

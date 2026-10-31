@@ -1,0 +1,17 @@
+{
+  "filters": [
+    {
+      "id": "space",
+      "label": "The Space"
+    },
+    {
+      "id": "treatments",
+      "label": "Treatments"
+    },
+    {
+      "id": "results",
+      "label": "Results"
+    }
+  ],
+  "items": []
+}

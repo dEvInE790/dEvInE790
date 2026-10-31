@@ -1,0 +1,38 @@
+{
+  "hero": {
+    "src": null,
+    "alt": "",
+    "art": "arch",
+    "caption": "Recommended: calm interior or treatment-room photo, portrait, at least 1200×1500"
+  },
+  "heroDetail": {
+    "src": null,
+    "alt": "",
+    "art": "sprig",
+    "caption": "Recommended: close-up detail (products, towels, botanicals), square"
+  },
+  "about": {
+    "src": null,
+    "alt": "",
+    "art": "stones",
+    "caption": "Recommended: owner portrait or the reception area, portrait"
+  },
+  "aboutAlt": {
+    "src": null,
+    "alt": "",
+    "art": "vessel",
+    "caption": "Recommended: a treatment in progress (with client consent), landscape"
+  },
+  "booking": {
+    "src": null,
+    "alt": "",
+    "art": "sun",
+    "caption": "Recommended: wide atmospheric photo of the space, landscape"
+  },
+  "ownerPortrait": {
+    "src": null,
+    "alt": "",
+    "art": "arch",
+    "caption": "Owner or team photo (optional)"
+  }
+}

@@ -4,13 +4,16 @@
   "private": true,
   "description": "Website for Tush Beauty Spa, Houston TX. Static site, zero runtime dependencies.",
   "scripts": {
+    "admin": "node admin/server.js",
     "build": "node build.js && node build.js --preview",
     "build:site": "node build.js",
     "build:preview": "node build.js --preview",
     "check": "node build.js --check",
     "serve": "node serve.js dist 8080",
     "serve:preview": "node serve.js preview 8081",
-    "test": "node tests/e2e.js"
+    "test": "node tests/e2e.js && node tests/admin.js",
+    "test:site": "node tests/e2e.js",
+    "test:admin": "node tests/admin.js"
   },
   "engines": {
     "node": ">=18"

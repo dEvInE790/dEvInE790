@@ -23,6 +23,7 @@ const { Layout } = require('./src/components/layout');
 const { artSvg, MOTIFS, TONES } = require('./src/components/art');
 const { real } = require('./src/components/helpers');
 const pages = require('./src/pages/pages');
+const { checklist } = require('./src/checklist');
 
 function deepMerge(base, extra) {
   if (!extra || typeof extra !== 'object' || Array.isArray(extra)) return extra === undefined ? base : extra;
@@ -53,23 +54,7 @@ function loadContext() {
 }
 
 /** Owner checklist: every business detail that is still missing. */
-function missing(ctx) {
-  const c = ctx.config;
-  const list = [];
-  const need = (cond, msg) => cond || list.push(msg);
-  need(real(c.siteUrl), 'site.config.js → siteUrl (live domain; enables canonical URLs + sitemap.xml)');
-  need(real(c.contact.phone), 'site.config.js → contact.phone');
-  need(real(c.contact.email), 'site.config.js → contact.email');
-  need(real(c.contact.instagram), 'site.config.js → contact.instagram (handle)');
-  need(real(c.contact.address), 'site.config.js → contact.address (+ addressParts) — enables the map');
-  need(c.hours && c.hours.length, 'site.config.js → hours');
-  need(real(c.booking.externalUrl) || real(c.booking.formEndpoint), 'site.config.js → booking.externalUrl (booking platform) or booking.formEndpoint (form service)');
-  need(ctx.services.length, 'src/content/services.js → verified services (names, descriptions, prices, durations, photos)');
-  need(ctx.gallery.items.length, 'src/content/gallery.js → the spa’s own approved photos');
-  need(ctx.testimonials.length, 'src/content/testimonials.js → real, approved client reviews (section hidden until then)');
-  for (const [slot, img] of Object.entries(ctx.images)) need(real(img.src), `src/content/images.js → ${slot} photo`);
-  return list;
-}
+const missing = (ctx) => checklist(ctx).filter((i) => !i.done).map((i) => `src/data/${i.file} → ${i.label}${i.note ? ` (${i.note})` : ''}`);
 
 function copyDir(from, to) {
   fs.mkdirSync(to, { recursive: true });

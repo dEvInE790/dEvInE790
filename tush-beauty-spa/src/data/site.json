@@ -1,0 +1,26 @@
+{
+  "name": "Tush Beauty Spa",
+  "shortName": "Tush Beauty Spa",
+  "city": "Houston",
+  "region": "TX",
+  "regionName": "Texas",
+  "siteUrl": null,
+  "contact": {
+    "phone": null,
+    "phoneAcceptsTexts": false,
+    "email": null,
+    "instagram": null,
+    "address": null,
+    "addressParts": null,
+    "addressNote": null
+  },
+  "hours": null,
+  "hoursNote": null,
+  "booking": {
+    "externalUrl": null,
+    "externalLabel": null,
+    "formEndpoint": null
+  },
+  "announcement": null,
+  "googleBusinessUrl": null
+}

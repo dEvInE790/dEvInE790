@@ -22,6 +22,8 @@ npm run dev:demo        # http://localhost:5173 with seeded demo data
 
 Demo mode swaps Supabase for an in-browser backend that applies the same rules as the database. It comes with six tutors, sessions, reviews and payments already in place. The sign-in page offers one-click demo accounts (student, parent, tutor, admin); every demo password is `demo1234`. You can also sign up with any email to try onboarding. Data is saved in your browser; use the **Demo** pill (bottom left) to reset it.
 
+For a phone-framed preview, open **http://localhost:5173/phone.html** while `npm run dev:demo` is running. It shows the live app at true phone width inside a device frame, with device-size switches (iPhone 15, iPhone 15 Pro Max, Pixel 8, iPhone SE), quick links and a reset button.
+
 `npm run build:demo` produces a static copy in `dist-demo/`. It uses hash URLs, so it works on any static host. Production builds (`npm run build`) contain none of the demo code.
 
 ### Automated checks

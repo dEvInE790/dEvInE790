@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en" data-app="./index.html">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TutorHaven Phone Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      /* Phone preview for TutorHaven: renders the real app in an iframe at true phone
+         width so mobile breakpoints apply, inside a device frame. */
+      :root {
+        --bg: #0a1428;
+        --bg-2: #0f1c36;
+        --ink: #fdfcf9;
+        --ink-2: #c7d2e8;
+        --ink-3: #9aabcf;
+        --mint: #4cc897;
+        --mint-soft: #7fdcb8;
+        --line: rgb(255 255 255 / 0.1);
+        --chip: rgb(255 255 255 / 0.06);
+        --frame: #11151c;
+        --frame-edge: #2a313c;
+        --screen-top: #fdfcf9;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) { --bg: #070e1d; --bg-2: #0c1730; }
+      }
+      :root[data-theme='dark'] { --bg: #070e1d; --bg-2: #0c1730; }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: radial-gradient(1200px 700px at 85% -10%, rgb(76 200 151 / 0.22), transparent 60%),
+          radial-gradient(900px 600px at -10% 110%, rgb(74 95 143 / 0.35), transparent 60%), var(--bg);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
+      .layout {
+        height: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: clamp(2rem, 5vw, 5rem);
+        padding: 2rem clamp(1.5rem, 5vw, 5rem);
+        max-width: 1280px;
+        margin: 0 auto;
+      }
+      .intro { max-width: 30rem; }
+      .brand { display: flex; align-items: center; gap: 0.7rem; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1.25rem; }
+      .brand span { color: var(--mint-soft); }
+      .eyebrow {
+        display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 2.2rem;
+        padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--line); background: var(--chip);
+        color: var(--mint-soft); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px rgb(76 200 151 / 0.2); animation: pulse 2s infinite; }
+      @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgb(76 200 151 / 0); } }
+      h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: clamp(2.2rem, 4vw, 3.4rem); line-height: 1.05; letter-spacing: -0.03em; margin: 1rem 0 0; }
+      h1 em { font-style: normal; color: var(--mint-soft); }
+      .lede { color: var(--ink-2); line-height: 1.6; margin: 1rem 0 0; }
+      .group { margin-top: 2rem; }
+      .label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 0.7rem; }
+      .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+      .chip {
+        appearance: none; border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+        font: 500 0.88rem Inter, sans-serif; padding: 0.55rem 0.95rem; border-radius: 0.8rem; cursor: pointer;
+        transition: background 0.2s, border-color 0.2s, transform 0.2s;
+      }
+      .chip:hover { background: rgb(255 255 255 / 0.1); transform: translateY(-1px); }
+      .chip[aria-pressed='true'] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+      .chip.accent { background: var(--mint); color: #0a1428; border-color: var(--mint); font-weight: 600; }
+      .hint { margin-top: 2rem; font-size: 0.8rem; color: var(--ink-3); line-height: 1.55; }
+      .hint b { color: var(--ink-2); font-weight: 600; }
+
+      /* Device */
+      .stage { display: grid; place-items: center; height: 100%; }
+      .device-wrap { transform-origin: center; transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+      .device {
+        position: relative;
+        width: calc(var(--w) * 1px + 28px);
+        height: calc(var(--h) * 1px + 28px);
+        border-radius: calc(var(--r) + 14px);
+        padding: 14px;
+        background: linear-gradient(145deg, #2b323d, var(--frame) 30%, #1a1f27 70%, #2b323d);
+        box-shadow: 0 0 0 1.5px var(--frame-edge), inset 0 0 0 2px #050608, 0 50px 120px -30px rgb(0 0 0 / 0.8), 0 30px 60px -40px rgb(76 200 151 / 0.4);
+        transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .btn { position: absolute; background: linear-gradient(90deg, #1b2028, #3a424e); border-radius: 3px; }
+      .btn.power { right: -4px; top: 190px; width: 4px; height: 90px; }
+      .btn.vol1 { left: -4px; top: 160px; width: 4px; height: 56px; }
+      .btn.vol2 { left: -4px; top: 230px; width: 4px; height: 56px; }
+      .btn.action { left: -4px; top: 110px; width: 4px; height: 30px; }
+      .screen {
+        position: relative; width: 100%; height: 100%; overflow: hidden;
+        border-radius: var(--r); background: var(--screen-top);
+        display: flex; flex-direction: column;
+      }
+      .statusbar {
+        flex: none; height: var(--sb); display: flex; align-items: center; justify-content: space-between;
+        padding: 0 30px 0 34px; color: #0a1428; font: 600 15px/1 Inter, sans-serif; background: var(--screen-top);
+        position: relative; z-index: 2;
+      }
+      .statusbar .icons { display: flex; gap: 6px; align-items: center; }
+      .island {
+        position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+        width: 120px; height: 35px; border-radius: 20px; background: #000; z-index: 3;
+      }
+      .device[data-kind='android'] .island { width: 12px; height: 12px; top: 14px; border-radius: 50%; }
+      .device[data-kind='se'] .island { display: none; }
+      iframe { flex: 1; width: 100%; border: 0; display: block; background: #faf7f0; }
+      .homebar {
+        position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+        width: 134px; height: 5px; border-radius: 3px; background: rgb(10 20 40 / 0.85); z-index: 3; pointer-events: none;
+      }
+      .device[data-kind='se'] .homebar { display: none; }
+      .loading { position: absolute; inset: var(--sb) 0 0; display: grid; place-items: center; background: #faf7f0; z-index: 1; transition: opacity 0.4s; }
+      .loading.done { opacity: 0; pointer-events: none; }
+      .loading div { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #d7f5e8; border-top-color: #1a8d64; animation: spin 0.8s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* On an actual phone, show the app full screen without the frame. */
+      @media (max-width: 720px) {
+        body { overflow: hidden; }
+        .layout { display: block; padding: 0; height: 100%; }
+        .intro { display: none; }
+        .stage { display: block; height: 100%; }
+        .device-wrap { width: 100%; height: 100%; transform: none !important; }
+        .device { width: 100% !important; height: 100% !important; padding: 0; border-radius: 0; box-shadow: none; background: none; }
+        .btn, .island, .homebar, .statusbar { display: none; }
+        .screen { border-radius: 0; }
+        .loading { inset: 0; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <section class="intro">
+        <div class="brand">
+          <svg width="36" height="36" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#fdfcf9"/><path d="M10 19.5 20 11l10 8.5" fill="none" stroke="#1a8d64" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 22.5c2.8-1 5.4-.6 8 1.2 2.6-1.8 5.2-2.2 8-1.2v7.3c-2.8-1-5.4-.6-8 1.2-2.6-1.8-5.2-2.2-8-1.2z" fill="none" stroke="#0f1c36" stroke-width="2.4" stroke-linejoin="round"/></svg>
+          <div>Tutor<span>Haven</span></div>
+        </div>
+        <div class="eyebrow"><i></i>Live app · Phone preview</div>
+        <h1>Find the right tutor. <em>Unlock your potential.</em></h1>
+        <p class="lede">This is the real app running at phone size. Tap through it like you would on your own device: every screen, button and animation works.</p>
+
+        <div class="group">
+          <div class="label">Jump to</div>
+          <div class="chips" id="routes">
+            <button class="chip" data-route="/">Home</button>
+            <button class="chip" data-route="/tutors">Find tutors</button>
+            <button class="chip" data-route="/pricing">Pricing</button>
+            <button class="chip accent" data-route="/signin">Sign in as a demo user</button>
+            <button class="chip" data-route="/signup">Sign up</button>
+            <button class="chip" data-route="/dashboard">Dashboard</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="label">Device</div>
+          <div class="chips" id="devices">
+            <button class="chip" data-kind="iphone" data-w="393" data-h="852" aria-pressed="true">iPhone 15</button>
+            <button class="chip" data-kind="iphone" data-w="430" data-h="932" aria-pressed="false">iPhone 15 Pro Max</button>
+            <button class="chip" data-kind="android" data-w="412" data-h="915" aria-pressed="false">Pixel 8</button>
+            <button class="chip" data-kind="se" data-w="375" data-h="667" aria-pressed="false">iPhone SE</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="chips">
+            <button class="chip" id="reload">Reload app</button>
+            <button class="chip" id="reset">Reset demo data</button>
+          </div>
+        </div>
+        <p class="hint"><b>Demo accounts:</b> Sam (student), Jordan (parent), Amara (tutor) and Ada (admin). Sign in with one tap, password <b>demo1234</b>. Data stays in this browser only.</p>
+      </section>
+
+      <section class="stage">
+        <div class="device-wrap" id="wrap">
+          <div class="device" id="device" data-kind="iphone">
+            <span class="btn action"></span><span class="btn vol1"></span><span class="btn vol2"></span><span class="btn power"></span>
+            <div class="screen">
+              <div class="island"></div>
+              <div class="statusbar">
+                <span id="clock">9:41</span>
+                <span class="icons" aria-hidden="true">
+                  <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+                  <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0zM3.4 6.8a6.5 6.5 0 0 1 9.2 0l-1.5 1.5a4.4 4.4 0 0 0-6.2 0zM1 4.4a9.9 9.9 0 0 1 14 0l-1.5 1.5a7.8 7.8 0 0 0-11 0z" fill="currentColor"/></svg>
+                  <svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="18" height="9" rx="2" fill="currentColor"/><rect x="24.5" y="4.5" width="2" height="4" rx="1" fill="currentColor" opacity="0.4"/></svg>
+                </span>
+              </div>
+              <div class="loading" id="loading"><div></div></div>
+              <iframe id="app" title="TutorHaven app" allow="clipboard-write"></iframe>
+              <div class="homebar"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const appSrc = document.documentElement.dataset.app || './index.html'
+      const frame = document.getElementById('app')
+      const device = document.getElementById('device')
+      const wrap = document.getElementById('wrap')
+      const loading = document.getElementById('loading')
+      let size = { w: 393, h: 852, kind: 'iphone' }
+
+      function applyDevice() {
+        const sb = size.kind === 'se' ? 20 : size.kind === 'android' ? 36 : 50
+        device.dataset.kind = size.kind
+        device.style.setProperty('--w', size.w)
+        device.style.setProperty('--h', size.h)
+        device.style.setProperty('--r', size.kind === 'se' ? '6px' : size.kind === 'android' ? '34px' : '50px')
+        device.style.setProperty('--sb', sb + 'px')
+        fit()
+      }
+      // Scale the device to fit the window height, never upscaling.
+      function fit() {
+        if (window.innerWidth <= 720) {
+          wrap.style.transform = 'none'
+          wrap.style.margin = '0'
+          return
+        }
+        const w = size.w + 28
+        const h = size.h + 28
+        const scale = Math.min(1, (window.innerHeight - 48) / h)
+        wrap.style.transform = `scale(${scale})`
+        // A transform doesn't shrink the layout box, so pull the margins in to match.
+        wrap.style.margin = `${(-h * (1 - scale)) / 2}px ${(-w * (1 - scale)) / 2}px`
+      }
+      window.addEventListener('resize', fit)
+
+      function go(route) {
+        try {
+          frame.contentWindow.location.hash = '#' + route
+        } catch {
+          frame.src = appSrc + '#' + route
+        }
+      }
+      frame.addEventListener('load', () => loading.classList.add('done'))
+      frame.src = appSrc + '#/'
+
+      document.getElementById('routes').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-route]')
+        if (b) go(b.dataset.route)
+      })
+      document.getElementById('devices').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-w]')
+        if (!b) return
+        document.querySelectorAll('#devices .chip').forEach((c) => c.setAttribute('aria-pressed', String(c === b)))
+        size = { w: +b.dataset.w, h: +b.dataset.h, kind: b.dataset.kind }
+        applyDevice()
+      })
+      document.getElementById('reload').addEventListener('click', () => {
+        loading.classList.remove('done')
+        frame.contentWindow.location.reload()
+      })
+      document.getElementById('reset').addEventListener('click', () => {
+        try {
+          const ls = frame.contentWindow.localStorage
+          Object.keys(ls).filter((k) => k.startsWith('th:') || k.startsWith('sb-')).forEach((k) => ls.removeItem(k))
+          frame.contentWindow.sessionStorage.setItem('th:intro-seen', '')
+        } catch {
+          /* storage unavailable */
+        }
+        loading.classList.remove('done')
+        frame.src = appSrc + '#/'
+        setTimeout(() => frame.contentWindow.location.reload(), 50)
+      })
+
+      const clock = document.getElementById('clock')
+      const tick = () => (clock.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M$/i, ''))
+      tick()
+      setInterval(tick, 15000)
+      applyDevice()
+    </script>
+  </body>
+</html>

@@ -12,7 +12,7 @@ export default function DemoBar() {
     window.location.reload()
   }
   return (
-    <div className="fixed top-[4.5rem] right-3 z-[70] lg:top-auto lg:right-4 lg:bottom-4">
+    <div className="fixed top-[4.5rem] right-3 z-40 lg:top-auto lg:right-4 lg:bottom-4">
       <AnimatePresence mode="wait" initial={false}>
         {open ? (
           <motion.div

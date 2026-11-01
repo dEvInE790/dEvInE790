@@ -1,26 +1,49 @@
+// Wires core.ts to Supabase and Paystack inside an Edge Function.
+// SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are provided
+// by Supabase automatically; PAYSTACK_SECRET_KEY and APP_URLS are your secrets.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { env } from './http.ts'
+import { paystackApi } from './paystack.ts'
+import type { Deps, Rpc } from './core.ts'
 
-/** Acts as the signed-in user (row level security applies). */
-export const userClient = (req: Request) =>
-  createClient(env('SUPABASE_URL'), env('SUPABASE_ANON_KEY'), {
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-    auth: { persistSession: false },
+export function deps(): Deps {
+  const url = env('SUPABASE_URL')
+  const secret = env('PAYSTACK_SECRET_KEY')
+  if (!/^sk_(test|live)_/.test(secret)) throw new Error('PAYSTACK_SECRET_KEY must be a Paystack secret key (sk_test_… or sk_live_…)')
+  // Server only. Never expose the service role key to the apps.
+  const admin = createClient(url, env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } })
+  return {
+    paystack: paystackApi(secret),
+    secret,
+    appUrls: Deno.env.get('APP_URLS') ?? '',
+    functionsUrl: `${url}/functions/v1`,
+    service: ((fn, args) => admin.rpc(fn, args)) as Rpc,
+    asUser: (req) => {
+      const client = createClient(url, env('SUPABASE_ANON_KEY'), {
+        global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+        auth: { persistSession: false },
+      })
+      return ((fn, args) => client.rpc(fn, args)) as Rpc
+    },
+    getPayment: async (id) => {
+      const { data, error } = await admin.from('payments').select('*').eq('id', id).maybeSingle()
+      if (error) throw new Error(error.message)
+      return data
+    },
+  }
+}
+
+/** Runs a handler; a missing secret becomes a clear 500 instead of a crash. */
+export function serve(handler: (req: Request, d: Deps) => Promise<Response>) {
+  Deno.serve(async (req) => {
+    try {
+      return await handler(req, deps())
+    } catch (e) {
+      console.error(e)
+      return new Response(JSON.stringify({ error: (e as Error).message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      })
+    }
   })
-
-/** Server-only client; used to fulfil verified payments. Never expose this key. */
-export const adminClient = () =>
-  createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } })
-
-/** Verify a reference with Paystack, then record it. Shared by verify, callback and webhook. */
-export async function fulfilFromPaystack(reference: string, verified: { status: string; amount: number; currency: string }, payload: unknown) {
-  if (verified.status !== 'success') return { status: verified.status === 'abandoned' ? 'abandoned' : 'failed' }
-  if (verified.currency !== 'NGN') throw new Error('Unexpected currency')
-  const { data, error } = await adminClient().rpc('fulfill_payment', {
-    p_reference: reference,
-    p_amount_kobo: verified.amount,
-    p_payload: payload ?? {},
-  })
-  if (error) throw new Error(error.message)
-  return data as { status: string; kind: string; booking_id: string | null; plan: string | null; note?: string }
 }

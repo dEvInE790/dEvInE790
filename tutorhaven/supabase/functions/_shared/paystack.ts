@@ -16,7 +16,16 @@ async function call<T>(secret: string, path: string, init: RequestInit = {}, bas
 }
 
 export type InitData = { authorization_url: string; access_code: string; reference: string }
-export type VerifyData = { status: string; reference: string; amount: number; currency: string; id: number; paid_at: string | null; channel: string }
+export type VerifyData = {
+  status: string
+  reference: string
+  amount: number
+  currency: string
+  id: number
+  paid_at: string | null
+  channel: string
+  gateway_response?: string
+}
 
 export const initializeTransaction = (secret: string, body: Record<string, unknown>, base?: string) =>
   call<InitData>(secret, '/transaction/initialize', { method: 'POST', body: JSON.stringify(body) }, base)
@@ -24,8 +33,15 @@ export const initializeTransaction = (secret: string, body: Record<string, unkno
 export const verifyTransaction = (secret: string, reference: string, base?: string) =>
   call<VerifyData>(secret, `/transaction/verify/${encodeURIComponent(reference)}`, { method: 'GET' }, base)
 
-export const refundTransaction = (secret: string, reference: string, base?: string) =>
-  call<{ status: string }>(secret, '/refund', { method: 'POST', body: JSON.stringify({ transaction: reference }) }, base)
+export const refundTransaction = (secret: string, reference: string, amountKobo?: number, base?: string) =>
+  call<{ status: string }>(secret, '/refund', { method: 'POST', body: JSON.stringify({ transaction: reference, amount: amountKobo }) }, base)
+
+/** The Paystack API bound to one secret key, in the shape core.ts expects. */
+export const paystackApi = (secret: string, base = PAYSTACK_BASE) => ({
+  initialize: (body: Record<string, unknown>) => initializeTransaction(secret, body, base),
+  verify: (reference: string) => verifyTransaction(secret, reference, base),
+  refund: (reference: string, amountKobo?: number) => refundTransaction(secret, reference, amountKobo, base),
+})
 
 /** Paystack signs webhooks with HMAC-SHA512 of the raw body using your secret key. */
 export async function verifySignature(secret: string, rawBody: string, signature: string | null): Promise<boolean> {

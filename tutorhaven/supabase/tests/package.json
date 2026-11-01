@@ -1,0 +1,8 @@
+{
+  "name": "tutorhaven-payment-tests",
+  "private": true,
+  "type": "module",
+  "description": "Payment integration tests: Paystack edge-function logic against a real Postgres and a Paystack simulator.",
+  "scripts": { "test": "node --experimental-strip-types --no-warnings run.mjs" },
+  "dependencies": { "pg": "^8.13.0" }
+}

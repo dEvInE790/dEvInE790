@@ -1,0 +1,665 @@
+// Payment and subscription integration tests.
+//
+// Runs the real Edge Function logic (functions/_shared/core.ts) against a real
+// Postgres with every migration applied, and a Paystack simulator that behaves
+// like Paystack's API (initialize → checkout → verify / webhook / refund).
+//
+//   sudo bash db/setup.sh            # throwaway local Postgres 16 with the migrations
+//   npm install && npm test          # or: DATABASE_URL=postgres://… npm test
+//
+// These tests never contact Paystack. Use your Paystack *test* keys and the
+// checklist in TESTING.md for the end-to-end run against Paystack itself.
+import pg from 'pg'
+import { createHmac } from 'node:crypto'
+import { createServer } from 'node:http'
+import * as core from '../functions/_shared/core.ts'
+import { paystackApi } from '../functions/_shared/paystack.ts'
+
+const DB = process.env.DATABASE_URL ?? 'postgres://postgres@localhost:5499/tutorhaven'
+const pool = new pg.Pool({ connectionString: DB, max: 8 })
+const SECRET = 'sk_test_simulator_only_not_a_real_key'
+const APP = 'http://localhost:5173'
+
+// ---------------------------------------------------------------------------
+// Database access as a given identity (mirrors PostgREST: SET ROLE + JWT claims)
+// ---------------------------------------------------------------------------
+const retset = new Map()
+async function isSetReturning(fn) {
+  if (!retset.has(fn)) {
+    const { rows } = await pool.query(`select bool_or(proretset) s from pg_proc where proname = $1 and pronamespace = 'public'::regnamespace`, [fn])
+    retset.set(fn, !!rows[0]?.s)
+  }
+  return retset.get(fn)
+}
+
+async function asIdentity(who, run) {
+  const c = await pool.connect()
+  try {
+    await c.query('begin')
+    if (who !== 'postgres') {
+      await c.query(`select set_config('role', $1, true), set_config('request.jwt.claim.sub', $2, true), set_config('request.jwt.claim.role', $1, true)`,
+        [who === 'service' ? 'service_role' : who === 'anon' ? 'anon' : 'authenticated', typeof who === 'string' ? '' : who.id])
+    }
+    const out = await run(c)
+    await c.query('commit')
+    return out
+  } catch (e) {
+    await c.query('rollback').catch(() => {})
+    throw e
+  } finally {
+    c.release()
+  }
+}
+
+/** Calls public.<fn>(named args) the way supabase-js .rpc() does. Never throws. */
+async function rpc(who, fn, args = {}) {
+  const keys = Object.keys(args)
+  const call = `public.${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(', ')})`
+  const values = keys.map((k) => (args[k] !== null && typeof args[k] === 'object' && !Array.isArray(args[k]) ? JSON.stringify(args[k]) : args[k]))
+  try {
+    const rows = await asIdentity(who, async (c) => (await c.query(`select to_jsonb(t) as r from ${call} t`, values)).rows)
+    const data = (await isSetReturning(fn)) ? rows.map((r) => r.r) : rows[0]?.r ?? null
+    return { data, error: null }
+  } catch (e) {
+    return { data: null, error: { message: e.message } }
+  }
+}
+const sql = (who, text, params = []) => asIdentity(who, async (c) => (await c.query(text, params)).rows)
+const one = async (text, params = []) => (await sql('postgres', text, params))[0]
+
+// ---------------------------------------------------------------------------
+// Paystack simulator
+// ---------------------------------------------------------------------------
+const paystack = {
+  tx: new Map(),
+  refunds: [],
+  down: false,
+  calls: [],
+  async initialize(body) {
+    this.calls.push(['initialize', body])
+    if (this.down) throw new Error('Paystack is unavailable')
+    if (!body.email || !Number.isInteger(body.amount) || body.amount <= 0) throw new Error('Invalid initialize body')
+    if (this.tx.has(body.reference)) throw new Error('Duplicate Transaction Reference')
+    this.tx.set(body.reference, { ...body, id: Math.floor(Math.random() * 1e9), status: 'abandoned', paid_at: null, channel: null, gateway_response: 'The transaction was not completed' })
+    return { authorization_url: `https://checkout.paystack.com/sim${body.reference}`, access_code: 'sim', reference: body.reference }
+  },
+  async verify(reference) {
+    this.calls.push(['verify', reference])
+    if (this.down) throw new Error('Paystack is unavailable')
+    const t = this.tx.get(reference)
+    if (!t) throw new Error('Transaction reference not found')
+    return { id: t.id, status: t.status, reference, amount: t.paidAmount ?? t.amount, currency: t.paidCurrency ?? t.currency, paid_at: t.paid_at, channel: t.channel, gateway_response: t.gateway_response }
+  },
+  async refund(reference, amount) {
+    this.calls.push(['refund', reference, amount])
+    if (!this.tx.get(reference) || this.tx.get(reference).status !== 'success') throw new Error('Transaction has not been paid')
+    this.refunds.push({ reference, amount })
+    return { status: 'pending' }
+  },
+  /** What happens on Paystack's checkout page. */
+  complete(reference, { status = 'success', amount, currency, gateway_response } = {}) {
+    const t = this.tx.get(reference)
+    if (!t) throw new Error('no such tx ' + reference)
+    Object.assign(t, { status, paid_at: status === 'success' ? new Date().toISOString() : null, channel: 'card',
+      gateway_response: gateway_response ?? (status === 'success' ? 'Approved' : status === 'failed' ? 'Declined' : t.gateway_response),
+      paidAmount: amount, paidCurrency: currency })
+  },
+}
+
+const deps = {
+  paystack,
+  secret: SECRET,
+  appUrls: APP,
+  functionsUrl: 'https://project.supabase.co/functions/v1',
+  service: (fn, args) => rpc('service', fn, args),
+  asUser: (req) => {
+    const id = (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '')
+    return (fn, args) => rpc(id ? { id } : 'anon', fn, args)
+  },
+  getPayment: async (id) => (await sql('service', 'select * from payments where id = $1', [id]))[0] ?? null,
+}
+
+// Requests as the apps / Paystack would send them.
+const post = (user, body) => new Request('https://project.supabase.co/functions/v1/x', {
+  method: 'POST', headers: { Authorization: user ? `Bearer ${user.id}` : '', 'content-type': 'application/json' }, body: JSON.stringify(body),
+})
+const signed = (event, secret = SECRET) => {
+  const raw = JSON.stringify(event)
+  return new Request('https://project.supabase.co/functions/v1/paystack-webhook', {
+    method: 'POST', headers: { 'x-paystack-signature': createHmac('sha512', secret).update(raw).digest('hex'), 'content-type': 'application/json' }, body: raw,
+  })
+}
+const callback = (reference, extra = '') => new Request(
+  `https://project.supabase.co/functions/v1/paystack-callback?redirect=${encodeURIComponent(APP + '/checkout/return')}&reference=${reference}${extra}`)
+const body = async (res) => ({ status: res.status, ...(await res.json()) })
+const chargeSuccess = (ref) => ({ event: 'charge.success', data: { id: paystack.tx.get(ref).id, reference: ref, status: 'success', amount: paystack.tx.get(ref).amount, currency: 'NGN' } })
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+let n = 0
+async function user(role, name) {
+  const email = `${name.toLowerCase().replace(/\W+/g, '.')}.${++n}@example.test`
+  const { id } = await one(`insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id`,
+    [email, JSON.stringify({ role: role === 'admin' ? 'student' : role, full_name: name })])
+  if (role === 'admin') await sql('postgres', `update profiles set role = 'admin' where id = $1`, [id])
+  return { id, email, name }
+}
+async function approvedTutor(name, rate = 10000) {
+  const t = await user('tutor', name)
+  await sql('postgres', `update tutors set status = 'approved', hourly_rate = $2, subjects = '{Mathematics,Physics}', timezone = 'Africa/Lagos' where id = $1`, [t.id, rate])
+  await sql('postgres', `insert into availability (tutor_id, weekday, start_minute, end_minute) select $1, d, 360, 1320 from generate_series(0, 6) d`, [t.id])
+  return t
+}
+let slot = 0
+/** A free hour on a future day, inside every test tutor's availability. */
+async function nextSlot() {
+  slot++
+  const { at } = await one(`select ((date_trunc('day', now() at time zone 'Africa/Lagos') + make_interval(days => 2 + $1 / 10, hours => 8 + $1 % 10)) at time zone 'Africa/Lagos') as at`, [slot])
+  return at
+}
+async function book(learner, tutor, at) {
+  const r = await rpc(learner, 'create_booking', { p_tutor: tutor.id, p_student: learner.id, p_subject: 'Mathematics', p_starts_at: at ?? await nextSlot(), p_duration: 60 })
+  if (r.error) throw new Error('create_booking: ' + r.error.message)
+  return r.data
+}
+const plan = async (code) => one('select * from subscription_plans where code = $1', [code])
+async function checkout(u, payload) {
+  const res = await body(await core.handleInit(post(u, { redirect_url: APP + '/checkout/return', ...payload }), deps))
+  if (res.status !== 200) throw new Error('init failed: ' + res.error)
+  return res
+}
+async function subscribe(u, code) {
+  const { reference } = await checkout(u, { kind: 'subscription', plan_id: (await plan(code)).id })
+  paystack.complete(reference)
+  const res = await body(await core.handleVerify(post(u, { reference }), deps))
+  return { reference, res }
+}
+
+// ---------------------------------------------------------------------------
+// Tiny test runner
+// ---------------------------------------------------------------------------
+const results = []
+async function test(name, fn) {
+  try {
+    await fn()
+    results.push(['PASS', name])
+  } catch (e) {
+    results.push(['FAIL', name, e.stack?.split('\n').slice(0, 3).join(' | ') ?? String(e)])
+  }
+}
+function eq(actual, expected, what = '') {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`${what}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
+}
+function ok(cond, what) { if (!cond) throw new Error(what) }
+function denied(r, pattern, what) {
+  ok(r.error, `${what}: expected an error, got ${JSON.stringify(r.data)}`)
+  if (pattern) ok(pattern.test(r.error.message), `${what}: unexpected error "${r.error.message}"`)
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+await sql('postgres', `delete from auth.users where email like '%@example.test'`)
+await sql('postgres', `update platform_settings set tutor_subscription_required = true, hold_minutes = 30 where id = 1`)
+
+const admin = await user('admin', 'Ada Admin')
+const student = await user('student', 'Sola Student')
+const student2 = await user('student', 'Bisi Learner')
+const parent = await user('parent', 'Pat Parent')
+const tutor = await approvedTutor('Tobi Tutor', 10000)
+
+await test('demo mode is gone: no test_mode setting, no simulated payment functions', async () => {
+  const cols = await sql('postgres', `select column_name from information_schema.columns where table_name = 'platform_settings'`)
+  ok(!cols.some((c) => c.column_name === 'test_mode'), 'test_mode column still exists')
+  const fns = await sql('postgres', `select proname from pg_proc where proname in ('pay_for_booking', 'subscribe') and pronamespace = 'public'::regnamespace`)
+  eq(fns.length, 0, 'simulated payment functions')
+})
+
+await test('plans are public; only admins manage them', async () => {
+  const r = await sql('anon', 'select code, price from subscription_plans order by audience, sort_order')
+  eq(r.map((p) => p.code), ['plus', 'family', 'tutor_pro'], 'plans visible to anon')
+  denied(await rpc(student, 'admin_upsert_plan', { p: { id: (await plan('plus')).id, price: 1 } }), /Admins only/, 'student edits plan')
+  const up = await rpc(admin, 'admin_upsert_plan', { p: { id: (await plan('tutor_pro')).id, price: 6000 } })
+  eq(Number(up.data?.price), 6000, 'admin sets tutor plan price')
+  denied(await rpc(admin, 'admin_upsert_plan', { p: { id: (await plan('tutor_pro')).id, price: 50 } }), /check/, 'price below ₦100')
+  const hidden = await rpc(admin, 'admin_upsert_plan', { p: { code: 'old_plan', audience: 'learner', name: 'Old', price: 1000, is_active: false } })
+  ok(hidden.data?.id, 'admin creates plan')
+  eq((await sql({ id: student.id }, `select count(*)::int c from subscription_plans where code = 'old_plan'`))[0].c, 0, 'inactive plan hidden from users')
+})
+
+await test('server-only payment functions cannot be called by users', async () => {
+  for (const [fn, args] of [
+    ['fulfill_payment', { p_reference: 'x', p_amount_kobo: 1, p_currency: 'NGN', p_payload: {} }],
+    ['mark_payment_unsuccessful', { p_reference: 'x', p_status: 'failed' }],
+    ['record_refund', { p_payment: '00000000-0000-0000-0000-000000000000', p_status: 'refunded' }],
+    ['apply_refund_webhook', { p_reference: 'x', p_success: true }],
+    ['log_payment_event', { p_reference: 'x', p_event: 'x', p_source: 'admin' }],
+    ['payment_event_seen', { p_key: 'x' }],
+    ['notify', { p_user: student.id, p_kind: 'x', p_title: 'x' }],
+    ['run_maintenance', {}],
+  ]) {
+    denied(await rpc(student, fn, args), /permission denied/, `student → ${fn}`)
+    denied(await rpc('anon', fn, args), /permission denied/, `anon → ${fn}`)
+  }
+})
+
+await test('unsubscribed tutor is hidden and cannot be booked', async () => {
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 0, 'listed without subscription')
+  denied(await rpc(student, 'create_booking', { p_tutor: tutor.id, p_student: student.id, p_subject: 'Maths', p_starts_at: await nextSlot(), p_duration: 60 }),
+    /not taking bookings/, 'booking unlisted tutor')
+  eq((await sql('anon', 'select json_extract_path_text(public_stats(), \'tutors\') t'))[0].t, '0', 'public stats count')
+})
+
+await test('learners cannot buy tutor plans and vice versa', async () => {
+  const a = await body(await core.handleInit(post(student, { kind: 'subscription', plan_id: (await plan('tutor_pro')).id, redirect_url: APP }), deps))
+  eq([a.status, a.error], [400, 'This plan is for tutors'], 'student buys tutor plan')
+  const b = await body(await core.handleInit(post(tutor, { kind: 'subscription', plan_id: (await plan('plus')).id, redirect_url: APP }), deps))
+  eq([b.status, b.error], [400, 'This plan is for students and parents'], 'tutor buys learner plan')
+})
+
+await test('return addresses are restricted (no open redirects)', async () => {
+  const a = await body(await core.handleInit(post(tutor, { kind: 'subscription', plan_id: (await plan('tutor_pro')).id, redirect_url: 'https://evil.example/steal' }), deps))
+  eq(a.status, 400, 'init with foreign redirect')
+  const res = await core.handleCallback(new Request('https://x/functions/v1/paystack-callback?reference=TH-1&redirect=https://evil.example'), deps)
+  eq(res.status, 400, 'callback with foreign redirect')
+})
+
+let tutorRef
+await test('tutor subscription: pending → paid via callback → active and listed', async () => {
+  const init = await checkout(tutor, { kind: 'subscription', plan_id: (await plan('tutor_pro')).id })
+  tutorRef = init.reference
+  eq(Number(init.amount), 6000, 'server-side price')
+  ok(init.authorization_url.startsWith('https://checkout.paystack.com/'), 'checkout url')
+  const sent = paystack.tx.get(tutorRef)
+  eq([sent.amount, sent.currency, sent.email], [600000, 'NGN', tutor.email], 'Paystack initialize body (kobo)')
+  eq((await one('select status from subscriptions where user_id = $1', [tutor.id])).status, 'pending', 'subscription pending before payment')
+
+  paystack.complete(tutorRef)
+  const res = await core.handleCallback(callback(tutorRef, '&status=success'), deps)
+  eq(res.status, 302, 'callback redirects')
+  const loc = new URL(res.headers.get('Location'))
+  eq([loc.origin + loc.pathname, loc.searchParams.get('status')], [APP + '/checkout/return', 'succeeded'], 'redirect target')
+
+  const sub = await one(`select status, current_period_end > now() + interval '27 days' and current_period_end < now() + interval '32 days' as month from subscriptions where user_id = $1 and audience = 'tutor'`, [tutor.id])
+  eq([sub.status, sub.month], ['active', true], 'subscription active for a month')
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'listed after payment')
+  const pay = await one(`select kind, amount, status, audience, provider from payments where provider_ref = $1`, [tutorRef])
+  eq([pay.kind, Number(pay.amount), pay.status, pay.audience, pay.provider], ['subscription', 6000, 'succeeded', 'tutor', 'paystack'], 'payment row')
+  ok((await one(`select count(*)::int c from notifications where user_id = $1 and kind = 'subscription_active'`, [tutor.id])).c === 1, 'notification sent')
+})
+
+await test('verify after webhook already fulfilled is a no-op', async () => {
+  const r = await body(await core.handleVerify(post(tutor, { reference: tutorRef }), deps))
+  eq(r.status, 'succeeded', 'status')
+  eq((await one('select count(*)::int c from payments where provider_ref = $1', [tutorRef])).c, 1, 'single payment row')
+})
+
+let bookingA, refA
+await test('session: forged "success" from the browser does not confirm anything', async () => {
+  bookingA = await book(student, tutor)
+  eq(bookingA.status, 'pending_payment', 'booking status')
+  const init = await checkout(student, { kind: 'session', booking_id: bookingA.id })
+  refA = init.reference
+  eq(Number(init.amount), 10000, 'price from tutor rate')
+  // The user lands on the callback URL by hand, claiming success. Paystack says otherwise.
+  const res = await core.handleCallback(callback(refA, '&status=success&trxref=' + refA), deps)
+  eq(new URL(res.headers.get('Location')).searchParams.get('status'), 'abandoned', 'callback status')
+  eq((await one('select status from bookings where id = $1', [bookingA.id])).status, 'pending_payment', 'booking unchanged')
+  eq((await one('select status from payment_intents where reference = $1', [refA])).status, 'abandoned', 'intent abandoned')
+  // Users can't update their own payment records directly either.
+  await sql({ id: student.id }, `update payment_intents set status = 'succeeded' where reference = $1`, [refA])
+  await sql({ id: student.id }, `update bookings set status = 'confirmed' where id = $1`, [bookingA.id]).catch(() => {})
+  eq((await one('select status from payment_intents where reference = $1', [refA])).status, 'abandoned', 'intent not writable by user')
+  eq((await one('select status from bookings where id = $1', [bookingA.id])).status, 'pending_payment', 'booking not writable by user')
+  denied(await rpc(student, 'fulfill_payment', { p_reference: refA, p_amount_kobo: 1000000, p_currency: 'NGN', p_payload: {} }), /permission denied/, 'fulfil directly')
+})
+
+await test('session: abandoned checkout completed later is confirmed by the webhook', async () => {
+  paystack.complete(refA)
+  const res = await body(await core.handleWebhook(signed(chargeSuccess(refA)), deps))
+  eq([res.status, res.outcome], [200, 'succeeded'], 'webhook outcome')
+  const b = await one('select status, amount_paid from bookings where id = $1', [bookingA.id])
+  eq([b.status, Number(b.amount_paid)], ['confirmed', 10000], 'booking confirmed')
+  eq((await one(`select status from payment_intents where reference = $1`, [refA])).status, 'succeeded', 'intent succeeded')
+  const notes = await sql('postgres', `select user_id, kind from notifications where kind in ('booking_confirmed', 'new_booking') order by kind`)
+  eq(notes.map((x) => x.kind), ['booking_confirmed', 'new_booking'], 'student and tutor notified')
+})
+
+await test('duplicate webhook delivery is processed once', async () => {
+  const again = await body(await core.handleWebhook(signed(chargeSuccess(refA)), deps))
+  eq(again.duplicate, true, 'second delivery flagged duplicate')
+  eq((await one('select count(*)::int c from payments where provider_ref = $1', [refA])).c, 1, 'one payment row')
+  eq((await one(`select count(*)::int c from notifications where kind = 'booking_confirmed'`)).c, 1, 'one notification')
+  eq((await one(`select count(*)::int c from payment_events where reference = $1 and event = 'webhook.charge.success'`, [refA])).c, 1, 'one processed event')
+})
+
+await test('webhooks with a bad or missing signature are rejected and logged', async () => {
+  const b = await bookAndInit(student2)
+  paystack.complete(b.reference)
+  const forged = signed(chargeSuccess(b.reference), 'sk_test_wrong_key')
+  eq((await core.handleWebhook(forged, deps)).status, 401, 'bad signature')
+  const missing = new Request('https://x/paystack-webhook', { method: 'POST', body: JSON.stringify(chargeSuccess(b.reference)) })
+  eq((await core.handleWebhook(missing, deps)).status, 401, 'missing signature')
+  eq((await one('select status from bookings where id = $1', [b.booking.id])).status, 'pending_payment', 'booking untouched')
+  ok((await one(`select count(*)::int c from payment_events where event = 'webhook.rejected'`)).c >= 2, 'rejections logged')
+  // Clean up: verify for real.
+  eq((await body(await core.handleVerify(post(student2, { reference: b.reference }), deps))).status, 'succeeded', 'real verify')
+})
+
+async function bookAndInit(learner, at) {
+  const booking = await book(learner, tutor, at)
+  const { reference, amount } = await checkout(learner, { kind: 'session', booking_id: booking.id })
+  return { booking, reference, amount }
+}
+
+await test('failed payment leaves the booking unpaid, and a retry succeeds', async () => {
+  const b = await bookAndInit(student)
+  paystack.complete(b.reference, { status: 'failed', gateway_response: 'Insufficient Funds' })
+  const r = await body(await core.handleVerify(post(student, { reference: b.reference }), deps))
+  eq([r.status, r.reason], ['failed', 'Insufficient Funds'], 'verify result')
+  const i = await one('select status, failure_reason, paystack_status from payment_intents where reference = $1', [b.reference])
+  eq([i.status, i.failure_reason, i.paystack_status], ['failed', 'Insufficient Funds', 'failed'], 'intent')
+  eq((await one('select status from bookings where id = $1', [b.booking.id])).status, 'pending_payment', 'booking still unpaid')
+  const retry = await checkout(student, { kind: 'session', booking_id: b.booking.id })
+  ok(retry.reference !== b.reference, 'new reference for retry')
+  paystack.complete(retry.reference)
+  eq((await body(await core.handleVerify(post(student, { reference: retry.reference }), deps))).status, 'succeeded', 'retry verify')
+  eq((await one('select status from bookings where id = $1', [b.booking.id])).status, 'confirmed', 'booking confirmed')
+})
+
+await test('payment still processing stays pending', async () => {
+  const b = await bookAndInit(student2)
+  paystack.complete(b.reference, { status: 'ongoing' })
+  eq((await body(await core.handleVerify(post(student2, { reference: b.reference }), deps))).status, 'pending', 'verify')
+  eq((await one('select status from payment_intents where reference = $1', [b.reference])).status, 'pending', 'intent pending')
+  paystack.down = true
+  eq((await body(await core.handleVerify(post(student2, { reference: b.reference }), deps))).status, 'pending', 'Paystack unreachable → pending, not failed')
+  paystack.down = false
+  await sql('postgres', `update bookings set status = 'cancelled' where id = $1`, [b.booking.id])
+})
+
+await test('underpayment or wrong currency is never fulfilled', async () => {
+  const b = await bookAndInit(student2)
+  paystack.complete(b.reference, { amount: 100 })
+  const r = await body(await core.handleVerify(post(student2, { reference: b.reference }), deps))
+  eq(r.status, 'failed', 'short amount')
+  ok(/did not match/.test(r.reason), 'reason: ' + r.reason)
+  eq((await one('select status from bookings where id = $1', [b.booking.id])).status, 'pending_payment', 'not confirmed')
+  ok((await one(`select count(*)::int c from payment_events where reference = $1 and event = 'fulfil.rejected'`, [b.reference])).c === 1, 'logged')
+
+  const c = await checkout(student2, { kind: 'session', booking_id: b.booking.id })
+  paystack.complete(c.reference, { currency: 'USD' })
+  const r2 = await body(await core.handleVerify(post(student2, { reference: c.reference }), deps))
+  eq(r2.status, 'failed', 'wrong currency')
+  eq((await one('select count(*)::int c from payments where booking_id = $1', [b.booking.id])).c, 0, 'no payment recorded')
+  await sql('postgres', `update bookings set status = 'cancelled' where id = $1`, [b.booking.id])
+})
+
+await test('callback and webhook racing each other fulfil once', async () => {
+  const b = await bookAndInit(student)
+  paystack.complete(b.reference)
+  const [x, y, z] = await Promise.all([
+    core.handleCallback(callback(b.reference), deps),
+    core.handleWebhook(signed(chargeSuccess(b.reference)), deps),
+    core.handleVerify(post(student, { reference: b.reference }), deps),
+  ])
+  eq([x.status, y.status, z.status], [302, 200, 200], 'responses')
+  eq((await one('select count(*)::int c from payments where provider_ref = $1', [b.reference])).c, 1, 'one payment row')
+})
+
+await test('payment status is private to its owner', async () => {
+  eq((await rpc(student2, 'payment_status', { p_reference: refA })).data, null, 'other user')
+  eq((await body(await core.handleVerify(post(student2, { reference: refA }), deps))).status, 404, 'verify someone else’s payment')
+  eq((await rpc(admin, 'payment_status', { p_reference: refA })).data?.status, 'succeeded', 'admin sees it')
+  eq((await sql({ id: student2.id }, 'select * from payment_intents where reference = $1', [refA])).length, 0, 'RLS on intents')
+})
+
+await test('slot taken while paying → automatic refund queue', async () => {
+  const at = await nextSlot()
+  const late = await bookAndInit(student, at)
+  // Hold expires; maintenance frees the slot; someone else books and pays.
+  await sql('postgres', `update bookings set created_at = now() - interval '2 hours' where id = $1`, [late.booking.id])
+  await sql('postgres', `update payment_intents set created_at = now() - interval '2 hours' where reference = $1`, [late.reference])
+  ok((await rpc('service', 'run_maintenance')).data.released >= 1, 'hold released')
+  const other = await bookAndInit(student2, at)
+  paystack.complete(other.reference)
+  eq((await body(await core.handleVerify(post(student2, { reference: other.reference }), deps))).status, 'succeeded', 'second learner pays')
+  // The first learner's payment finally goes through.
+  paystack.complete(late.reference)
+  const r = await body(await core.handleVerify(post(student, { reference: late.reference }), deps))
+  eq(r.status, 'refund_pending', 'late payment queued for refund')
+  eq((await one('select status from bookings where id = $1', [late.booking.id])).status, 'cancelled', 'late booking stays cancelled')
+  eq((await one(`select count(*)::int c from notifications where user_id = $1 and kind = 'refund_due'`, [student.id])).c, 1, 'learner told about refund')
+})
+
+await test('cancel → refund through Paystack → refund webhooks', async () => {
+  const pay = await one(`select id from payments where provider_ref = $1`, [refA])
+  const can = await rpc(student, 'set_booking_status', { p_booking: bookingA.id, p_status: 'cancelled' })
+  ok(!can.error, 'cancel: ' + can.error?.message)
+  eq((await one('select status from payments where id = $1', [pay.id])).status, 'refund_pending', 'queued')
+  eq((await body(await core.handleRefund(post(student, { payment_id: pay.id }), deps))).status, 403, 'students cannot refund')
+  const r = await body(await core.handleRefund(post(admin, { payment_id: pay.id }), deps))
+  eq([r.id, r.status], [pay.id, 'refund_processing'], 'admin refund')
+  eq(paystack.refunds.at(-1), { reference: refA, amount: 1000000 }, 'Paystack refund call (kobo)')
+  eq((await one('select status from payments where id = $1', [pay.id])).status, 'refund_processing', 'processing')
+  eq((await body(await core.handleRefund(post(admin, { payment_id: pay.id }), deps))).error, 'This refund is already being processed', 'double refund blocked')
+
+  await core.handleWebhook(signed({ event: 'refund.failed', data: { id: 77, status: 'failed', transaction_reference: refA } }), deps)
+  eq((await one('select status from payments where id = $1', [pay.id])).status, 'refund_pending', 'failed refund back in queue')
+  await core.handleRefund(post(admin, { payment_id: pay.id }), deps)
+  const done = await body(await core.handleWebhook(signed({ event: 'refund.processed', data: { id: 78, status: 'processed', transaction_reference: refA } }), deps))
+  eq(done.outcome, 'refunded', 'webhook outcome')
+  const p = await one('select status, refunded_at is not null as at from payments where id = $1', [pay.id])
+  eq([p.status, p.at], ['refunded', true], 'refunded')
+  eq((await one(`select count(*)::int c from notifications where user_id = $1 and kind = 'refund'`, [student.id])).c, 1, 'learner notified')
+})
+
+await test('learner subscription: discount, cancel keeps access, renewal extends', async () => {
+  const { res } = await subscribe(student, 'plus')
+  eq(res.status, 'succeeded', 'verify')
+  const s1 = await one(`select status, current_period_end from subscriptions where user_id = $1 and audience = 'learner'`, [student.id])
+  eq(s1.status, 'active', 'active')
+  const b = await bookAndInit(student)
+  eq(Number(b.amount), 9000, '10% member discount on ₦10,000')
+  await sql('postgres', `update bookings set status = 'cancelled' where id = $1`, [b.booking.id])
+
+  eq((await rpc(student, 'cancel_subscription', { p_audience: 'learner' })).data?.status, 'cancelled', 'cancel')
+  eq((await one('select member_discount($1) d', [student.id])).d, '0.100', 'discount until period end')
+  // Paying again renews from the end of the current period.
+  await subscribe(student, 'plus')
+  const s2 = await one(`select status, cancelled_at, current_period_end from subscriptions where user_id = $1 and audience = 'learner'`, [student.id])
+  eq([s2.status, s2.cancelled_at], ['active', null], 'reactivated')
+  const days = (s2.current_period_end - s1.current_period_end) / 864e5
+  ok(days > 27 && days < 32, `renewal extends by a month (got ${days} days)`)
+  eq((await one(`select count(*)::int c from payments where user_id = $1 and kind = 'subscription'`, [student.id])).c, 2, 'two payments')
+})
+
+await test('reminders, expiry and access restrictions', async () => {
+  await sql('postgres', `update subscriptions set current_period_end = now() + interval '2 days' where user_id = $1`, [tutor.id])
+  const m1 = (await rpc('service', 'run_maintenance')).data
+  ok(m1.reminded >= 1, 'reminder sent')
+  const m2 = (await rpc('service', 'run_maintenance')).data
+  eq(m2.reminded, 0, 'reminder only once per period')
+  eq((await one(`select count(*)::int c from notifications where user_id = $1 and kind = 'renewal_reminder'`, [tutor.id])).c, 1, 'one reminder')
+
+  await sql('postgres', `update subscriptions set current_period_end = now() - interval '1 minute' where user_id = $1`, [tutor.id])
+  ok((await rpc('service', 'run_maintenance')).data.expired >= 1, 'expired')
+  eq((await one(`select status from subscriptions where user_id = $1`, [tutor.id])).status, 'expired', 'status')
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 0, 'tutor hidden after expiry')
+  denied(await rpc(student2, 'create_booking', { p_tutor: tutor.id, p_student: student2.id, p_subject: 'Maths', p_starts_at: await nextSlot(), p_duration: 60 }), /not taking bookings/, 'no new bookings')
+  eq((await sql({ id: student.id }, 'select id from tutors where id = $1', [tutor.id])).length, 1, 'past learners still see the tutor')
+  eq((await one(`select count(*)::int c from notifications where user_id = $1 and kind = 'subscription_expired'`, [tutor.id])).c, 1, 'expiry notice')
+
+  // Renewing restores the listing, starting from now.
+  const { res } = await subscribe(tutor, 'tutor_pro')
+  eq(res.status, 'succeeded', 'renewal paid')
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'listed again')
+})
+
+await test('admins can waive the tutor subscription requirement', async () => {
+  const t2 = await approvedTutor('Kemi Free', 5000)
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [t2.id])).length, 0, 'hidden by default')
+  denied(await rpc(student, 'admin_update_settings', { p: { tutor_subscription_required: false } }), /Admins only/, 'student')
+  await rpc(admin, 'admin_update_settings', { p: { tutor_subscription_required: false } })
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [t2.id])).length, 1, 'listed when not required')
+  await rpc(admin, 'admin_update_settings', { p: { tutor_subscription_required: true } })
+})
+
+await test('stale checkouts are marked abandoned', async () => {
+  const b = await bookAndInit(student2)
+  await sql('postgres', `update payment_intents set created_at = now() - interval '25 hours' where reference = $1`, [b.reference])
+  ok((await rpc('service', 'run_maintenance')).data.abandoned >= 1, 'abandoned count')
+  const i = await one('select status, failure_reason from payment_intents where reference = $1', [b.reference])
+  eq(i.status, 'abandoned', 'status')
+  await sql('postgres', `update bookings set status = 'cancelled' where id = $1`, [b.booking.id])
+})
+
+await test('reconcile picks up a payment whose webhook never arrived', async () => {
+  const b = await bookAndInit(student2)
+  await sql('postgres', `update payment_intents set created_at = now() - interval '10 minutes' where reference = $1`, [b.reference])
+  paystack.complete(b.reference)
+  eq((await body(await core.handleReconcile(post(student2, {}), deps))).status, 403, 'admins only')
+  const r = await body(await core.handleReconcile(post(admin, {}), deps))
+  eq(r.results[b.reference], 'succeeded', 'reconciled')
+  eq((await one('select status from bookings where id = $1', [b.booking.id])).status, 'confirmed', 'booking confirmed')
+})
+
+await test('Paystack outage during checkout start marks the attempt failed', async () => {
+  const booking = await book(student2, tutor)
+  paystack.down = true
+  const r = await body(await core.handleInit(post(student2, { kind: 'session', booking_id: booking.id, redirect_url: APP }), deps))
+  paystack.down = false
+  eq(r.status, 502, 'status')
+  const i = await one(`select status, failure_reason from payment_intents where booking_id = $1`, [booking.id])
+  eq(i.status, 'failed', 'intent failed')
+  await sql('postgres', `update bookings set status = 'cancelled' where id = $1`, [booking.id])
+})
+
+await test('webhook for another app’s payment is acknowledged, not processed', async () => {
+  paystack.tx.set('OTHER-APP-1', { id: 999, reference: 'OTHER-APP-1', amount: 5000, currency: 'NGN', status: 'success' })
+  const r = await body(await core.handleWebhook(signed({ event: 'charge.success', data: { id: 999, reference: 'OTHER-APP-1', status: 'success' } }), deps))
+  eq([r.status, r.outcome], [200, 'unknown_reference'], 'ack')
+})
+
+await test('suspension blocks bookings, checkout and messages; users cannot lift it', async () => {
+  denied(await rpc(admin, 'admin_set_suspended', { p_user: admin.id, p_suspend: true }), /your own account/, 'self-suspend')
+  denied(await rpc(student, 'admin_set_suspended', { p_user: student2.id, p_suspend: true }), /Admins only/, 'student suspends')
+  const pending = await book(student2, tutor)
+  await rpc(admin, 'admin_set_suspended', { p_user: student2.id, p_suspend: true, p_reason: 'Chargeback' })
+  eq((await one('select status from bookings where id = $1', [pending.id])).status, 'cancelled', 'holds released')
+  denied(await rpc(student2, 'create_booking', { p_tutor: tutor.id, p_student: student2.id, p_subject: 'Maths', p_starts_at: await nextSlot(), p_duration: 60 }), /suspended/, 'book')
+  denied(await rpc(student2, 'start_checkout', { p_kind: 'subscription', p_plan_id: (await plan('plus')).id }), /suspended/, 'checkout')
+  denied(await rpc(student2, 'send_message', { p_to: tutor.id, p_body: 'hi' }), /suspended/, 'message')
+  await sql({ id: student2.id }, `update profiles set suspended_at = null, suspended_reason = '' where id = $1`, [student2.id])
+  eq((await one('select suspended_reason from profiles where id = $1', [student2.id])).suspended_reason, 'Chargeback', 'cannot unsuspend self')
+  await sql({ id: student2.id }, `update profiles set role = 'admin' where id = $1`, [student2.id])
+  eq((await one('select role from profiles where id = $1', [student2.id])).role, 'student', 'cannot self-promote')
+  // Suspended tutors drop out of search.
+  await rpc(admin, 'admin_set_suspended', { p_user: tutor.id, p_suspend: true })
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 0, 'tutor hidden')
+  await rpc(admin, 'admin_set_suspended', { p_user: tutor.id, p_suspend: false })
+  await rpc(admin, 'admin_set_suspended', { p_user: student2.id, p_suspend: false })
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'tutor back')
+})
+
+await test('messages: who can contact whom', async () => {
+  const stranger = await user('student', 'Nobody Yet')
+  const lonely = await approvedTutor('Unlisted Uche')
+  denied(await rpc(tutor, 'send_message', { p_to: stranger.id, p_body: 'Hello' }), /can’t message/, 'tutor cold-messages a student')
+  denied(await rpc(stranger, 'send_message', { p_to: lonely.id, p_body: 'Hello' }), /can’t message/, 'unlisted tutor')
+  const m = await rpc(stranger, 'send_message', { p_to: tutor.id, p_body: '  Do you teach WAEC physics?  ' })
+  eq(m.data?.body, 'Do you teach WAEC physics?', 'trimmed message')
+  ok(!(await rpc(tutor, 'send_message', { p_to: stranger.id, p_body: 'Yes, I do!' })).error, 'tutor replies')
+  const convs = (await rpc(tutor, 'my_conversations')).data
+  eq([convs[0].other_id, convs[0].unread, convs[0].last_from_me], [stranger.id, 1, true], 'tutor conversation list')
+  eq((await rpc(tutor, 'mark_conversation_read', { p_other: stranger.id })).data, 1, 'marked read')
+  eq((await sql({ id: student2.id }, 'select count(*)::int c from messages'))[0].c, 0, 'others cannot read the thread')
+  denied(await rpc(stranger, 'send_message', { p_to: tutor.id, p_body: '   ' }), /write a message/, 'empty message')
+  ok(!(await rpc(student, 'send_message', { p_to: tutor.id, p_body: 'Thanks for the lesson' })).error, 'past learner messages tutor')
+})
+
+await test('qualifications: tutors submit, admins verify, edits need re-review', async () => {
+  await sql({ id: tutor.id }, `insert into tutor_qualifications (tutor_id, title, institution, year, status) values ($1, 'B.Sc. Physics', 'University of Lagos', 2018, 'verified')`, [tutor.id])
+  const q = await one('select id, status from tutor_qualifications where tutor_id = $1', [tutor.id])
+  eq(q.status, 'pending', 'self-verification ignored')
+  eq((await rpc('anon', 'tutor_public_qualifications', { p_tutor: tutor.id })).data.length, 0, 'not public yet')
+  denied(await rpc(tutor, 'admin_review_qualification', { p_id: q.id, p_status: 'verified' }), /Admins only/, 'tutor verifies')
+  eq((await rpc(admin, 'admin_list_qualifications', { p_status: 'pending' })).data.map((x) => x.title), ['B.Sc. Physics'], 'admin queue')
+  await rpc(admin, 'admin_review_qualification', { p_id: q.id, p_status: 'verified', p_note: 'Certificate checked' })
+  eq((await rpc('anon', 'tutor_public_qualifications', { p_tutor: tutor.id })).data.map((x) => x.title), ['B.Sc. Physics'], 'public after review')
+  eq((await sql('anon', 'select verified_qualifications from tutor_directory where id = $1', [tutor.id]))[0].verified_qualifications, 1, 'directory count')
+  await sql({ id: tutor.id }, `update tutor_qualifications set title = 'M.Sc. Physics' where id = $1`, [q.id])
+  eq((await one('select status from tutor_qualifications where id = $1', [q.id])).status, 'pending', 'edit resets review')
+  eq((await sql({ id: student.id }, 'select * from tutor_qualifications')).length, 0, 'documents private')
+})
+
+await test('qualification documents: tutors upload to their own folder only', async () => {
+  await sql({ id: tutor.id }, `insert into storage.objects (bucket_id, name) values ('qualifications', $1)`, [`${tutor.id}/degree.pdf`])
+  let blocked = false
+  await sql({ id: tutor.id }, `insert into storage.objects (bucket_id, name) values ('qualifications', $1)`, [`${student.id}/fake.pdf`]).catch(() => { blocked = true })
+  ok(blocked, 'upload into someone else’s folder')
+  eq((await sql({ id: student.id }, `select name from storage.objects where bucket_id = 'qualifications'`)).length, 0, 'students cannot read')
+  eq((await sql({ id: admin.id }, `select name from storage.objects where bucket_id = 'qualifications'`)).length, 1, 'admins can read')
+})
+
+await test('admin reporting: revenue split, payment attempts, event log', async () => {
+  const o = (await rpc(admin, 'admin_overview')).data
+  ok(Number(o.revenue_tutor_subscriptions) === 12000, 'tutor subscription revenue ' + o.revenue_tutor_subscriptions)
+  ok(Number(o.revenue_learner_subscriptions) === 15000, 'learner subscription revenue ' + o.revenue_learner_subscriptions)
+  ok(Number(o.revenue_sessions) > 0 && Number(o.refunded_total) === 10000, 'sessions / refunds')
+  ok(o.payments_failed_30d >= 3, 'failed attempts counted')
+  eq(o.tutors_listed, 1, 'listed tutors')
+  denied(await rpc(student, 'admin_overview'), /Admins only/, 'student overview')
+  const intents = (await rpc(admin, 'admin_list_payment_intents', { p_status: 'failed' })).data
+  ok(intents.some((i) => i.failure_reason === 'Insufficient Funds'), 'failed attempt with reason')
+  const events = (await rpc(admin, 'admin_payment_events', { p_reference: refA })).data.map((e) => e.event)
+  for (const e of ['checkout.started', 'checkout.initialized', 'payment.abandoned', 'payment.fulfilled', 'webhook.charge.success', 'refund.refund_processing']) ok(events.includes(e), 'event log has ' + e)
+  eq((await sql({ id: student.id }, 'select count(*)::int c from payment_events'))[0].c, 0, 'event log is admin-only')
+  const users = (await rpc(admin, 'admin_list_users', { p_search: 'Tobi' })).data
+  eq([users[0].subscription_status], ['active'], 'user list shows subscription')
+  const subs = (await rpc(admin, 'admin_list_subscriptions', { p_status: 'active', p_audience: 'tutor' })).data
+  eq(subs.length, 1, 'subscription list')
+})
+
+await test('Paystack HTTP client sends the right requests', async () => {
+  const seen = []
+  const server = createServer((req, res) => {
+    let raw = ''
+    req.on('data', (c) => (raw += c))
+    req.on('end', () => {
+      seen.push({ method: req.method, url: req.url, auth: req.headers.authorization, body: raw ? JSON.parse(raw) : null })
+      res.setHeader('content-type', 'application/json')
+      if (req.url.startsWith('/transaction/verify/BAD')) { res.statusCode = 400; return res.end(JSON.stringify({ status: false, message: 'Transaction reference not found' })) }
+      const data = req.url === '/transaction/initialize' ? { authorization_url: 'https://checkout.paystack.com/abc', access_code: 'abc', reference: 'TH-1' }
+        : req.url === '/refund' ? { status: 'pending' } : { status: 'success', reference: 'TH-1', amount: 500000, currency: 'NGN', id: 1 }
+      res.end(JSON.stringify({ status: true, message: 'ok', data }))
+    })
+  })
+  await new Promise((r) => server.listen(0, r))
+  const api = paystackApi('sk_test_abc', `http://localhost:${server.address().port}`)
+  eq((await api.initialize({ email: 'a@b.c', amount: 500000, currency: 'NGN', reference: 'TH-1' })).authorization_url, 'https://checkout.paystack.com/abc', 'initialize')
+  eq((await api.verify('TH-1')).status, 'success', 'verify')
+  eq((await api.refund('TH-1', 500000)).status, 'pending', 'refund')
+  let err = ''
+  await api.verify('BAD-REF').catch((e) => { err = e.message })
+  eq(err, 'Transaction reference not found', 'error message')
+  server.close()
+  eq(seen.map((s) => `${s.method} ${s.url}`), ['POST /transaction/initialize', 'GET /transaction/verify/TH-1', 'POST /refund', 'GET /transaction/verify/BAD-REF'], 'endpoints')
+  ok(seen.every((s) => s.auth === 'Bearer sk_test_abc'), 'secret sent as bearer token')
+  eq(seen[2].body, { transaction: 'TH-1', amount: 500000 }, 'refund body')
+})
+
+await test('migration can be re-run safely', async () => {
+  const { readFileSync } = await import('node:fs')
+  const text = readFileSync(new URL('../migrations/20261102000000_production_payments.sql', import.meta.url), 'utf8')
+  await sql('postgres', text)
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'data intact after re-run')
+  eq((await one(`select count(*)::int c from subscriptions where status = 'active'`)).c, 2, 'subscriptions intact')
+})
+
+await pool.end()
+for (const [s, name, err] of results) console.log(`${s}  ${name}${err ? '\n      ' + err : ''}`)
+const failed = results.filter((r) => r[0] === 'FAIL').length
+console.log(`\n${results.length - failed} passed, ${failed} failed`)
+process.exit(failed ? 1 : 0)

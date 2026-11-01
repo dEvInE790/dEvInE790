@@ -1,6 +1,6 @@
 // TutorHaven mobile UI kit: typography, buttons with spring feedback, inputs,
 // chips, badges, avatars, cards, skeletons and empty states.
-import { forwardRef, useEffect, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text as RNText, TextInput, View } from 'react-native'
 import Animated, {
   FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withSpring, withTiming, Easing,
@@ -99,22 +99,29 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', icon:
 // ---------------------------------------------------------------------------
 export const Field = forwardRef(function Field({ label, error, hint, icon: Icon, style, multiline, ...rest }, ref) {
   const [focus, setFocus] = useState(false)
+  const input = useRef(null)
+  useImperativeHandle(ref, () => input.current)
   return (
     <View style={[{ gap: 6 }, style]}>
       {label && <Text variant="label">{label}</Text>}
-      <View style={[styles.input, multiline && { height: 120, alignItems: 'flex-start', paddingTop: 12 }, focus && styles.inputFocus, error && { borderColor: colors.coral }]}>
-        {Icon && <View style={{ flexShrink: 0 }}><Icon size={18} color={colors.navy400} /></View>}
+      {/* The whole box focuses the input, not just the line of text inside it. */}
+      <Pressable
+        onPress={() => input.current?.focus()}
+        accessible={false}
+        style={[styles.input, multiline && { height: 120, alignItems: 'flex-start', paddingTop: 12 }, focus && styles.inputFocus, error && { borderColor: colors.coral }]}
+      >
+        {Icon && <View style={{ flexShrink: 0 }} pointerEvents="none"><Icon size={18} color={colors.navy400} /></View>}
         <TextInput
-          ref={ref}
+          ref={input}
           placeholderTextColor={colors.navy300}
-          style={[styles.inputText, multiline && { textAlignVertical: 'top', height: '100%' }]}
+          style={[styles.inputText, multiline && { textAlignVertical: 'top' }]}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
           multiline={multiline}
           accessibilityLabel={label}
           {...rest}
         />
-      </View>
+      </Pressable>
       {error ? <Text variant="small" style={{ color: colors.coralInk }}>{error}</Text> : hint ? <Text variant="small" style={{ color: colors.navy400 }}>{hint}</Text> : null}
     </View>
   )
@@ -250,7 +257,7 @@ export const styles = StyleSheet.create({
   btnText: { fontFamily: fonts.semibold },
   input: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(15,28,54,0.12)', backgroundColor: colors.white, paddingHorizontal: 14 },
   inputFocus: { borderColor: colors.mint500, ...shadow.soft },
-  inputText: { flex: 1, fontFamily: fonts.body, fontSize: 16, color: colors.navy950, paddingVertical: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null) },
+  inputText: { flex: 1, alignSelf: 'stretch', fontFamily: fonts.body, fontSize: 16, color: colors.navy950, paddingVertical: 0, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null) },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: radius.full, borderWidth: 1, borderColor: 'rgba(15,28,54,0.12)', backgroundColor: colors.white, paddingHorizontal: 15, paddingVertical: 9 },
   chipOn: { backgroundColor: colors.navy900, borderColor: colors.navy900 },

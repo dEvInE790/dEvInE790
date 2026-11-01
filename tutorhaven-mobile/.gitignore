@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.env.local
+*.log
+ios/
+android/
+e2e/screenshots/
+dist-web/
+e2e/.cache/

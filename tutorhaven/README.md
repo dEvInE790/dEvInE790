@@ -2,7 +2,9 @@
 
 > Find the right tutor. Unlock your potential.
 
-A mobile-first tutoring marketplace for students, parents, tutors and admins. It's built with React, Vite, Tailwind CSS v4 and Motion (Framer Motion for React), with Supabase for authentication, data and business rules.
+A mobile-first tutoring marketplace for students, parents, tutors and admins. It's built with React, Vite, Tailwind CSS v4 and Motion (Framer Motion for React), with Supabase for authentication, data and business rules. Prices are in **naira**, and payments go through **Paystack**.
+
+The iOS app (Expo Go) lives in `../tutorhaven-mobile` and shares this database; see its README. Admins use the web admin panel at `/admin`.
 
 ## Quick start
 
@@ -20,7 +22,7 @@ npm run dev
 npm run dev:demo        # http://localhost:5173 with seeded demo data
 ```
 
-Demo mode swaps Supabase for an in-browser backend that applies the same rules as the database. It comes with six tutors, sessions, reviews and payments already in place. The sign-in page offers one-click demo accounts (student, parent, tutor, admin); every demo password is `demo1234`. You can also sign up with any email to try onboarding. Data is saved in your browser; use the **Demo** pill (bottom left) to reset it.
+Demo mode swaps Supabase for an in-browser backend that applies the same rules as the database. It comes with six tutors, sessions, reviews and payments already in place. The sign-in page offers one-click demo accounts (student, parent, tutor, admin); every demo password is `demo1234`. You can also sign up with any email to try onboarding. Data is saved in your browser; use the **Demo** badge (top right on phones, bottom right on desktop) to reset it.
 
 For a phone-framed preview, open **http://localhost:5173/phone.html** while `npm run dev:demo` is running. It shows the live app at true phone width inside a device frame, with device-size switches (iPhone 15, iPhone 15 Pro Max, Pixel 8, iPhone SE), quick links and a reset button.
 
@@ -54,7 +56,8 @@ Until real keys are present, the app still runs. It shows a setup banner, and th
 In the Supabase **SQL editor**, run:
 
 1. `supabase/migrations/20261030000000_init.sql` creates the tables, Row Level Security policies, triggers and RPCs. It is required.
-2. `supabase/seed.sql` adds six demo tutors with availability. It is optional; delete those accounts before launch.
+2. `supabase/migrations/20261101000000_naira_paystack_admin.sql` adds naira pricing, Paystack payments, the refund queue and admin settings. It is required.
+3. `supabase/seed.sql` adds six demo Nigerian tutors with availability. It is optional; delete those accounts before launch.
 
 If you use the Supabase CLI instead, run `supabase db push` and the migration applies directly.
 
@@ -82,13 +85,13 @@ Nobody can choose the admin role at sign-up; the database trigger ignores it.
 | Discovery | `/tutors` | Debounced search, subject/level/price filters synced to the URL, sorting, mobile filter sheet |
 | Tutor profile | `/tutors/:id` | Weekly availability preview in the viewer's timezone, reviews, favourites |
 | Booking | `/book/:tutorId` | Timezone-aware slot picker, session length, booking for a linked child, member pricing |
-| Checkout | `/checkout/:id` | 20-minute slot hold with countdown, member discount, success animation, calendar (.ics) export |
+| Checkout | `/checkout/:id` | Paystack in naira, slot hold with countdown, member discount, success animation, calendar (.ics) export |
 | Pricing | `/pricing` | Plans, subscribe flow, FAQ |
 | Onboarding | `/onboarding` | Animated, role-specific steps (tutors publish their listing and availability here) |
 | Student dashboard | `/dashboard` | Next session, learning-hours chart, sessions to review, favourites, recommendations |
 | Parent dashboard | `/dashboard` | Linked learners, family spending chart, booking on a child's behalf |
 | Tutor dashboard | `/dashboard`, `/dashboard/listing` | Earnings chart, sessions to complete, profile strength, listing and availability editor |
-| Admin dashboard | `/dashboard`, `/dashboard/users` | Revenue chart, bookings and user mix, tutor approvals, role management |
+| Admin panel | `/admin/*` | Overview, tutors, users, bookings, payments & refunds, settings (see below) |
 | Shared | `/dashboard/sessions`, `/billing`, `/settings` | Cancel, complete and review sessions; payment history; profile and password |
 
 ### Business rules (enforced in Postgres)
@@ -96,14 +99,54 @@ Nobody can choose the admin role at sign-up; the database trigger ignores it.
 - Prices are calculated on the server from the tutor's rate. Clients can't set them.
 - Double-booking is impossible: an exclusion constraint prevents overlapping sessions for the same tutor.
 - Bookings must fall inside the tutor's availability, in the tutor's own timezone.
-- Unpaid checkouts release their slot after 20 minutes.
-- Plus gives 10% off sessions and Family gives 15%. Both allow cancellation up to 2 hours before a session; pay-as-you-go allows up to 24 hours.
-- Cancelling a paid session refunds its payment. Only the tutor can mark a session complete, and only after it has started.
+- Unpaid checkouts release their slot after the hold time (30 minutes by default).
+- Plus and Family discounts (10% and 15% by default, editable in Admin → Settings) apply on the server. Members can cancel up to 2 hours before a session; pay-as-you-go allows up to 24 hours.
+- Hourly rates must be between ₦1,000 and ₦1,000,000.
+- Cancelling a paid session queues a full refund for an admin to issue. Only the tutor can mark a session complete, and only after it has started.
 - Users can't change their own role, and tutors can't change their own approval status or ratings.
 
-### Payments
+### Payments (Paystack, naira)
 
-Checkout and subscriptions currently run in **test mode**. The `pay_for_booking` and `subscribe` RPCs record payments and confirm bookings without charging a card, and the UI labels this clearly. To take real payments, create a Stripe Checkout session from a Supabase Edge Function. Then move the "confirm booking + insert payment" logic from `pay_for_booking` into the Stripe webhook handler, so the confirmation happens server-side.
+Checkout and memberships use **Paystack**. Five Supabase Edge Functions in `supabase/functions/` do the work:
+
+| Function | Role |
+|---|---|
+| `paystack-init` | Calls `start_checkout`, which prices the session or plan on the server, then creates the Paystack transaction |
+| `paystack-callback` | Paystack returns the customer here; it verifies the payment and redirects back to the web or iOS app |
+| `paystack-verify` | The apps call this after checkout to confirm the result |
+| `paystack-webhook` | Paystack's server-to-server notice. Its HMAC signature is verified, so payments are confirmed even if the customer closes the browser |
+| `paystack-refund` | Admins only: refunds through Paystack and records the refund |
+
+Only the server can mark a payment as paid: `fulfill_payment` can be called by the service role alone. Fulfilment is idempotent, and it refuses underpayments. If a slot was taken while someone was paying, the payment goes to the refund queue.
+
+**Deploy:** install the Supabase CLI, then from this folder run:
+
+```bash
+supabase link --project-ref <your-project-ref>
+supabase secrets set PAYSTACK_SECRET_KEY=sk_test_xxx APP_URLS=http://localhost:5173,https://your-domain
+supabase functions deploy paystack-init
+supabase functions deploy paystack-verify
+supabase functions deploy paystack-refund
+supabase functions deploy paystack-callback --no-verify-jwt
+supabase functions deploy paystack-webhook --no-verify-jwt
+```
+
+Then set the webhook URL in Paystack Dashboard → Settings → API Keys & Webhooks to `https://<your-project-ref>.supabase.co/functions/v1/paystack-webhook`.
+
+Cancelling a paid session puts its payment in the **refund queue** (Admin → Payments). There, an admin refunds it through Paystack, or marks it refunded if the money was returned another way.
+
+**Test mode** (Admin → Settings) simulates payments without Paystack. It's useful before your keys are ready, but keep it off in production.
+
+## Web admin panel (`/admin`)
+
+| Section | What admins can do |
+|---|---|
+| Overview | Users, revenue, memberships, bookings mix, revenue chart, pending applications, refund alerts |
+| Tutors | Approve or reject applications; suspend or reinstate live tutors; search by name, subject or city |
+| Users | Search accounts; change roles |
+| Bookings | Every session, filtered by status and searchable; cancel or complete |
+| Payments | Every Paystack and test payment, with totals; refund through Paystack or mark refunded |
+| Settings | Plus/Family monthly prices and discounts (₦), checkout hold time, test mode |
 
 ## Design system
 

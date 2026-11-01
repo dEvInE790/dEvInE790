@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "TutorHaven",
+    "slug": "tutorhaven",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ng.tutorhaven.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F1C36",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "ng.tutorhaven.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0F1C36",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120
+        }
+      ]
+    ],
+    "scheme": "tutorhaven",
+    "backgroundColor": "#FAF7F0",
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

@@ -9,8 +9,8 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import { SuccessMark } from './Checkout'
 import useAsync from '../lib/useAsync'
-import { getSubscription, subscribe } from '../lib/api'
-import { PLANS } from '../lib/constants'
+import { getSubscription, startPaystackCheckout, subscribe } from '../lib/api'
+import { useSettings } from '../context/SettingsContext'
 import { dateLong, money } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -20,7 +20,7 @@ const planIcon = { free: Sparkles, plus: Crown, family: Users }
 
 const FAQ = [
   ['How do tutor prices work?', 'Each tutor sets their own hourly rate. You pay per session at checkout, and membership discounts are applied automatically.'],
-  ['Can I cancel my membership?', 'Yes, any time from Billing. Your benefits continue until the end of the period you’ve paid for.'],
+  ['Does membership renew automatically?', 'No. Each payment covers one month and nothing is charged automatically. Renew from Billing whenever you like; extra time is added to your current month.'],
   ['What is the cancellation policy for sessions?', 'Cancel up to 24 hours before a session for a full refund, or up to 2 hours before with Plus or Family.'],
   ['Who is the Family plan for?', 'Parents who book for one or more children. The discount applies to every session you book for a linked learner.'],
 ]
@@ -34,6 +34,7 @@ export default function Pricing() {
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(null)
   const [openFaq, setOpenFaq] = useState(0)
+  const { settings, plans: PLANS } = useSettings()
 
   const current = sub.data && new Date(sub.data.current_period_end) > new Date() ? sub.data : null
 
@@ -48,12 +49,21 @@ export default function Pricing() {
   const confirm = async () => {
     setBusy(true)
     try {
-      const s = await subscribe(choice.id)
-      sub.setData(s)
-      setDone(s)
+      if (settings.test_mode) {
+        const s = await subscribe(choice.id)
+        sub.setData(s)
+        setDone(s)
+        setBusy(false)
+        return
+      }
+      const { authorization_url } = await startPaystackCheckout({
+        kind: 'subscription',
+        plan: choice.id,
+        redirectUrl: `${window.location.origin}/dashboard/billing`,
+      })
+      window.location.assign(authorization_url)
     } catch (e) {
       toast.error(e.message)
-    } finally {
       setBusy(false)
     }
   }
@@ -153,7 +163,10 @@ export default function Pricing() {
                 {choice?.features.map((f) => <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 text-mint-600" />{f}</li>)}
               </ul>
               <p className="mt-5 flex items-start gap-2 rounded-xl bg-cream-100 p-3 text-xs text-navy-600">
-                <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-navy-400" />Test mode: no card is charged. The subscription and payment are recorded in your account.
+                <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-navy-400" />
+                {settings.test_mode
+                  ? 'Test mode is on: no money is charged. The membership and payment are recorded in your account.'
+                  : 'You’ll pay securely on Paystack (card, bank transfer or USSD). Membership lasts one month; renew any time to extend it.'}
               </p>
               <div className="mt-6 flex gap-3">
                 <Button variant="secondary" className="flex-1" onClick={() => setChoice(null)}>Not now</Button>

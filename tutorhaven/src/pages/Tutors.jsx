@@ -23,7 +23,7 @@ const SORTS = [
   { value: 'price_desc', label: 'Price: high to low' },
   { value: 'experience', label: 'Most experienced' },
 ]
-const PRICE_STEPS = [0, 30, 40, 50, 75]
+const PRICE_STEPS = [0, 5000, 8000, 10000, 15000]
 
 export default function Tutors() {
   const [params, setParams] = useSearchParams()

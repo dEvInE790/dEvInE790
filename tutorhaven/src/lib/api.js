@@ -25,6 +25,36 @@ const BOOKING_SELECT = `
   review:reviews ( id, rating )
 `
 
+async function invoke(name, body) {
+  ensureConfigured()
+  const { data, error } = await supabase.functions.invoke(name, { body })
+  if (error) {
+    let message = error.message
+    try {
+      const payload = await error.context?.json?.()
+      if (payload?.error) message = payload.error
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(friendlyMessage({ message }))
+  }
+  return data
+}
+
+// ---------------------------------------------------------------------------
+// Settings & payments (Paystack)
+// ---------------------------------------------------------------------------
+export async function getSettings() {
+  ensureConfigured()
+  return check(await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle())
+}
+
+/** Creates a server-priced Paystack checkout. Returns { authorization_url, reference }. */
+export const startPaystackCheckout = ({ kind, bookingId = null, plan = null, redirectUrl }) =>
+  invoke('paystack-init', { kind, booking_id: bookingId, plan, redirect_url: redirectUrl })
+
+export const verifyPaystack = (reference) => invoke('paystack-verify', { reference })
+
 // ---------------------------------------------------------------------------
 // Public
 // ---------------------------------------------------------------------------
@@ -265,6 +295,35 @@ export async function adminSetTutorStatus(id, status) {
 export async function adminSetRole(id, role) {
   ensureConfigured()
   return check(await supabase.rpc('admin_set_role', { p_user: id, p_role: role }))
+}
+
+export async function adminListTutors(status = '') {
+  ensureConfigured()
+  let q = supabase.from('tutors').select('*, profile:profiles!tutors_id_fkey ( full_name, avatar_url, created_at )')
+  if (status) q = q.eq('status', status)
+  return check(await q.order('created_at', { ascending: false }).limit(300))
+}
+
+export async function adminListPayments(status = '', search = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_list_payments', { p_status: status, p_search: search, p_limit: 300 }))
+}
+
+/** Paystack payments are refunded through Paystack; test payments are just marked refunded. */
+export async function adminRefund(payment) {
+  if (payment.provider === 'paystack') return invoke('paystack-refund', { payment_id: payment.id })
+  ensureConfigured()
+  return check(await supabase.rpc('admin_mark_refunded', { p_payment: payment.id, p_note: 'Refunded by admin' }))
+}
+
+export async function adminMarkRefunded(paymentId, note) {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_mark_refunded', { p_payment: paymentId, p_note: note }))
+}
+
+export async function adminUpdateSettings(patch) {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_update_settings', { p: patch }))
 }
 
 export async function adminRecentBookings(limit = 8) {

@@ -1,7 +1,8 @@
 import { Suspense } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import FrozenOutlet from './FrozenOutlet'
 import { AnimatePresence, motion } from 'motion/react'
-import { CalendarDays, CreditCard, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, UserRoundPen, Users } from 'lucide-react'
+import { CalendarDays, CreditCard, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, UserRoundPen } from 'lucide-react'
 import { LogoMark, Wordmark } from '../../motion/AnimatedLogo'
 import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
@@ -31,9 +32,7 @@ const NAV = {
     { to: '/dashboard/settings', label: 'Settings', icon: Settings },
   ],
   admin: [
-    { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
-    { to: '/dashboard/users', label: 'Users', icon: Users },
-    { to: '/dashboard/sessions', label: 'Sessions', icon: CalendarDays },
+    { to: '/admin', label: 'Admin panel', icon: ShieldCheck },
     { to: '/dashboard/settings', label: 'Settings', icon: Settings },
   ],
 }
@@ -99,7 +98,7 @@ export default function DashboardLayout() {
               exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
             >
               <Suspense fallback={<div className="space-y-4" aria-busy="true"><div className="skeleton h-10 w-56 rounded-xl" /><div className="skeleton h-52 rounded-3xl" /></div>}>
-                <Outlet />
+                <FrozenOutlet />
               </Suspense>
             </motion.div>
           </AnimatePresence>

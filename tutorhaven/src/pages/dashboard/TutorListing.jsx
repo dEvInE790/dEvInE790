@@ -88,7 +88,7 @@ export default function TutorListing() {
           <Input label="Headline" value={form.headline} onChange={set('headline')} maxLength={90} hint={`${form.headline.length}/90`} />
           <Textarea label="About you" rows={6} value={form.bio} onChange={set('bio')} maxLength={1500} hint="Your background, teaching style and what a first session looks like." />
           <div className="grid gap-4 sm:grid-cols-3">
-            <Input label="Hourly rate (USD)" type="number" min={5} max={500} value={form.hourly_rate} onChange={set('hourly_rate')} />
+            <Input label="Hourly rate (₦)" type="number" min={1000} max={1000000} value={form.hourly_rate} onChange={set('hourly_rate')} />
             <Input label="Years of experience" type="number" min={0} max={60} value={form.years_experience} onChange={set('years_experience')} />
             <Input label="Location" value={form.location} onChange={set('location')} placeholder="City, Country" />
           </div>

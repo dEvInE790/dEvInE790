@@ -45,7 +45,7 @@ export default function SessionItem({ booking: b, me, onChange, compact = false 
     try {
       const updated = await setBookingStatus(b.id, status)
       onChange?.({ ...b, ...updated })
-      toast.success(status === 'completed' ? 'Session marked as complete' : 'Session cancelled' + (b.status === 'confirmed' ? '. A refund has been issued.' : ''))
+      toast.success(status === 'completed' ? 'Session marked as complete' : 'Session cancelled' + (b.status === 'confirmed' ? '. Your full refund is being processed.' : ''))
       setConfirm(null)
     } catch (e) {
       toast.error(e.message)
@@ -112,7 +112,7 @@ export default function SessionItem({ booking: b, me, onChange, compact = false 
         open={!!confirm}
         onClose={() => setConfirm(null)}
         title={confirm === 'completed' ? 'Mark this session complete?' : 'Cancel this session?'}
-        description={confirm === 'completed' ? 'The learner will be invited to leave a review.' : b.status === 'confirmed' ? 'Payment will be refunded in full.' : 'This releases the time slot.'}
+        description={confirm === 'completed' ? 'The learner will be invited to leave a review.' : b.status === 'confirmed' ? 'You’ll get a full refund to your original payment method.' : 'This releases the time slot.'}
         size="sm"
       >
         <div className="flex gap-3">

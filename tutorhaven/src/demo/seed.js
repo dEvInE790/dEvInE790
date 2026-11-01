@@ -12,12 +12,12 @@ const D = 864e5
 const id = (n) => `d0000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 
 const TUTORS = [
-  [101, 'Amara Okafor', 'amara', 'Cambridge maths graduate making calculus click', 'I help secondary and university students turn maths anxiety into confidence. Sessions blend worked examples with exam technique, and every learner leaves with a clear plan for the week ahead.', ['Mathematics', 'Calculus', 'Statistics'], ['GCSE', 'A-Level', 'University'], ['English', 'Igbo'], 42, 8, 'London, UK', 'Europe/London'],
-  [102, 'Lucas Meyer', 'lucas', 'Physics PhD who teaches with experiments you can do at home', 'Former lab researcher, now a full-time tutor. I make mechanics, electricity and modern physics intuitive through real-world demos and lots of practice questions.', ['Physics', 'Mathematics'], ['IB', 'A-Level', 'University'], ['English', 'German'], 55, 11, 'Berlin, Germany', 'Europe/Berlin'],
-  [103, 'Priya Raman', 'priya', 'Software engineer teaching Python and computer science', 'Eight years shipping production code. I teach programming fundamentals, algorithms and AP/IB Computer Science with small projects that build real portfolios.', ['Computer Science', 'Python', 'Mathematics'], ['Middle School', 'High School', 'University'], ['English', 'Tamil'], 48, 6, 'Toronto, Canada', 'America/Toronto'],
-  [104, 'Sofía Álvarez', 'sofia', 'Native Spanish speaker focused on real conversation', 'Conversation-first Spanish lessons for all ages. We read, listen and speak from day one, with grammar introduced exactly when you need it.', ['Spanish', 'English'], ['Primary', 'Middle School', 'High School', 'Adult'], ['Spanish', 'English'], 30, 5, 'Madrid, Spain', 'Europe/Madrid'],
-  [105, 'Daniel Kim', 'daniel', 'Chemistry & biology tutor for pre-med and IB students', 'Medical school graduate who loves explaining why reactions happen. Structured revision plans, past-paper drills and memory techniques that stick.', ['Chemistry', 'Biology'], ['IB', 'A-Level', 'University'], ['English', 'Korean'], 50, 7, 'Seoul, South Korea', 'Asia/Seoul'],
-  [106, 'Chloé Bennett', 'chloe', 'English literature & essay writing coach', 'Former secondary English teacher. I help students find their voice in essays, analyse texts with confidence and prepare for SAT, IELTS and university applications.', ['English', 'Writing', 'French'], ['Middle School', 'High School', 'Adult'], ['English', 'French'], 38, 9, 'New York, USA', 'America/New_York'],
+  [101, 'Amara Okafor', 'amara', 'First-class maths graduate making WAEC & JAMB maths click', 'I help secondary and university students turn maths anxiety into confidence. Sessions blend worked examples with past questions and exam technique, and every learner leaves with a clear plan for the week ahead.', ['Mathematics', 'Calculus', 'Statistics'], ['SSS', 'WAEC', 'JAMB', 'University'], ['English', 'Igbo'], 9000, 8, 'Lagos', 'Africa/Lagos'],
+  [102, 'Lucas Meyer', 'lucas', 'Physics PhD who teaches with experiments you can do at home', 'Former lab researcher, now a full-time tutor. I make mechanics, electricity and modern physics intuitive through real-world demos and lots of practice questions.', ['Physics', 'Mathematics'], ['SSS', 'WAEC', 'A-Level', 'University'], ['English', 'German'], 12000, 11, 'Abuja', 'Africa/Lagos'],
+  [103, 'Priya Raman', 'priya', 'Software engineer teaching Python and computer science', 'Eight years shipping production code. I teach programming fundamentals, algorithms and AP/IB Computer Science with small projects that build real portfolios.', ['Computer Science', 'Python', 'Mathematics'], ['JSS', 'SSS', 'University'], ['English', 'Tamil'], 10000, 6, 'Lagos', 'Africa/Lagos'],
+  [104, 'Sofía Álvarez', 'sofia', 'Native Spanish speaker focused on real conversation', 'Conversation-first Spanish lessons for all ages. We read, listen and speak from day one, with grammar introduced exactly when you need it.', ['Spanish', 'English'], ['Primary', 'JSS', 'SSS', 'Adult'], ['Spanish', 'English'], 6000, 5, 'Port Harcourt', 'Africa/Lagos'],
+  [105, 'Daniel Kim', 'daniel', 'Chemistry & biology tutor for pre-med and IB students', 'Medical school graduate who loves explaining why reactions happen. Structured revision plans, past-paper drills and memory techniques that stick.', ['Chemistry', 'Biology'], ['SSS', 'WAEC', 'JAMB', 'University'], ['English', 'Korean'], 11000, 7, 'Enugu', 'Africa/Lagos'],
+  [106, 'Chloé Bennett', 'chloe', 'English literature & essay writing coach', 'Former secondary English teacher. I help students find their voice in essays, analyse texts with confidence and prepare for SAT, IELTS and university applications.', ['English', 'Writing', 'French'], ['JSS', 'SSS', 'WAEC', 'Adult'], ['English', 'French'], 8000, 9, 'Ibadan', 'Africa/Lagos'],
 ]
 
 export function seedDemoDb() {
@@ -43,7 +43,7 @@ export function seedDemoDb() {
     return { id: id(n), headline, bio, subjects, levels, languages, hourly_rate: rate, years_experience: years, location, timezone: tz, status: 'approved', rating: 0, review_count: 0, sessions_completed: 0, created_at: iso(now - (120 - n) * D) }
   })
   person(107, 'theo@demo.tutorhaven.app', 'Theo Laurent', 'tutor')
-  tutors.push({ id: id(107), headline: 'Piano and music theory for curious beginners', bio: 'Conservatoire-trained pianist teaching technique, sight-reading and theory to adults and teens, from first notes to grade 8.', subjects: ['Music'], levels: ['Middle School', 'High School', 'Adult'], languages: ['English', 'French'], hourly_rate: 40, years_experience: 10, location: 'Lyon, France', timezone: 'Europe/Paris', status: 'pending', rating: 0, review_count: 0, sessions_completed: 0, created_at: iso(now - 2 * D) })
+  tutors.push({ id: id(107), headline: 'Piano and music theory for curious beginners', bio: 'Conservatoire-trained pianist teaching technique, sight-reading and theory to adults and teens, from first notes to grade 8.', subjects: ['Music'], levels: ['Middle School', 'High School', 'Adult'], languages: ['English', 'French'], hourly_rate: 7000, years_experience: 10, location: 'Lagos', timezone: 'Africa/Lagos', status: 'pending', rating: 0, review_count: 0, sessions_completed: 0, created_at: iso(now - 2 * D) })
 
   const availability = []
   for (const t of tutors) {
@@ -63,16 +63,16 @@ export function seedDemoDb() {
   const book = (tutorIdx, studentN, dayOffset, hour, dur, status, opts = {}) => {
     const t = tutors[tutorIdx]
     const start = opts.startAt ?? at(dayOffset, hour)
-    const price = Math.round(((t.hourly_rate * dur) / 60) * 100) / 100
-    const paid = opts.discount ? Math.round(price * (1 - opts.discount) * 100) / 100 : price
+    const price = Math.round((t.hourly_rate * dur) / 60)
+    const paid = opts.discount ? Math.round(price * (1 - opts.discount)) : price
     const b = {
       id: `b0000000-0000-4000-8000-${String(seq++).padStart(12, '0')}`, tutor_id: t.id, student_id: id(studentN), booked_by: id(opts.by ?? studentN),
       subject: opts.subject ?? t.subjects[0], starts_at: iso(start), ends_at: iso(start + dur * 60000), duration_minutes: dur, price,
       amount_paid: status === 'cancelled' ? null : paid, status, notes: opts.notes ?? '', created_at: iso(Math.min(now, start) - 4 * D),
     }
     bookings.push(b)
-    if (status !== 'cancelled' || opts.refunded) {
-      payments.push({ id: 'p-' + b.id, user_id: b.booked_by, booking_id: b.id, kind: 'session', amount: paid, currency: 'USD', status: opts.refunded ? 'refunded' : 'succeeded', description: `${b.subject} with ${profiles.find((p) => p.id === t.id).full_name}`, provider: 'test', created_at: b.created_at })
+    if (status !== 'cancelled' || opts.refunded || opts.refundPending) {
+      payments.push({ id: 'p-' + b.id, user_id: b.booked_by, booking_id: b.id, kind: 'session', amount: paid, currency: 'NGN', status: opts.refunded ? 'refunded' : opts.refundPending ? 'refund_pending' : 'succeeded', note: opts.refundPending ? 'Cancelled by learner' : '', description: `${b.subject} with ${profiles.find((p) => p.id === t.id).full_name}`, provider: 'test', created_at: b.created_at })
     }
     if (status === 'completed') t.sessions_completed += 1
     if (opts.review) reviews.push({ id: 'r-' + b.id, booking_id: b.id, tutor_id: t.id, author_id: b.booked_by, rating: opts.review[0], comment: opts.review[1], created_at: iso(start + 2 * 3600e3) })
@@ -89,7 +89,7 @@ export function seedDemoDb() {
   book(0, 1, 0, 0, 60, 'confirmed', { discount: 0.1, startAt: startedAt.getTime() }) // already started → tutor can mark complete
   book(0, 1, 2, 16, 60, 'confirmed', { discount: 0.1, notes: 'Integration by parts before Friday’s mock exam, please!' })
   book(1, 1, 5, 17, 60, 'confirmed', { discount: 0.1, subject: 'Physics' })
-  book(3, 1, 9, 16, 30, 'cancelled', { refunded: true })
+  book(3, 1, 9, 16, 30, 'cancelled', { refundPending: true }) // shows in the admin refund queue
   // Booked by Jordan (parent) for Sam
   book(5, 1, 3, 18, 45, 'confirmed', { by: 2, subject: 'Writing' })
   book(5, 1, -16, 18, 45, 'completed', { by: 2, subject: 'Writing', review: [5, 'Chloé gave Sam brilliant, specific feedback on his essay structure.'] })
@@ -118,9 +118,10 @@ export function seedDemoDb() {
   }
 
   const subscriptions = [{ user_id: id(1), plan: 'plus', status: 'active', current_period_end: iso(now + 20 * D), created_at: iso(now - 10 * D) }]
-  payments.push({ id: 'p-sub-1', user_id: id(1), booking_id: null, kind: 'subscription', amount: 19, currency: 'USD', status: 'succeeded', description: 'TutorHaven Plus — monthly', provider: 'test', created_at: iso(now - 10 * D) })
+  payments.push({ id: 'p-sub-1', user_id: id(1), booking_id: null, kind: 'subscription', amount: 7500, currency: 'NGN', status: 'succeeded', description: 'TutorHaven Plus — 1 month', provider: 'test', created_at: iso(now - 10 * D) })
 
   return {
+    settings: { id: 1, currency: 'NGN', plus_price: 7500, family_price: 15000, plus_discount: 0.1, family_discount: 0.15, hold_minutes: 30, test_mode: true, updated_at: iso(now) },
     users, profiles, tutors, availability, bookings, payments, reviews, subscriptions,
     parent_links: [{ parent_id: id(2), student_id: id(1), created_at: iso(now - 40 * D) }],
     favourites: [{ user_id: id(1), tutor_id: tutors[1].id, created_at: iso(now - 5 * D) }],

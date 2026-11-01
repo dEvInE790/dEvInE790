@@ -20,7 +20,7 @@ import HeroArt from '../components/illustrations/HeroArt'
 import useAsync from '../lib/useAsync'
 import { getFeaturedReviews, getPublicStats, searchTutors } from '../lib/api'
 import { isSupabaseConfigured } from '../lib/supabase'
-import { PLANS } from '../lib/constants'
+import { useSettings } from '../context/SettingsContext'
 import { money } from '../lib/format'
 import { ease } from '../motion/variants'
 
@@ -52,13 +52,13 @@ const AUDIENCES = {
   },
   parents: {
     title: 'Peace of mind for every learner at home',
-    points: ['Link your children and book on their behalf', 'See upcoming sessions and spending in one place', 'Family plan with 15% off every session'],
+    points: ['Link your children and book on their behalf', 'See upcoming sessions and spending in one place', 'Family plan with money off every session'],
     icon: HeartHandshake,
     cta: ['Create a family account', '/signup?role=parent'],
   },
   tutors: {
     title: 'Grow your tutoring business without the admin',
-    points: ['Set your rate, subjects and weekly availability', 'Get booked and paid with no chasing', 'Earnings and student insights at a glance'],
+    points: ['Set your rate, subjects and weekly availability', 'Get booked and paid in naira, no chasing', 'Earnings and student insights at a glance'],
     icon: Wallet,
     cta: ['Apply to teach', '/signup?role=tutor'],
   },
@@ -69,6 +69,7 @@ export default function Landing() {
   const location = useLocation()
   const [q, setQ] = useState('')
   const [audience, setAudience] = useState('students')
+  const { plans: PLANS } = useSettings()
   const enabled = isSupabaseConfigured
   const stats = useAsync(getPublicStats, [], { enabled })
   const tutors = useAsync(() => searchTutors({ limit: 6 }), [], { enabled })

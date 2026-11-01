@@ -1,9 +1,18 @@
-const currencyFmt = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })
-const currencyWholeFmt = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+// All prices are in Nigerian naira.
+const currencyFmt = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', currencyDisplay: 'narrowSymbol', maximumFractionDigits: 2 })
+const currencyWholeFmt = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0 })
 
 export const money = (n) => {
   const v = Number(n || 0)
   return Number.isInteger(v) ? currencyWholeFmt.format(v) : currencyFmt.format(v)
+}
+
+/** Compact naira for chart axes: ₦12.5k, ₦1.2m. */
+export const moneyShort = (n) => {
+  const v = Number(n || 0)
+  if (v >= 1e6) return `₦${+(v / 1e6).toFixed(1)}m`
+  if (v >= 1e3) return `₦${+(v / 1e3).toFixed(1)}k`
+  return `₦${Math.round(v)}`
 }
 
 export const dateLong = (d) =>

@@ -102,7 +102,7 @@ export default function SiteHeader({ transparent = false }) {
                     className="absolute right-0 mt-2 w-56 origin-top-right rounded-2xl border border-navy-900/8 bg-white p-1.5 shadow-lift"
                   >
                     <p className="truncate px-3 pt-2 pb-2.5 text-xs text-navy-400">{user.email}</p>
-                    <Link role="menuitem" to="/dashboard" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-navy-50"><LayoutDashboard className="h-4 w-4 text-navy-400" />Dashboard</Link>
+                    <Link role="menuitem" to={profile?.role === 'admin' ? '/admin' : '/dashboard'} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-navy-50"><LayoutDashboard className="h-4 w-4 text-navy-400" />{profile?.role === 'admin' ? 'Admin panel' : 'Dashboard'}</Link>
                     <Link role="menuitem" to="/dashboard/sessions" className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-navy-50"><CalendarDays className="h-4 w-4 text-navy-400" />Sessions</Link>
                     <button role="menuitem" type="button" onClick={onSignOut} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-coral-600 hover:bg-coral-50"><LogOut className="h-4 w-4" />Sign out</button>
                   </motion.div>

@@ -9,7 +9,7 @@ const tones = {
 
 export default function Badge({ tone = 'neutral', children, icon: Icon, className = '' }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${tones[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ring-1 ring-inset ${tones[tone]} ${className}`}>
       {Icon && <Icon className="h-3.5 w-3.5" aria-hidden />}
       {children}
     </span>

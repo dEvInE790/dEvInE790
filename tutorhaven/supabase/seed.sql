@@ -13,12 +13,12 @@ select
   '{"provider":"email","providers":["email"]}', json_build_object('full_name', t.name, 'role', 'tutor')::jsonb,
   now(), now(), '', '', '', ''
 from (values
-  ('a1000000-0000-4000-8000-000000000001'::uuid, 'amara.okafor@demo.tutorhaven.app', 'Amara Okafor'),
-  ('a1000000-0000-4000-8000-000000000002'::uuid, 'lucas.meyer@demo.tutorhaven.app', 'Lucas Meyer'),
-  ('a1000000-0000-4000-8000-000000000003'::uuid, 'priya.raman@demo.tutorhaven.app', 'Priya Raman'),
-  ('a1000000-0000-4000-8000-000000000004'::uuid, 'sofia.alvarez@demo.tutorhaven.app', 'Sofía Álvarez'),
-  ('a1000000-0000-4000-8000-000000000005'::uuid, 'daniel.kim@demo.tutorhaven.app', 'Daniel Kim'),
-  ('a1000000-0000-4000-8000-000000000006'::uuid, 'chloe.bennett@demo.tutorhaven.app', 'Chloé Bennett')
+  ('a1000000-0000-4000-8000-000000000001'::uuid, 'adaeze.okafor@demo.tutorhaven.app', 'Adaeze Okafor'),
+  ('a1000000-0000-4000-8000-000000000002'::uuid, 'tunde.bakare@demo.tutorhaven.app', 'Tunde Bakare'),
+  ('a1000000-0000-4000-8000-000000000003'::uuid, 'zainab.bello@demo.tutorhaven.app', 'Zainab Bello'),
+  ('a1000000-0000-4000-8000-000000000004'::uuid, 'chinedu.eze@demo.tutorhaven.app', 'Chinedu Eze'),
+  ('a1000000-0000-4000-8000-000000000005'::uuid, 'funmi.adeyemi@demo.tutorhaven.app', 'Funmilayo Adeyemi'),
+  ('a1000000-0000-4000-8000-000000000006'::uuid, 'ibrahim.musa@demo.tutorhaven.app', 'Ibrahim Musa')
 ) as t (id, email, name)
 on conflict (id) do nothing;
 
@@ -30,33 +30,33 @@ update public.tutors t set
   location = d.location, timezone = d.tz, status = 'approved'
 from (values
   ('a1000000-0000-4000-8000-000000000001'::uuid,
-   'Cambridge maths graduate making calculus click',
-   'I help secondary and university students turn maths anxiety into confidence. Sessions blend worked examples with exam technique, and every learner leaves with a clear plan for the week ahead.',
-   '{Mathematics,Calculus,Statistics}'::text[], '{GCSE,A-Level,University}'::text[], '{English,Igbo}'::text[], 42, 8, 'London, UK', 'Europe/London'),
+   'UNILAG maths first-class graduate making WAEC & JAMB maths click',
+   'I help secondary school students turn maths anxiety into confidence. Sessions blend worked examples with past questions and exam technique, and every learner leaves with a clear plan for the week.',
+   '{Mathematics,Further Mathematics,Statistics}'::text[], '{JSS,SSS,WAEC,JAMB}'::text[], '{English,Igbo}'::text[], 8000, 8, 'Lagos', 'Africa/Lagos'),
   ('a1000000-0000-4000-8000-000000000002'::uuid,
-   'Physics PhD who teaches with experiments you can do at home',
-   'Former lab researcher, now a full-time tutor. I make mechanics, electricity and modern physics intuitive through real-world demos and lots of practice questions.',
-   '{Physics,Mathematics}'::text[], '{IB,A-Level,University}'::text[], '{English,German}'::text[], 55, 11, 'Berlin, Germany', 'Europe/Berlin'),
+   'Physics lecturer who teaches with experiments you can do at home',
+   'Former university lecturer, now a full-time tutor. I make mechanics, electricity and modern physics intuitive through everyday demos and lots of practice questions for WAEC, NECO and JAMB.',
+   '{Physics,Mathematics}'::text[], '{SSS,WAEC,JAMB,University}'::text[], '{English,Yoruba}'::text[], 10000, 11, 'Ibadan', 'Africa/Lagos'),
   ('a1000000-0000-4000-8000-000000000003'::uuid,
-   'Software engineer teaching Python and computer science',
-   'Eight years shipping production code. I teach programming fundamentals, algorithms and AP/IB Computer Science with small projects that build real portfolios.',
-   '{Computer Science,Python,Mathematics}'::text[], '{Middle School,High School,University}'::text[], '{English,Tamil}'::text[], 48, 6, 'Toronto, Canada', 'America/Toronto'),
+   'Software engineer teaching coding, Python and computer studies',
+   'Eight years building fintech products in Lagos. I teach programming fundamentals and computer studies with small projects that build a real portfolio.',
+   '{Computer Science,Python,Mathematics}'::text[], '{JSS,SSS,University,Adult}'::text[], '{English,Hausa}'::text[], 12000, 6, 'Abuja', 'Africa/Lagos'),
   ('a1000000-0000-4000-8000-000000000004'::uuid,
-   'Native Spanish speaker focused on real conversation',
-   'Conversation-first Spanish lessons for all ages. We read, listen and speak from day one, with grammar introduced exactly when you need it.',
-   '{Spanish,English}'::text[], '{Primary,Middle School,High School,Adult}'::text[], '{Spanish,English}'::text[], 30, 5, 'Madrid, Spain', 'Europe/Madrid'),
+   'Chemistry & biology tutor for science students and pre-med',
+   'Medical graduate who loves explaining why reactions happen. Structured revision plans, past-question drills and memory techniques that stick, for WAEC, NECO and JAMB.',
+   '{Chemistry,Biology}'::text[], '{SSS,WAEC,JAMB,University}'::text[], '{English,Igbo}'::text[], 9000, 7, 'Enugu', 'Africa/Lagos'),
   ('a1000000-0000-4000-8000-000000000005'::uuid,
-   'Chemistry & biology tutor for pre-med and IB students',
-   'Medical school graduate who loves explaining why reactions happen. Structured revision plans, past-paper drills and memory techniques that stick.',
-   '{Chemistry,Biology}'::text[], '{IB,A-Level,University}'::text[], '{English,Korean}'::text[], 50, 7, 'Seoul, South Korea', 'Asia/Seoul'),
+   'English language & literature coach for exams and essays',
+   'Former secondary school English teacher. I help students write stronger essays, analyse literature texts with confidence and prepare for WAEC, IELTS and university applications.',
+   '{English,Literature,Writing}'::text[], '{Primary,JSS,SSS,WAEC,Adult}'::text[], '{English,Yoruba}'::text[], 7000, 9, 'Lagos', 'Africa/Lagos'),
   ('a1000000-0000-4000-8000-000000000006'::uuid,
-   'English literature & essay writing coach',
-   'Former secondary English teacher. I help students find their voice in essays, analyse texts with confidence and prepare for SAT, IELTS and university applications.',
-   '{English,Writing,French}'::text[], '{Middle School,High School,Adult}'::text[], '{English,French}'::text[], 38, 9, 'New York, USA', 'America/New_York')
+   'Economics & commerce tutor for SSS and university students',
+   'Economics graduate and banker who turns graphs and theories into real-life stories. Exam-focused lessons for WAEC, NECO, JAMB and first-year university.',
+   '{Economics,Commerce,Mathematics}'::text[], '{SSS,WAEC,JAMB,University}'::text[], '{English,Hausa}'::text[], 7500, 5, 'Kano', 'Africa/Lagos')
 ) as d (id, headline, bio, subjects, levels, languages, rate, years, location, tz)
 where t.id = d.id;
 
--- Monday–Friday 09:00–12:00 and 15:00–19:00, Saturday 10:00–14:00, in each tutor's timezone.
+-- Monday–Friday 09:00–12:00 and 15:00–19:00, Saturday 10:00–14:00, Lagos time.
 insert into public.availability (tutor_id, weekday, start_minute, end_minute)
 select t.id, w.weekday, w.start_minute, w.end_minute
 from public.tutors t

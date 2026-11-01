@@ -17,7 +17,7 @@ import { Reveal, Stagger } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
 import { getSubscription, linkChild, listBookings, listChildren, listPayments, unlinkChild } from '../../lib/api'
 import { hours, hoursFmt, isThisMonth, isUpcoming, monthlySeries } from '../../lib/stats'
-import { PLANS } from '../../lib/constants'
+import { useSettings } from '../../context/SettingsContext'
 import { firstName, greeting, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -34,6 +34,7 @@ export default function ParentHome() {
   const [email, setEmail] = useState('')
   const [linking, setLinking] = useState(false)
   const [menu, setMenu] = useState(null)
+  const { plans: PLANS } = useSettings()
 
   const s = useMemo(() => {
     const all = bookings.data ?? []

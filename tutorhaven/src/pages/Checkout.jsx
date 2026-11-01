@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowRight, CalendarDays, CalendarPlus, Clock, CreditCard, FlaskConical, ShieldCheck, Timer } from 'lucide-react'
 import PublicLayout from '../components/layout/PublicLayout'
@@ -10,8 +10,8 @@ import Skeleton, { LoadingRegion } from '../components/ui/Skeleton'
 import EmptyState, { ErrorState } from '../components/ui/EmptyState'
 import { StatusBadge } from '../components/ui/Badge'
 import useAsync from '../lib/useAsync'
-import { activeDiscount, getBooking, getSubscription, payForBooking } from '../lib/api'
-import { HOLD_MINUTES, PLANS } from '../lib/constants'
+import { activeDiscount, getBooking, getSubscription, payForBooking, startPaystackCheckout, verifyPaystack } from '../lib/api'
+import { useSettings } from '../context/SettingsContext'
 import { dateLong, money, time } from '../lib/format'
 import { icsForBooking } from '../lib/time'
 import { useAuth } from '../context/AuthContext'
@@ -57,15 +57,38 @@ export default function Checkout() {
   const toast = useToast()
   const booking = useAsync(() => getBooking(bookingId), [bookingId])
   const sub = useAsync(() => getSubscription(profile.id), [profile?.id])
+  const { settings, plans } = useSettings()
+  const [params, setParams] = useSearchParams()
   const [paying, setPaying] = useState(false)
   const [paid, setPaid] = useState(null)
+  const HOLD_MINUTES = settings.hold_minutes
+
+  // Returning from Paystack: confirm the payment server-side, then refresh.
+  const returnedRef = params.get('reference')
+  useEffect(() => {
+    if (!returnedRef) return
+    setPaying(true)
+    verifyPaystack(returnedRef)
+      .then((r) => {
+        if (r?.status === 'succeeded') toast.success('Payment received — you’re booked!')
+        else if (r?.status === 'refund_pending') toast.error(r.note ? `${r.note}. We’ll refund you in full.` : 'We couldn’t confirm this booking. We’ll refund you in full.')
+        else toast.error('Payment was not completed. You can try again.')
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => {
+        setPaying(false)
+        setParams({}, { replace: true })
+        booking.reload({ silent: true })
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnedRef])
 
   const b = booking.data
   const deadline = b ? new Date(b.created_at).getTime() + HOLD_MINUTES * 60000 : Date.now()
   const remaining = useCountdown(deadline)
   const expired = b?.status === 'pending_payment' && remaining === 0
-  const discount = activeDiscount(sub.data, PLANS)
-  const total = b ? Math.round(b.price * (1 - discount) * 100) / 100 : 0
+  const discount = activeDiscount(sub.data, plans)
+  const total = b ? Math.round(b.price * (1 - discount)) : 0
   const tutorName = b?.tutor?.profile?.full_name ?? 'your tutor'
   const icsUrl = useMemo(() => (b ? icsForBooking({ ...b, withName: tutorName }) : null), [b, tutorName])
   useEffect(() => () => icsUrl && URL.revokeObjectURL(icsUrl), [icsUrl])
@@ -73,13 +96,22 @@ export default function Checkout() {
   const onPay = async () => {
     setPaying(true)
     try {
-      const payment = await payForBooking(bookingId)
-      setPaid(payment)
-      booking.setData((d) => ({ ...d, status: 'confirmed', amount_paid: payment.amount }))
+      if (settings.test_mode) {
+        const payment = await payForBooking(bookingId)
+        setPaid(payment)
+        booking.setData((d) => ({ ...d, status: 'confirmed', amount_paid: payment.amount }))
+        setPaying(false)
+        return
+      }
+      const { authorization_url } = await startPaystackCheckout({
+        kind: 'session',
+        bookingId,
+        redirectUrl: `${window.location.origin}/checkout/${bookingId}`,
+      })
+      window.location.assign(authorization_url) // Paystack sends the learner back here when done
     } catch (e) {
       toast.error(e.message)
       booking.reload({ silent: true })
-    } finally {
       setPaying(false)
     }
   }
@@ -154,15 +186,22 @@ export default function Checkout() {
                     <div className="mt-4 flex items-center gap-3 rounded-2xl border-2 border-mint-400 bg-mint-50/60 p-4">
                       <CreditCard className="h-5 w-5 text-navy-700" />
                       <div className="flex-1">
-                        <p className="text-sm font-semibold">Card</p>
-                        <p className="text-xs text-navy-500">Secure checkout</p>
+                        <p className="text-sm font-semibold">{settings.test_mode ? 'Test payment' : 'Paystack'}</p>
+                        <p className="text-xs text-navy-500">{settings.test_mode ? 'No money is charged' : 'Card, bank transfer or USSD'}</p>
                       </div>
                       <span className="h-4 w-4 rounded-full border-4 border-navy-900" aria-hidden />
                     </div>
-                    <p className="mt-3 flex items-start gap-2 rounded-xl bg-cream-100 p-3 text-xs text-navy-600">
-                      <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-navy-400" />
-                      Test mode: no card is charged. Payments are recorded so you can try the full flow before connecting a payment provider.
-                    </p>
+                    {settings.test_mode ? (
+                      <p className="mt-3 flex items-start gap-2 rounded-xl bg-cream-100 p-3 text-xs text-navy-600">
+                        <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-navy-400" />
+                        Test mode is on: no money is charged. An admin can turn this off in Settings.
+                      </p>
+                    ) : (
+                      <p className="mt-3 flex items-start gap-2 rounded-xl bg-cream-100 p-3 text-xs text-navy-600">
+                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
+                        You’ll pay securely on Paystack in naira, then come straight back here.
+                      </p>
+                    )}
                     <dl className="mt-5 space-y-2 text-sm">
                       <div className="flex justify-between"><dt className="text-navy-500">Session</dt><dd>{money(b.price)}</dd></div>
                       {discount > 0 && <div className="flex justify-between"><dt className="text-navy-500">Member discount</dt><dd className="text-mint-700">−{money(b.price - total)}</dd></div>}

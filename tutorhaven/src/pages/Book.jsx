@@ -14,7 +14,8 @@ import { Stars } from '../components/ui/StarRating'
 import useAsync from '../lib/useAsync'
 import { activeDiscount, createBooking, getBusySlots, getSubscription, getTutor, listChildren } from '../lib/api'
 import { generateSlots, groupByLocalDay, browserTimezone } from '../lib/time'
-import { DURATIONS, PLANS } from '../lib/constants'
+import { DURATIONS } from '../lib/constants'
+import { useSettings } from '../context/SettingsContext'
 import { dateLong, money, time } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -45,6 +46,7 @@ export default function Book() {
   const navigate = useNavigate()
   const toast = useToast()
   const isParent = profile?.role === 'parent'
+  const { plans, settings } = useSettings()
 
   const tutor = useAsync(() => getTutor(tutorId), [tutorId])
   const children = useAsync(() => listChildren(profile.id), [profile?.id], { enabled: isParent })
@@ -79,9 +81,9 @@ export default function Book() {
   useEffect(() => setSlot(null), [duration, dayKey])
 
   const day = days.find((d) => d.key === dayKey)
-  const discount = activeDiscount(sub.data, PLANS)
-  const price = t ? Math.round((t.hourly_rate * duration * 100) / 60) / 100 : 0
-  const total = Math.round(price * (1 - discount) * 100) / 100
+  const discount = activeDiscount(sub.data, plans)
+  const price = t ? Math.round((t.hourly_rate * duration) / 60) : 0
+  const total = Math.round(price * (1 - discount))
 
   const onSubmit = async () => {
     if (!slot || !subject || !learner) return
@@ -259,7 +261,7 @@ export default function Book() {
                 <Button size="lg" className="mt-2 w-full" disabled={!slot || !subject || !learner || needsChild} loading={submitting} onClick={onSubmit} iconRight={ArrowRight}>
                   Continue to payment
                 </Button>
-                <p className="flex items-center justify-center gap-1.5 pt-1 text-xs text-navy-400"><Lock className="h-3.5 w-3.5" />Your slot is held for 20 minutes at checkout</p>
+                <p className="flex items-center justify-center gap-1.5 pt-1 text-xs text-navy-400"><Lock className="h-3.5 w-3.5" />Your slot is held for {settings.hold_minutes} minutes at checkout</p>
                 {!discount && <p className="text-center text-xs text-navy-400"><Link to="/pricing" className="font-semibold text-mint-700 hover:underline">Members save up to 15%</Link></p>}
               </div>
             </div>

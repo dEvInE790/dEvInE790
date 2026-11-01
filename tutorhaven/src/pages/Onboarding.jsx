@@ -12,7 +12,7 @@ import { useToast } from '../context/ToastContext'
 import { linkChild, replaceAvailability, updateProfile, updateTutor } from '../lib/api'
 import { GOALS, LANGUAGES, LEVELS, SUBJECTS } from '../lib/constants'
 import { browserTimezone } from '../lib/time'
-import { firstName } from '../lib/format'
+import { firstName, money } from '../lib/format'
 import { ease } from '../motion/variants'
 
 const PRESETS = {
@@ -37,7 +37,7 @@ export default function Onboarding() {
   const [busy, setBusy] = useState(false)
   const [data, setData] = useState({
     grade_level: '', subjects: [], goals: [], childEmail: '',
-    headline: '', levels: [], languages: ['English'], hourly_rate: 35, years_experience: 1, location: '', bio: '', presets: ['Weekday evenings'],
+    headline: '', levels: [], languages: ['English'], hourly_rate: 5000, years_experience: 1, location: '', bio: '', presets: ['Weekday evenings'],
   })
   const set = (k) => (v) => setData((d) => ({ ...d, [k]: v?.target ? v.target.value : v }))
 
@@ -45,7 +45,7 @@ export default function Onboarding() {
     const welcome = { key: 'welcome', valid: true }
     const done = { key: 'done', valid: true }
     if (role === 'tutor')
-      return [welcome, { key: 'teach', valid: data.headline.trim().length >= 10 && data.subjects.length > 0 }, { key: 'levels', valid: data.levels.length > 0 && data.languages.length > 0 }, { key: 'rate', valid: data.hourly_rate >= 5 && data.hourly_rate <= 500 }, { key: 'bio', valid: data.bio.trim().length >= 40 }, { key: 'availability', valid: data.presets.length > 0 }, done]
+      return [welcome, { key: 'teach', valid: data.headline.trim().length >= 10 && data.subjects.length > 0 }, { key: 'levels', valid: data.levels.length > 0 && data.languages.length > 0 }, { key: 'rate', valid: data.hourly_rate >= 1000 && data.hourly_rate <= 1000000 }, { key: 'bio', valid: data.bio.trim().length >= 40 }, { key: 'availability', valid: data.presets.length > 0 }, done]
     if (role === 'parent') return [welcome, { key: 'subjects', valid: data.subjects.length > 0 }, { key: 'goals', valid: data.goals.length > 0 }, { key: 'child', valid: true }, done]
     return [welcome, { key: 'grade', valid: !!data.grade_level }, { key: 'subjects', valid: data.subjects.length > 0 }, { key: 'goals', valid: data.goals.length > 0 }, done]
   }, [role, data])
@@ -169,8 +169,8 @@ export default function Onboarding() {
             {current.key === 'rate' && (
               <Question title="Set your rate" icon={Sparkles}>
                 <div className="card p-6 text-center">
-                  <p className="font-display text-5xl font-bold tabular-nums">${data.hourly_rate}<span className="text-lg font-medium text-navy-400">/hr</span></p>
-                  <input type="range" min={10} max={150} step={1} value={data.hourly_rate} onChange={(e) => set('hourly_rate')(Number(e.target.value))} className="mt-5 w-full accent-mint-600" aria-label="Hourly rate" />
+                  <p className="font-display text-5xl font-bold tabular-nums">{money(data.hourly_rate)}<span className="text-lg font-medium text-navy-400">/hr</span></p>
+                  <input type="range" min={2000} max={50000} step={500} value={data.hourly_rate} onChange={(e) => set('hourly_rate')(Number(e.target.value))} className="mt-5 w-full accent-mint-600" aria-label="Hourly rate" />
                 </div>
                 <div className="mt-5 grid grid-cols-2 gap-4">
                   <Input label="Years of experience" type="number" min={0} max={60} value={data.years_experience} onChange={set('years_experience')} />

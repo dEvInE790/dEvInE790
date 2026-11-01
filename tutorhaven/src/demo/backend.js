@@ -4,7 +4,7 @@
 
 import { seedDemoDb } from './seed'
 
-const KEY = 'th:demo-db:v1'
+const KEY = 'th:demo-db:v2'
 const D = 864e5
 let db = load()
 
@@ -73,11 +73,12 @@ const profile = (id) => db.profiles.find((p) => p.id === id)
 const tutor = (id) => db.tutors.find((t) => t.id === id)
 const isAdmin = (uid) => profile(uid)?.role === 'admin'
 const isParentOf = (uid, sid) => db.parent_links.some((l) => l.parent_id === uid && l.student_id === sid)
+const settings = () => db.settings
 const discountFor = (uid) => {
   const s = db.subscriptions.find((x) => x.user_id === uid && new Date(x.current_period_end) > new Date())
-  return s ? (s.plan === 'family' ? 0.15 : 0.1) : 0
+  return s ? Number(s.plan === 'family' ? settings().family_discount : settings().plus_discount) : 0
 }
-const staleHold = (b) => b.status === 'pending_payment' && Date.now() - new Date(b.created_at).getTime() > 20 * 60000
+const staleHold = (b) => b.status === 'pending_payment' && Date.now() - new Date(b.created_at).getTime() > settings().hold_minutes * 60000
 
 function directoryRow(t) {
   const p = profile(t.id)
@@ -165,7 +166,7 @@ const rpc = {
     const b = {
       id: uuid(), tutor_id: p_tutor, student_id: p_student, booked_by: uid, subject: p_subject.trim(),
       starts_at: start.toISOString(), ends_at: end.toISOString(), duration_minutes: p_duration,
-      price: round2((t.hourly_rate * p_duration) / 60), amount_paid: null, status: 'pending_payment',
+      price: Math.round((t.hourly_rate * p_duration) / 60), amount_paid: null, status: 'pending_payment',
       notes: (p_notes || '').slice(0, 1000), created_at: new Date().toISOString(),
     }
     db.bookings.push(b)
@@ -176,10 +177,10 @@ const rpc = {
     if (!b) fail('Booking not found')
     if (b.status !== 'pending_payment') fail('This booking has already been processed')
     if (staleHold(b)) { b.status = 'cancelled'; fail('This checkout expired. Please choose a time again.') }
-    const amount = round2(b.price * (1 - discountFor(uid)))
+    const amount = Math.round(b.price * (1 - discountFor(uid)))
     b.status = 'confirmed'
     b.amount_paid = amount
-    const p = { id: uuid(), user_id: uid, booking_id: b.id, kind: 'session', amount, currency: 'USD', status: 'succeeded', description: `${b.subject} with ${profile(b.tutor_id)?.full_name}`, provider: 'test', created_at: new Date().toISOString() }
+    const p = { id: uuid(), user_id: uid, booking_id: b.id, kind: 'session', amount, currency: 'NGN', status: 'succeeded', description: `${b.subject} with ${profile(b.tutor_id)?.full_name}`, provider: 'test', created_at: new Date().toISOString() }
     db.payments.push(p)
     return p
   },
@@ -230,14 +231,14 @@ const rpc = {
   },
   subscribe({ p_plan }, uid) {
     if (!uid) fail('Please sign in first')
-    const price = { plus: 19, family: 39 }[p_plan]
+    const price = { plus: Number(settings().plus_price), family: Number(settings().family_price) }[p_plan]
     if (!price) fail('Unknown plan')
     let s = db.subscriptions.find((x) => x.user_id === uid)
     const base = s && new Date(s.current_period_end) > new Date() ? new Date(s.current_period_end) : new Date()
     const end = new Date(base); end.setMonth(end.getMonth() + 1)
     if (s) Object.assign(s, { plan: p_plan, status: 'active', current_period_end: end.toISOString() })
     else { s = { user_id: uid, plan: p_plan, status: 'active', current_period_end: end.toISOString(), created_at: new Date().toISOString() }; db.subscriptions.push(s) }
-    db.payments.push({ id: uuid(), user_id: uid, booking_id: null, kind: 'subscription', amount: price, currency: 'USD', status: 'succeeded', description: `TutorHaven ${p_plan[0].toUpperCase() + p_plan.slice(1)} — monthly`, provider: 'test', created_at: new Date().toISOString() })
+    db.payments.push({ id: uuid(), user_id: uid, booking_id: null, kind: 'subscription', amount: price, currency: 'NGN', status: 'succeeded', description: `TutorHaven ${p_plan[0].toUpperCase() + p_plan.slice(1)} — 1 month`, provider: 'test', created_at: new Date().toISOString() })
     return s
   },
   cancel_subscription(_, uid) {
@@ -263,6 +264,8 @@ const rpc = {
       }),
       new_users_30d: db.profiles.filter((p) => Date.now() - new Date(p.created_at).getTime() < 30 * D).length,
       active_subscriptions: db.subscriptions.filter((s) => new Date(s.current_period_end) > now).length,
+      refunds_pending: db.payments.filter((p) => p.status === 'refund_pending').length,
+      refunds_pending_amount: db.payments.filter((p) => p.status === 'refund_pending').reduce((s, p) => s + p.amount, 0),
     }
   },
   admin_list_users({ p_search = '' }, uid) {
@@ -272,6 +275,28 @@ const rpc = {
       .map((p) => ({ id: p.id, email: db.users.find((u) => u.id === p.id)?.email ?? '', full_name: p.full_name, role: p.role, created_at: p.created_at, tutor_status: tutor(p.id)?.status ?? null }))
       .filter((u) => !q || u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  },
+  admin_list_payments({ p_status = '', p_search = '' }, uid) {
+    if (!isAdmin(uid)) fail('Admins only')
+    const q = p_search.toLowerCase()
+    return db.payments
+      .map((p) => ({ ...p, full_name: profile(p.user_id)?.full_name ?? '', email: db.users.find((u) => u.id === p.user_id)?.email ?? '', provider_ref: p.provider_ref ?? null, note: p.note ?? '' }))
+      .filter((p) => !p_status || p.status === p_status)
+      .filter((p) => !q || [p.full_name, p.email, p.provider_ref ?? '', p.description].join(' ').toLowerCase().includes(q))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  },
+  admin_mark_refunded({ p_payment, p_note = '' }, uid) {
+    if (!isAdmin(uid)) fail('Admins only')
+    const p = db.payments.find((x) => x.id === p_payment && x.status !== 'refunded')
+    if (!p) fail('Payment not found or already refunded')
+    Object.assign(p, { status: 'refunded', refunded_at: new Date().toISOString(), note: `${p.note ?? ''} ${p_note}`.trim() })
+    return p
+  },
+  admin_update_settings({ p }, uid) {
+    if (!isAdmin(uid)) fail('Admins only')
+    for (const k of ['plus_price', 'family_price', 'plus_discount', 'family_discount', 'hold_minutes', 'test_mode']) if (p[k] !== undefined) db.settings[k] = p[k]
+    db.settings.updated_at = new Date().toISOString()
+    return db.settings
   },
   admin_set_tutor_status({ p_tutor, p_status }, uid) {
     if (!isAdmin(uid)) fail('Admins only')
@@ -314,6 +339,7 @@ function visible(table, uid) {
     case 'favourites': return db.favourites.filter((f) => f.user_id === uid)
     case 'parent_links': return db.parent_links.filter((l) => l.parent_id === uid || l.student_id === uid || admin).map((l) => ({ ...l, child: profile(l.student_id) }))
     case 'reviews': return db.reviews
+    case 'platform_settings': return [db.settings]
     default: return []
   }
 }

@@ -22,7 +22,7 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false)
   const from = location.state?.from || '/dashboard'
 
-  if (user && profile) return <Navigate to={profile.onboarded ? from : '/onboarding'} replace />
+  if (user && profile) return <Navigate to={!profile.onboarded ? '/onboarding' : profile.role === 'admin' && from === '/dashboard' ? '/admin' : from} replace />
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -30,7 +30,7 @@ export default function SignIn() {
     setBusy(true)
     try {
       const p = await signIn(email.trim(), password)
-      navigate(p && !p.onboarded ? '/onboarding' : from, { replace: true })
+      navigate(p && !p.onboarded ? '/onboarding' : p?.role === 'admin' && from === '/dashboard' ? '/admin' : from, { replace: true })
     } catch (err) {
       setError(/invalid login/i.test(err.message) ? 'That email and password don’t match. Please try again.' : err.message)
     } finally {
@@ -58,7 +58,7 @@ export default function SignIn() {
             onSignIn={async (em, pw) => {
               try {
                 const p = await signIn(em, pw)
-                navigate(p && !p.onboarded ? '/onboarding' : from, { replace: true })
+                navigate(p && !p.onboarded ? '/onboarding' : p?.role === 'admin' && from === '/dashboard' ? '/admin' : from, { replace: true })
               } catch (err) {
                 setError(err.message)
               }

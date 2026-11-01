@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { BadgeCheck, CalendarDays, Crown, Hourglass, Users, Wallet, X } from 'lucide-react'
+import { BadgeCheck, CalendarDays, Crown, Hourglass, RotateCcw, Users, Wallet, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '../../components/layout/DashboardLayout'
 import StatCard from '../../components/StatCard'
@@ -20,7 +20,7 @@ import { useToast } from '../../context/ToastContext'
 const STATUS_COLORS = { confirmed: '#1a8d64', completed: '#24365c', pending_payment: '#e29a1b', cancelled: '#9aabcf' }
 const STATUS_LABEL = { confirmed: 'Confirmed', completed: 'Completed', pending_payment: 'Awaiting payment', cancelled: 'Cancelled' }
 
-export default function AdminHome() {
+export default function Overview() {
   const toast = useToast()
   const overview = useAsync(getAdminOverview, [])
   const pending = useAsync(listPendingTutors, [])
@@ -53,7 +53,13 @@ export default function AdminHome() {
 
   return (
     <>
-      <PageHeader eyebrow="Admin" title="Platform overview" subtitle="Health of the TutorHaven marketplace." action={<Button to="/dashboard/users" variant="secondary" icon={Users}>Manage users</Button>} />
+      <PageHeader eyebrow="Admin" title="Platform overview" subtitle="Health of the TutorHaven marketplace." action={<Button to="/admin/users" variant="secondary" icon={Users}>Manage users</Button>} />
+      {o?.refunds_pending > 0 && (
+        <Link to="/admin/payments?status=refund_pending" className="mb-6 flex items-center gap-3 rounded-2xl bg-amber-400/15 p-4 text-sm text-[#6b4700] transition-colors hover:bg-amber-400/25">
+          <RotateCcw className="h-5 w-5 shrink-0" />
+          <span><strong>{o.refunds_pending} refund{o.refunds_pending > 1 ? 's' : ''} waiting</strong> ({money(o.refunds_pending_amount)}). Review them in Payments.</span>
+        </Link>
+      )}
       {overview.error && <div className="mb-6"><ErrorState message={overview.error} onRetry={overview.reload} /></div>}
 
       <Stagger onMount className="grid grid-cols-2 gap-4 lg:grid-cols-4" gap={0.06}>
@@ -85,7 +91,7 @@ export default function AdminHome() {
       </div>
 
       <Reveal className="card mt-6 p-6">
-        <CardHeader title="Tutor applications" subtitle="Review profiles before they go live" />
+        <CardHeader title="Tutor applications" subtitle="Review profiles before they go live" action={<Button to="/admin/tutors" variant="ghost" size="sm">All tutors</Button>} />
         {pending.loading ? <Skeleton className="mt-5 h-24" /> : pending.error ? <div className="mt-4"><ErrorState message={pending.error} /></div> : pending.data.length === 0 ? (
           <EmptyState icon={BadgeCheck} title="All caught up">No tutor applications are waiting for review.</EmptyState>
         ) : (
@@ -114,7 +120,7 @@ export default function AdminHome() {
       </Reveal>
 
       <Reveal className="card mt-6 p-6">
-        <CardHeader title="Latest bookings" action={<Button to="/dashboard/sessions" variant="ghost" size="sm">All sessions</Button>} />
+        <CardHeader title="Latest bookings" action={<Button to="/admin/bookings" variant="ghost" size="sm">All bookings</Button>} />
         {recent.loading ? <Skeleton className="mt-5 h-40" /> : !recent.data?.length ? (
           <EmptyState icon={CalendarDays} title="No bookings yet" />
         ) : (

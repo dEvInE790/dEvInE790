@@ -47,7 +47,7 @@ const see = (page, text, timeout = 6000) => page.getByText(text, { exact: false 
 async function signIn(page, who) {
   await page.goto(url('/signin'))
   await page.getByRole('button', { name: new RegExp(who) }).first().click()
-  await page.waitForURL(/#\/(dashboard|onboarding)/)
+  await page.waitForURL(/#\/(dashboard|onboarding|admin)/)
   await page.waitForLoadState('networkidle')
 }
 
@@ -60,12 +60,12 @@ async function flow(name, opts, fn) {
     results.push(`PASS  ${name}`)
   } catch (e) {
     results.push(`FAIL  ${name}: ${e.message.split('\n')[0]}`)
-    if (SHOTS) await page.screenshot({ path: `${ROOT}/e2e/screenshots/fail-${name.replace(/\W+/g, '-')}.png` }).catch(() => {})
+    await page.screenshot({ path: `${ROOT}/e2e/screenshots/fail-${name.replace(/\W+/g, '-')}.png` }).catch(() => {})
   }
   await ctx.close()
 }
 
-if (SHOTS) mkdirSync(`${ROOT}/e2e/screenshots`, { recursive: true })
+mkdirSync(`${ROOT}/e2e/screenshots`, { recursive: true })
 
 // ---------------------------------------------------------------------------
 // Flows
@@ -101,7 +101,7 @@ await flow('public: filters, sort, search, clear', {}, async (page) => {
   await page.waitForTimeout(900)
   const first = await page.locator('article h3').first().innerText()
   if (!first.includes('Sofía')) throw new Error('price sort: first was ' + first)
-  await page.locator('aside').getByRole('button', { name: 'Up to $40' }).click()
+  await page.locator('aside').getByRole('button', { name: 'Up to ₦8,000' }).click()
   await see(page, '2 tutors found')
 })
 
@@ -152,7 +152,7 @@ await flow('student: book a session and pay with member discount', {}, async (pa
   await page.getByRole('button', { name: /Continue to payment/ }).click()
   await page.waitForURL(/#\/checkout\//)
   await see(page, 'Slot held for')
-  await page.getByRole('button', { name: /^Pay \$37\.13/ }).click()
+  await page.getByRole('button', { name: /^Pay ₦8,100/ }).click()
   await see(page, 'You’re booked!')
   await page.getByRole('link', { name: /View my sessions/ }).click()
   await see(page, 'Projectile motion please')
@@ -175,10 +175,9 @@ await flow('student: cancel, review, favourite, billing, settings', {}, async (p
   await page.getByRole('button', { name: 'Save to favourites' }).first().click()
   await see(page, 'Saved to your favourites')
   await page.goto(url('/dashboard/billing'))
-  await see(page, 'Renews')
-  await page.getByRole('button', { name: 'Cancel renewal' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel renewal' }).click()
-  await see(page, 'Benefits end')
+  await see(page, 'Active until')
+  await see(page, 'TutorHaven Plus — 1 month')
+  await see(page, 'Refund pending')
   await page.goto(url('/dashboard/settings'))
   await page.getByLabel('Full name').fill('Sam R. Rivera')
   await page.getByRole('button', { name: 'Save changes' }).click()
@@ -200,7 +199,7 @@ await flow('parent: link child, subscribe Family, book for child', {}, async (pa
   await see(page, 'Maya Chen is now linked')
   await page.goto(url('/pricing'))
   await page.getByRole('button', { name: 'Choose Family' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: /Pay \$39/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /Pay ₦15,000/ }).click()
   await see(page, 'Welcome to Family')
   await page.goto(url('/book/d0000000-0000-4000-8000-000000000106'))
   await page.getByRole('button', { name: /Maya Chen/ }).click()
@@ -220,15 +219,16 @@ await flow('tutor: complete session, edit listing, preview profile', {}, async (
   await see(page, 'Session marked as complete')
   await page.getByRole('link', { name: 'My listing' }).first().click()
   await page.locator('li').filter({ hasText: 'Sunday' }).getByRole('button', { name: 'Add' }).click()
-  await page.getByLabel('Hourly rate (USD)').fill('45')
+  await page.getByLabel('Hourly rate (₦)').fill('12000')
   await page.getByRole('button', { name: 'Save listing' }).click()
   await see(page, 'Listing saved')
   await page.getByRole('link', { name: 'Preview' }).click()
-  await see(page, '$45')
+  await see(page, '₦12,000')
 })
 
 await flow('admin: approve tutor, change role, tutor appears in search', {}, async (page) => {
   await signIn(page, 'Ada Admin')
+  await page.waitForURL(/#\/admin/)
   await see(page, 'Platform overview')
   await see(page, 'Theo Laurent')
   await page.getByRole('button', { name: 'Approve' }).click()
@@ -241,6 +241,32 @@ await flow('admin: approve tutor, change role, tutor appears in search', {}, asy
   await see(page, 'is now parent')
   await page.goto(url('/tutors?q=piano'))
   await see(page, 'Theo Laurent')
+})
+
+await flow('admin panel: settings, suspend tutor, refund, cancel booking', {}, async (page) => {
+  await signIn(page, 'Ada Admin')
+  await see(page, '1 refund waiting')
+  await page.getByRole('link', { name: 'Settings' }).first().click()
+  await page.getByLabel('Price per month (₦)').first().fill('9000')
+  await page.getByRole('button', { name: 'Save settings' }).click()
+  await see(page, 'Settings saved')
+  await page.goto(url('/pricing'))
+  await see(page, '₦9,000')
+  await page.goto(url('/admin/tutors'))
+  await page.getByRole('tab', { name: /Live/ }).click()
+  await page.locator('li').filter({ hasText: 'Lucas Meyer' }).getByRole('button', { name: 'Suspend' }).click()
+  await see(page, 'hidden from learners')
+  await page.goto(url('/tutors'))
+  await see(page, '5 tutors found')
+  await page.goto(url('/admin/payments'))
+  await page.getByRole('tab', { name: /Refunds waiting/ }).click()
+  await page.getByRole('button', { name: 'Refund' }).first().click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Issue refund' }).click()
+  await see(page, 'Refunded')
+  await page.goto(url('/admin/bookings'))
+  await page.getByRole('button', { name: 'Cancel' }).first().click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel booking' }).click()
+  await see(page, 'Booking cancelled')
 })
 
 await flow('new tutor: sign up → onboarding → pending dashboard', {}, async (page) => {
@@ -272,7 +298,7 @@ await flow('new student: sign up → onboarding → recommendations', { viewport
   await page.getByLabel('Password').fill('supersecret')
   await page.getByRole('button', { name: /Create student account/ }).click()
   await page.getByRole('button', { name: 'Let’s go' }).click()
-  await page.getByRole('button', { name: 'IB' }).click()
+  await page.getByRole('button', { name: 'WAEC', exact: true }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Chemistry' }).click()
   await page.getByRole('button', { name: 'Continue' }).click()
@@ -310,7 +336,7 @@ const CRAWL = [
   ['Sam Rivera', ['/dashboard', '/dashboard/sessions', '/dashboard/billing', '/dashboard/settings', '/book/d0000000-0000-4000-8000-000000000104', '/pricing']],
   ['Jordan Rivera', ['/dashboard', '/dashboard/sessions', '/dashboard/billing']],
   ['Amara Okafor', ['/dashboard', '/dashboard/sessions', '/dashboard/listing']],
-  ['Ada Admin', ['/dashboard', '/dashboard/users', '/dashboard/sessions']],
+  ['Ada Admin', ['/admin', '/admin/tutors', '/admin/users', '/admin/bookings', '/admin/payments', '/admin/settings']],
 ]
 const SEL = 'a[href], button, [role="tab"], [role="option"]'
 const SKIP = /^(Sign out|Reset demo data|Demo)$/ // covered by flows; would end the session
@@ -376,7 +402,7 @@ if (SHOTS) {
   const shots = [
     [null, '/', 'landing'], [null, '/tutors', 'tutors'], [null, '/tutors/d0000000-0000-4000-8000-000000000101', 'profile'], [null, '/pricing', 'pricing'], [null, '/signin', 'signin'],
     ['Sam Rivera', '/dashboard', 'student'], ['Sam Rivera', '/book/d0000000-0000-4000-8000-000000000102', 'book'], ['Sam Rivera', '/dashboard/sessions', 'sessions'], ['Sam Rivera', '/dashboard/billing', 'billing'],
-    ['Jordan Rivera', '/dashboard', 'parent'], ['Amara Okafor', '/dashboard', 'tutor'], ['Amara Okafor', '/dashboard/listing', 'listing'], ['Ada Admin', '/dashboard', 'admin'], ['Ada Admin', '/dashboard/users', 'users'],
+    ['Jordan Rivera', '/dashboard', 'parent'], ['Amara Okafor', '/dashboard', 'tutor'], ['Amara Okafor', '/dashboard/listing', 'listing'], ['Ada Admin', '/admin', 'admin'], ['Ada Admin', '/admin/users', 'users'], ['Ada Admin', '/admin/payments', 'payments'], ['Ada Admin', '/admin/settings', 'admin-settings'], ['Ada Admin', '/admin/tutors', 'admin-tutors'],
   ]
   for (const [vpName, viewport] of [['mobile', MOBILE], ['tablet', { width: 820, height: 1180 }], ['desktop', { width: 1440, height: 900 }]]) {
     for (const [who, route, name] of shots) {

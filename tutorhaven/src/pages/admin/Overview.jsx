@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { BadgeCheck, CalendarDays, Crown, Hourglass, RotateCcw, Users, Wallet, X } from 'lucide-react'
+import { AlertTriangle, Ban, BadgeCheck, CalendarDays, Crown, Eye, FileCheck2, Hourglass, RotateCcw, Users, Wallet, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '../../components/layout/DashboardLayout'
 import StatCard from '../../components/StatCard'
@@ -60,19 +60,36 @@ export default function Overview() {
           <span><strong>{o.refunds_pending} refund{o.refunds_pending > 1 ? 's' : ''} waiting</strong> ({money(o.refunds_pending_amount)}). Review them in Payments.</span>
         </Link>
       )}
+      {o?.qualifications_pending > 0 && (
+        <Link to="/admin/qualifications" className="mb-6 flex items-center gap-3 rounded-2xl bg-mint-50 p-4 text-sm text-mint-800 transition-colors hover:bg-mint-100">
+          <FileCheck2 className="h-5 w-5 shrink-0" />
+          <span><strong>{o.qualifications_pending} qualification{o.qualifications_pending > 1 ? 's' : ''}</strong> waiting for verification.</span>
+        </Link>
+      )}
       {overview.error && <div className="mb-6"><ErrorState message={overview.error} onRetry={overview.reload} /></div>}
 
       <Stagger onMount className="grid grid-cols-2 gap-4 lg:grid-cols-4" gap={0.06}>
         <StatCard icon={Users} label="Total users" value={users} hint={o ? `+${o.new_users_30d} in 30 days` : ''} loading={overview.loading} />
         <StatCard icon={Hourglass} label="Tutors awaiting review" value={o?.tutors_pending ?? 0} loading={overview.loading} accent="amber" />
         <StatCard icon={Wallet} label="Revenue (all time)" value={Number(o?.revenue_total ?? 0)} format={money} loading={overview.loading} accent="navy" />
-        <StatCard icon={Crown} label="Active memberships" value={o?.active_subscriptions ?? 0} loading={overview.loading} accent="cream" />
+        <StatCard icon={Crown} label="Active subscriptions" value={o?.active_subscriptions ?? 0} hint={o ? `${o.active_tutor_subscriptions} tutors` : ''} loading={overview.loading} accent="cream" />
+        <StatCard icon={Eye} label="Tutors listed" value={o?.tutors_listed ?? 0} hint="Visible and bookable" loading={overview.loading} />
+        <StatCard icon={Hourglass} label="Payments in progress" value={o?.payments_pending ?? 0} hint="Awaiting Paystack" loading={overview.loading} accent="navy" />
+        <StatCard icon={AlertTriangle} label="Failed or abandoned" value={o?.payments_failed_30d ?? 0} hint="Last 30 days" loading={overview.loading} accent="amber" />
+        <StatCard icon={Ban} label="Suspended accounts" value={o?.suspended_users ?? 0} loading={overview.loading} accent="cream" />
       </Stagger>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Reveal className="card p-6">
-          <CardHeader title="Revenue" subtitle="Successful payments, last 6 months" />
+          <CardHeader title="Revenue" subtitle="Payments confirmed by Paystack, last 6 months" />
           <div className="mt-6">{overview.loading ? <Skeleton className="h-[220px]" /> : <BarChart data={revenueChart} format={money} title="Revenue per month" />}</div>
+          {o && (
+            <dl className="mt-6 grid grid-cols-2 gap-3 border-t border-navy-900/[0.06] pt-5 text-sm sm:grid-cols-4">
+              {[['Sessions', o.revenue_sessions], ['Tutor subscriptions', o.revenue_tutor_subscriptions], ['Memberships', o.revenue_learner_subscriptions], ['Refunded', o.refunded_total]].map(([k, v]) => (
+                <div key={k}><dt className="text-navy-500">{k}</dt><dd className="font-display text-lg font-bold tabular-nums">{money(Number(v))}</dd></div>
+              ))}
+            </dl>
+          )}
         </Reveal>
         <Reveal className="card p-6" delay={0.05}>
           <CardHeader title="Bookings by status" />

@@ -46,7 +46,7 @@ export default function Book() {
   const navigate = useNavigate()
   const toast = useToast()
   const isParent = profile?.role === 'parent'
-  const { plans, settings } = useSettings()
+  const { settings } = useSettings()
 
   const tutor = useAsync(() => getTutor(tutorId), [tutorId])
   const children = useAsync(() => listChildren(profile.id), [profile?.id], { enabled: isParent })
@@ -81,7 +81,7 @@ export default function Book() {
   useEffect(() => setSlot(null), [duration, dayKey])
 
   const day = days.find((d) => d.key === dayKey)
-  const discount = activeDiscount(sub.data, plans)
+  const discount = activeDiscount(sub.data)
   const price = t ? Math.round((t.hourly_rate * duration) / 60) : 0
   const total = Math.round(price * (1 - discount))
 

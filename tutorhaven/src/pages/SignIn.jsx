@@ -6,10 +6,9 @@ import { Input } from '../components/ui/Field'
 import Button from '../components/ui/Button'
 import { ErrorState } from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
-import { isDemo, supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { useToast } from '../context/ToastContext'
 
-const DemoAccounts = import.meta.env.VITE_DEMO === 'true' ? lazy(() => import('../demo/DemoAccounts')) : null
 
 export default function SignIn() {
   const { signIn, user, profile, configured } = useAuth()
@@ -40,7 +39,6 @@ export default function SignIn() {
 
   const onReset = async () => {
     if (!email.trim()) return setError('Enter your email above and we’ll send a reset link.')
-    if (isDemo) return toast.info('Password reset emails aren’t sent in demo mode. Demo accounts use the password demo1234.')
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/dashboard/settings` })
     if (err) setError(err.message)
     else toast.success('Check your inbox for a password reset link.')
@@ -52,20 +50,6 @@ export default function SignIn() {
       subtitle="Sign in to continue your learning journey."
       footer={<>New to TutorHaven? <Link to="/signup" className="font-semibold text-mint-700 hover:underline">Create an account</Link></>}
     >
-      {DemoAccounts && (
-        <Suspense fallback={null}>
-          <DemoAccounts
-            onSignIn={async (em, pw) => {
-              try {
-                const p = await signIn(em, pw)
-                navigate(p && !p.onboarded ? '/onboarding' : p?.role === 'admin' && from === '/dashboard' ? '/admin' : from, { replace: true })
-              } catch (err) {
-                setError(err.message)
-              }
-            }}
-          />
-        </Suspense>
-      )}
       {!configured && <div className="mb-6"><ErrorState message="Supabase isn’t configured yet. Add your keys to tutorhaven/.env to enable sign in." /></div>}
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input label="Email" type="email" icon={Mail} autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />

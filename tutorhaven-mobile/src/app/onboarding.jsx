@@ -159,7 +159,7 @@ export default function Onboarding() {
                 <SuccessCheck />
                 <Text variant="h1" style={{ marginTop: 22 }}>You’re all set!</Text>
                 <Text variant="muted" style={{ marginTop: 10, textAlign: 'center', fontSize: 16, lineHeight: 24 }}>
-                  {role === 'tutor' ? 'Your listing has been submitted for review. Students can find you as soon as it’s approved.' : 'Your home screen is ready, with tutor recommendations based on your answers.'}
+                  {role === 'tutor' ? 'Your listing has been submitted for review. Once it’s approved and you’ve started a tutor subscription, students can find and book you.' : 'Your home screen is ready, with tutor recommendations based on your answers.'}
                 </Text>
                 <Button title="Let’s go" size="lg" iconRight={ArrowRight} style={{ marginTop: 28 }} onPress={async () => { await refreshProfile(); router.replace('/(tabs)') }} />
               </Animated.View>

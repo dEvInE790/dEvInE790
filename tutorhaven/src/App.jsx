@@ -17,12 +17,15 @@ const SignUp = lazy(() => import('./pages/SignUp'))
 const Onboarding = lazy(() => import('./pages/Onboarding'))
 const Book = lazy(() => import('./pages/Book'))
 const Checkout = lazy(() => import('./pages/Checkout'))
+const PaymentReturn = lazy(() => import('./pages/PaymentReturn'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const DashboardHome = lazy(() => import('./pages/dashboard/DashboardHome'))
 const Sessions = lazy(() => import('./pages/dashboard/Sessions'))
 const Billing = lazy(() => import('./pages/dashboard/Billing'))
 const Settings = lazy(() => import('./pages/dashboard/Settings'))
 const TutorListing = lazy(() => import('./pages/dashboard/TutorListing'))
+const TutorSubscription = lazy(() => import('./pages/dashboard/TutorSubscription'))
+const Messages = lazy(() => import('./pages/dashboard/Messages'))
 const AdminLayout = lazy(() => import('./components/layout/AdminLayout'))
 const AdminOverview = lazy(() => import('./pages/admin/Overview'))
 const AdminTutors = lazy(() => import('./pages/admin/Tutors'))
@@ -30,7 +33,9 @@ const AdminUsers = lazy(() => import('./pages/admin/Users'))
 const AdminBookings = lazy(() => import('./pages/admin/Bookings'))
 const AdminPayments = lazy(() => import('./pages/admin/Payments'))
 const AdminSettings = lazy(() => import('./pages/admin/Settings'))
-const DemoBar = import.meta.env.VITE_DEMO === 'true' ? lazy(() => import('./demo/DemoBar')) : null
+const AdminPlans = lazy(() => import('./pages/admin/Plans'))
+const AdminSubscriptions = lazy(() => import('./pages/admin/Subscriptions'))
+const AdminQualifications = lazy(() => import('./pages/admin/Qualifications'))
 
 // Admins use the separate admin panel; send them there before the learner dashboard mounts.
 function DashboardGate() {
@@ -62,12 +67,16 @@ function AnimatedRoutes() {
         <Route path="/onboarding" element={<RequireAuth allowIncomplete><Onboarding /></RequireAuth>} />
         <Route path="/book/:tutorId" element={<RequireAuth roles={['student', 'parent']}><Book /></RequireAuth>} />
         <Route path="/checkout/:bookingId" element={<RequireAuth><Checkout /></RequireAuth>} />
+        <Route path="/payment/return" element={<RequireAuth><PaymentReturn /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><DashboardGate /></RequireAuth>}>
           <Route index element={<DashboardHome />} />
           <Route path="sessions" element={<Sessions />} />
           <Route path="billing" element={<RequireAuth roles={['student', 'parent']}><Billing /></RequireAuth>} />
           <Route path="settings" element={<Settings />} />
           <Route path="listing" element={<RequireAuth roles={['tutor']}><TutorListing /></RequireAuth>} />
+          <Route path="subscription" element={<RequireAuth roles={['tutor']}><TutorSubscription /></RequireAuth>} />
+          <Route path="messages" element={<Messages />} />
+          <Route path="messages/:userId" element={<Messages />} />
         </Route>
         <Route path="/admin" element={<RequireAuth roles={['admin']}><AdminLayout /></RequireAuth>}>
           <Route index element={<AdminOverview />} />
@@ -75,6 +84,9 @@ function AnimatedRoutes() {
           <Route path="users" element={<AdminUsers />} />
           <Route path="bookings" element={<AdminBookings />} />
           <Route path="payments" element={<AdminPayments />} />
+          <Route path="plans" element={<AdminPlans />} />
+          <Route path="subscriptions" element={<AdminSubscriptions />} />
+          <Route path="qualifications" element={<AdminQualifications />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
         <Route path="/login" element={<Navigate to="/signin" replace />} />
@@ -93,7 +105,6 @@ export default function App() {
         <AuthProvider>
           <FavouritesProvider>
             <AnimatedRoutes />
-            {DemoBar && <Suspense fallback={null}><DemoBar /></Suspense>}
           </FavouritesProvider>
         </AuthProvider>
         </SettingsProvider>

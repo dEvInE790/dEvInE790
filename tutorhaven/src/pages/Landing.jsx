@@ -16,6 +16,7 @@ import Avatar from '../components/ui/Avatar'
 import Tabs from '../components/ui/Tabs'
 import { Stars } from '../components/ui/StarRating'
 import TutorCard, { TutorCardSkeleton } from '../components/TutorCard'
+import NoTutorsYet from '../components/NoTutorsYet'
 import HeroArt from '../components/illustrations/HeroArt'
 import useAsync from '../lib/useAsync'
 import { getFeaturedReviews, getPublicStats, searchTutors } from '../lib/api'
@@ -70,6 +71,7 @@ export default function Landing() {
   const [q, setQ] = useState('')
   const [audience, setAudience] = useState('students')
   const { plans: PLANS } = useSettings()
+  const featuredPlan = PLANS.find((p) => p.id !== 'free')?.id
   const enabled = isSupabaseConfigured
   const stats = useAsync(getPublicStats, [], { enabled })
   const tutors = useAsync(() => searchTutors({ limit: 6 }), [], { enabled })
@@ -234,7 +236,7 @@ export default function Landing() {
               ) : tutors.loading ? (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }).map((_, i) => <TutorCardSkeleton key={i} />)}</div>
               ) : tutors.data.length === 0 ? (
-                <p className="rounded-2xl bg-cream-100 p-6 text-center text-navy-500">Our first tutors are being verified. Check back soon, or <Link to="/signup?role=tutor" className="font-semibold text-mint-700 underline">apply to teach</Link>.</p>
+                <NoTutorsYet compact />
               ) : (
                 <Stagger className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" gap={0.08}>
                   {tutors.data.map((t) => <TutorCard key={t.id} tutor={t} />)}
@@ -349,12 +351,12 @@ export default function Landing() {
             <h2 className="mt-4 text-3xl font-bold sm:text-4xl">Simple pricing. Better value the more you learn.</h2>
             <p className="mx-auto mt-4 max-w-xl text-navy-500">Tutors set their own hourly rates. Membership takes money off every session.</p>
           </Reveal>
-          <Stagger className="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-3" gap={0.1}>
+          <Stagger key={PLANS.length} className={`mx-auto mt-12 grid max-w-5xl gap-5 ${PLANS.length >= 3 ? 'md:grid-cols-3' : PLANS.length === 2 ? 'md:grid-cols-2' : 'max-w-sm'}`} gap={0.1}>
             {PLANS.map((p) => (
-              <StaggerItem key={p.id} className={`card relative p-7 ${p.featured ? 'ring-2 ring-mint-400' : ''}`}>
-                {p.featured && <span className="absolute -top-3 left-7 rounded-full bg-mint-400 px-3 py-1 text-xs font-bold text-navy-950">Most popular</span>}
+              <StaggerItem key={p.id} className={`card relative p-7 ${p.id === featuredPlan ? 'ring-2 ring-mint-400' : ''}`}>
+                {p.id === featuredPlan && <span className="absolute -top-3 left-7 rounded-full bg-mint-400 px-3 py-1 text-xs font-bold text-navy-950">Most popular</span>}
                 <h3 className="text-lg font-semibold">{p.name}</h3>
-                <p className="mt-3 font-display text-4xl font-bold">{money(p.price)}<span className="text-base font-medium text-navy-400">/mo</span></p>
+                <p className="mt-3 font-display text-4xl font-bold">{money(p.price)}<span className="text-base font-medium text-navy-400">/{p.interval_months > 1 ? `${p.interval_months} mo` : 'mo'}</span></p>
                 <p className="mt-2 text-sm text-navy-500">{p.tagline}</p>
               </StaggerItem>
             ))}

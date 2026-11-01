@@ -1,14 +1,15 @@
 import { useMemo } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
-import { CalendarClock, Circle, CircleCheck, Clock, Star, Users, Wallet } from 'lucide-react-native'
+import { CalendarClock, Circle, CircleCheck, Clock, EyeOff, Star, Users, Wallet } from 'lucide-react-native'
 import Screen from '../Screen'
 import NextSession from '../NextSession'
 import SessionCard from '../SessionCard'
 import { BarChart, StatCard } from '../Stats'
 import { Button, Card, Skeleton, Text } from '../ui'
 import useAsync from '../../lib/useAsync'
-import { getOwnTutor, listBookings } from '../../lib/api'
+import { getOwnTutor, getSubscription, isSubscriptionLive, listBookings } from '../../lib/api'
+import { useSettings } from '../../context/SettingsContext'
 import { isLive, isThisMonth, isUpcoming, weeklySeries } from '../../lib/stats'
 import { firstName, greeting, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
@@ -18,6 +19,9 @@ export default function TutorHome() {
   const { profile } = useAuth()
   const bookings = useAsync(() => listBookings({ limit: 500 }), [])
   const own = useAsync(() => getOwnTutor(profile.id), [profile.id])
+  const sub = useAsync(() => getSubscription(profile.id, 'tutor'), [profile.id])
+  const { settings } = useSettings()
+  const listed = settings.tutor_subscription_required === false || isSubscriptionLive(sub.data)
 
   const s = useMemo(() => {
     const all = (bookings.data ?? []).filter((b) => b.tutor_id === profile.id)
@@ -39,13 +43,24 @@ export default function TutorHome() {
   const replace = (nb) => bookings.setData((list) => list.map((x) => (x.id === nb.id ? nb : x)))
 
   return (
-    <Screen eyebrow={greeting()} title={`Hi, ${firstName(profile.full_name)}`} subtitle="Your teaching business at a glance." onRefresh={() => { bookings.reload(); own.reload() }} refreshing={false}>
+    <Screen eyebrow={greeting()} title={`Hi, ${firstName(profile.full_name)}`} subtitle="Your teaching business at a glance." onRefresh={() => { bookings.reload(); own.reload(); sub.reload() }} refreshing={false}>
       {t && t.status !== 'approved' && (
         <View style={{ flexDirection: 'row', gap: 10, borderRadius: 18, padding: 14, backgroundColor: t.status === 'rejected' ? colors.coralBg : colors.amberBg }}>
           <Clock size={18} color={t.status === 'rejected' ? colors.coralInk : colors.amberInk} />
           <Text style={{ flex: 1, fontSize: 14, color: t.status === 'rejected' ? colors.coralInk : colors.amberInk }}>
             {t.status === 'rejected' ? 'Your listing isn’t visible to learners right now. Update your profile and contact support for another review.' : 'Your listing is being reviewed. Learners can book you once it’s approved.'}
           </Text>
+        </View>
+      )}
+      {t?.status === 'approved' && sub.data !== undefined && !listed && (
+        <View style={{ borderRadius: 20, padding: 16, backgroundColor: colors.navy950, gap: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+            <EyeOff size={18} color={colors.mint300} />
+            <Text style={{ flex: 1, color: colors.navy100, fontSize: 14 }}>
+              {sub.data?.status === 'expired' ? 'Your subscription has expired, so learners can’t find or book you.' : 'You’re approved! Subscribe to appear in search and take paid bookings.'}
+            </Text>
+          </View>
+          <Button title={sub.data?.status === 'expired' ? 'Renew now' : 'Subscribe'} variant="mint" size="sm" style={{ alignSelf: 'flex-start' }} onPress={() => router.push('/subscription')} />
         </View>
       )}
       {bookings.loading && !bookings.data ? <Skeleton style={{ height: 190, borderRadius: 28 }} /> : (

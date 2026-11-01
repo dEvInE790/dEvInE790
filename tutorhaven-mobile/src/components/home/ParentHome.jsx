@@ -10,18 +10,17 @@ import Sheet from '../Sheet'
 import { BarChart, StatCard } from '../Stats'
 import { Avatar, Button, Card, Field, Skeleton, Tappable, Text } from '../ui'
 import useAsync from '../../lib/useAsync'
-import { getSubscription, linkChild, listBookings, listChildren, listPayments } from '../../lib/api'
+import { getSubscription, isSubscriptionLive, linkChild, listBookings, listChildren, listPayments } from '../../lib/api'
 import { hours, hoursFmt, isThisMonth, isUpcoming, monthlySeries } from '../../lib/stats'
 import { firstName, greeting, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { useSettings } from '../../context/SettingsContext'
+import { PAY_AS_YOU_GO } from '../../lib/constants'
 import { colors, radius } from '../../theme'
 
 export default function ParentHome() {
   const { profile } = useAuth()
   const toast = useToast()
-  const { plans } = useSettings()
   const children = useAsync(() => listChildren(profile.id), [profile.id])
   const bookings = useAsync(() => listBookings({ limit: 500 }), [])
   const payments = useAsync(() => listPayments(profile.id), [profile.id])
@@ -42,7 +41,7 @@ export default function ParentHome() {
       per: (id) => ({ upcoming: upcoming.filter((b) => b.student_id === id).length, hours: all.filter((b) => b.student_id === id && b.status === 'completed').reduce((t, b) => t + hours(b), 0) }),
     }
   }, [bookings.data, payments.data])
-  const plan = sub.data && new Date(sub.data.current_period_end) > new Date() ? plans.find((p) => p.id === sub.data.plan) : plans[0]
+  const plan = isSubscriptionLive(sub.data) ? { name: sub.data.plan?.name, discount: Number(sub.data.plan?.session_discount ?? 0) } : PAY_AS_YOU_GO
   const replace = (nb) => bookings.setData((list) => list.map((x) => (x.id === nb.id ? nb : x)))
 
   const onLink = async () => {

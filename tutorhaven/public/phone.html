@@ -156,7 +156,7 @@
             <button class="chip" data-route="/">Home</button>
             <button class="chip" data-route="/tutors">Find tutors</button>
             <button class="chip" data-route="/pricing">Pricing</button>
-            <button class="chip accent" data-route="/signin">Sign in as a demo user</button>
+            <button class="chip accent" data-route="/signin">Sign in</button>
             <button class="chip" data-route="/signup">Sign up</button>
             <button class="chip" data-route="/dashboard">Dashboard</button>
           </div>
@@ -175,10 +175,9 @@
         <div class="group">
           <div class="chips">
             <button class="chip" id="reload">Reload app</button>
-            <button class="chip" id="reset">Reset demo data</button>
           </div>
         </div>
-        <p class="hint"><b>Demo accounts:</b> Sam (student), Jordan (parent), Amara (tutor) and Ada (admin). Sign in with one tap, password <b>demo1234</b>. Data stays in this browser only.</p>
+        <p class="hint">Runs against the Supabase project in your <b>.env</b>. Start the app with <b>npm run dev</b>, then open this page.</p>
       </section>
 
       <section class="stage">
@@ -205,7 +204,7 @@
     </div>
 
     <script>
-      const appSrc = document.documentElement.dataset.app || './index.html'
+      const appSrc = ''
       const frame = document.getElementById('app')
       const device = document.getElementById('device')
       const wrap = document.getElementById('wrap')
@@ -241,11 +240,11 @@
         try {
           frame.contentWindow.location.hash = '#' + route
         } catch {
-          frame.src = appSrc + '#' + route
+          frame.src = appSrc + route
         }
       }
       frame.addEventListener('load', () => loading.classList.add('done'))
-      frame.src = appSrc + '#/'
+      frame.src = appSrc + '/'
 
       document.getElementById('routes').addEventListener('click', (e) => {
         const b = e.target.closest('[data-route]')
@@ -261,18 +260,6 @@
       document.getElementById('reload').addEventListener('click', () => {
         loading.classList.remove('done')
         frame.contentWindow.location.reload()
-      })
-      document.getElementById('reset').addEventListener('click', () => {
-        try {
-          const ls = frame.contentWindow.localStorage
-          Object.keys(ls).filter((k) => k.startsWith('th:') || k.startsWith('sb-')).forEach((k) => ls.removeItem(k))
-          frame.contentWindow.sessionStorage.setItem('th:intro-seen', '')
-        } catch {
-          /* storage unavailable */
-        }
-        loading.classList.remove('done')
-        frame.src = appSrc + '#/'
-        setTimeout(() => frame.contentWindow.location.reload(), 50)
       })
 
       const clock = document.getElementById('clock')

@@ -238,6 +238,8 @@ await test('server-only payment functions cannot be called by users', async () =
     ['payment_event_seen', { p_key: 'x' }],
     ['notify', { p_user: student.id, p_kind: 'x', p_title: 'x' }],
     ['run_maintenance', {}],
+    ['has_active_subscription', { p_user: student.id, p_audience: 'learner' }],
+    ['is_suspended', { p_user: student.id }],
   ]) {
     denied(await rpc(student, fn, args), /permission denied/, `student → ${fn}`)
     denied(await rpc('anon', fn, args), /permission denied/, `anon → ${fn}`)
@@ -573,7 +575,11 @@ await test('messages: who can contact whom', async () => {
   ok(!(await rpc(tutor, 'send_message', { p_to: stranger.id, p_body: 'Yes, I do!' })).error, 'tutor replies')
   const convs = (await rpc(tutor, 'my_conversations')).data
   eq([convs[0].other_id, convs[0].unread, convs[0].last_from_me], [stranger.id, 1, true], 'tutor conversation list')
+  eq((await rpc(tutor, 'my_unread_counts')).data.messages, 1, 'unread badge')
+  eq((await rpc(tutor, 'conversation_messages', { p_other: stranger.id })).data.map((x) => x.body), ['Do you teach WAEC physics?', 'Yes, I do!'], 'thread in order')
+  eq((await rpc(student2, 'conversation_messages', { p_other: stranger.id })).data.length, 0, 'outsiders get nothing')
   eq((await rpc(tutor, 'mark_conversation_read', { p_other: stranger.id })).data, 1, 'marked read')
+  eq((await rpc(tutor, 'my_unread_counts')).data.messages, 0, 'badge cleared')
   eq((await sql({ id: student2.id }, 'select count(*)::int c from messages'))[0].c, 0, 'others cannot read the thread')
   denied(await rpc(stranger, 'send_message', { p_to: tutor.id, p_body: '   ' }), /write a message/, 'empty message')
   ok(!(await rpc(student, 'send_message', { p_to: tutor.id, p_body: 'Thanks for the lesson' })).error, 'past learner messages tutor')
@@ -592,6 +598,11 @@ await test('qualifications: tutors submit, admins verify, edits need re-review',
   await sql({ id: tutor.id }, `update tutor_qualifications set title = 'M.Sc. Physics' where id = $1`, [q.id])
   eq((await one('select status from tutor_qualifications where id = $1', [q.id])).status, 'pending', 'edit resets review')
   eq((await sql({ id: student.id }, 'select * from tutor_qualifications')).length, 0, 'documents private')
+  // Deleting the reviewing admin keeps the review.
+  const tempAdmin = await user('admin', 'Temp Admin')
+  await rpc(tempAdmin, 'admin_review_qualification', { p_id: q.id, p_status: 'verified' })
+  await sql('postgres', 'delete from auth.users where id = $1', [tempAdmin.id])
+  eq((await one('select status, reviewed_by from tutor_qualifications where id = $1', [q.id])), { status: 'verified', reviewed_by: null }, 'review kept after admin deletion')
 })
 
 await test('qualification documents: tutors upload to their own folder only', async () => {

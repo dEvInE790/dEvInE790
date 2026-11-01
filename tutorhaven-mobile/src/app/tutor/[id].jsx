@@ -4,10 +4,10 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
-import { BadgeCheck, ChevronLeft, Globe, Heart, MapPin, MessageSquareQuote } from 'lucide-react-native'
+import { BadgeCheck, ChevronLeft, FileCheck2, Globe, Heart, MapPin, MessageCircle, MessageSquareQuote } from 'lucide-react-native'
 import { Avatar, Button, Card, EmptyState, Skeleton, Stars, Tappable, Text } from '../../components/ui'
 import useAsync from '../../lib/useAsync'
-import { getBusySlots, getTutor, getTutorReviews } from '../../lib/api'
+import { getBusySlots, getPublicQualifications, getTutor, getTutorReviews } from '../../lib/api'
 import { generateSlots, groupByLocalDay } from '../../lib/time'
 import { dayShort, money, monthShort } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
@@ -20,6 +20,7 @@ export default function TutorProfile() {
   const { isFavourite, toggle } = useFavourites()
   const tutor = useAsync(() => getTutor(id), [id])
   const reviews = useAsync(() => getTutorReviews(id), [id])
+  const quals = useAsync(() => getPublicQualifications(id), [id])
   const busy = useAsync(() => getBusySlots(id, new Date(), new Date(Date.now() + 8 * 864e5)), [id])
   const t = tutor.data
 
@@ -32,7 +33,9 @@ export default function TutorProfile() {
     })
   }, [t, busy.data])
   const maxCount = Math.max(1, ...week.map((w) => w.count))
-  const canBook = t?.status === 'approved' && profile && profile.id !== id && profile.role !== 'tutor'
+  const isLearner = profile && ['student', 'parent'].includes(profile.role)
+  const canBook = t?.listed && isLearner && profile.id !== id
+  const canMessage = t && isLearner && profile.id !== id
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream100 }}>
@@ -84,6 +87,20 @@ export default function TutorProfile() {
                 <Text variant="label" style={{ marginTop: 14 }}>Levels</Text>
                 <View style={styles.tags}>{t.levels.map((s) => <View key={s} style={styles.tag}><Text variant="small" style={{ color: colors.navy700 }}>{s}</Text></View>)}</View>
               </Card>
+              {quals.data?.length > 0 && (
+                <Card delay={130} style={{ gap: 10 }}>
+                  <Text variant="h3">Verified qualifications</Text>
+                  {quals.data.map((q) => (
+                    <View key={q.id} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: colors.mint100, alignItems: 'center', justifyContent: 'center' }}><FileCheck2 size={16} color={colors.mint700} /></View>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="label">{q.title}</Text>
+                        <Text variant="small">{[q.institution, q.year].filter(Boolean).join(' · ')}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </Card>
+              )}
               <Card delay={160}>
                 <Text variant="h3">This week’s availability</Text>
                 <Text variant="small">One-hour openings in your time zone</Text>
@@ -126,7 +143,11 @@ export default function TutorProfile() {
         <Animated.View entering={FadeInUp.delay(300).duration(400)} style={styles.bottom}>
           <SafeAreaView edges={['bottom']} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12 }}>
             <Text style={{ fontFamily: fonts.display, fontSize: 22, color: colors.navy950 }}>{money(t.hourly_rate)}<Text variant="small"> / hour</Text></Text>
-            {canBook ? <Button title="Book a session" onPress={() => router.push(`/book/${t.id}`)} /> : <Text variant="small">{profile?.id === id ? 'This is your listing' : 'Booking is for learners'}</Text>}
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              {canMessage && <Button title="" icon={MessageCircle} variant="secondary" accessibilityLabel={`Message ${t.full_name}`} onPress={() => router.push(`/messages/${t.id}`)} />}
+              {canBook ? <Button title="Book a session" onPress={() => router.push(`/book/${t.id}`)} />
+                : <Text variant="small">{profile?.id === id ? 'This is your listing' : !t.listed ? 'Not taking bookings' : 'Booking is for learners'}</Text>}
+            </View>
           </SafeAreaView>
         </Animated.View>
       )}

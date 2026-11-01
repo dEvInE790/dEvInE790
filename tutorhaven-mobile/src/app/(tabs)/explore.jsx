@@ -4,6 +4,7 @@ import { Search, SearchX, SlidersHorizontal, X } from 'lucide-react-native'
 import Screen from '../../components/Screen'
 import TutorCard, { TutorCardSkeleton } from '../../components/TutorCard'
 import Sheet from '../../components/Sheet'
+import NoTutorsYet from '../../components/NoTutorsYet'
 import { Button, Chip, ChipGroup, EmptyState, Field, Segmented, Tappable, Text } from '../../components/ui'
 import useAsync from '../../lib/useAsync'
 import { searchTutors } from '../../lib/api'
@@ -48,7 +49,9 @@ export default function Explore() {
       </View>
       {results.error ? <Text style={{ color: colors.coralInk }}>{results.error}</Text>
         : results.loading && !results.data ? [0, 1, 2].map((i) => <TutorCardSkeleton key={i} />)
-          : results.data.length === 0 ? (
+          : results.data.length === 0 && !q && !subject && !level && !maxRate ? (
+            <NoTutorsYet />
+          ) : results.data.length === 0 ? (
             <EmptyState icon={SearchX} title="No tutors match" body="Try another subject, a higher budget or a different keyword."
               action={<Button title="Reset filters" variant="secondary" onPress={() => { setDraft(''); setSubject(''); setLevel(''); setMaxRate(0) }} />} />
           ) : (

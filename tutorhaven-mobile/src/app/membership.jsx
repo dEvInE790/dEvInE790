@@ -7,8 +7,10 @@ import { Check, Crown, Sparkles, Users } from 'lucide-react-native'
 import Screen from '../components/Screen'
 import { Button, Text } from '../components/ui'
 import useAsync from '../lib/useAsync'
-import { getSubscription } from '../lib/api'
-import { payMembership } from '../lib/pay'
+import { getSubscription, isSubscriptionLive } from '../lib/api'
+import { payPlan } from '../lib/pay'
+import { per } from '../lib/constants'
+import PaymentResult from '../components/PaymentResult'
 import { dateLong, money } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../context/SettingsContext'
@@ -19,18 +21,21 @@ const ICON = { free: Sparkles, plus: Crown, family: Users }
 
 export default function Membership() {
   const { profile } = useAuth()
-  const { plans, settings } = useSettings()
+  const { plans, plansLoaded } = useSettings()
   const toast = useToast()
   const sub = useAsync(() => getSubscription(profile.id), [profile.id])
   const [busy, setBusy] = useState('')
-  const active = sub.data && new Date(sub.data.current_period_end) > new Date() ? sub.data : null
+  const [result, setResult] = useState(null)
+  const active = isSubscriptionLive(sub.data) ? sub.data : null
+  const featuredId = plans.find((p) => p.id !== 'free')?.id
 
   const buy = async (plan) => {
     setBusy(plan.id)
+    setResult(null)
     try {
-      const r = await payMembership(plan.id, settings.test_mode)
+      const r = await payPlan(plan.id)
       if (r.status === 'succeeded') toast.success(`${plan.name} is active. Enjoy ${Math.round(plan.discount * 100)}% off sessions!`)
-      else toast.info('Payment not completed.')
+      else setResult(r)
       await sub.reload({ silent: true })
     } catch (e) {
       toast.error(e.message)
@@ -40,12 +45,14 @@ export default function Membership() {
   }
 
   return (
-    <Screen back title="Membership" subtitle="Save on every session. One payment covers a month; nothing renews automatically.">
-      {active && <Text variant="label" style={{ color: colors.mint700 }}>Active until {dateLong(active.current_period_end)}. Paying again adds another month.</Text>}
+    <Screen back title="Membership" subtitle="Save on every session. Nothing renews automatically; we remind you before your plan ends.">
+      <PaymentResult result={result} kind="subscription" onDismiss={() => setResult(null)} />
+      {active && <Text variant="label" style={{ color: colors.mint700 }}>{active.plan?.name} {active.status === 'cancelled' ? 'is cancelled; benefits continue' : 'is active'} until {dateLong(active.current_period_end)}. Paying again adds more time.</Text>}
+      {plansLoaded && plans.length === 1 && <Text variant="muted">Membership plans aren’t available right now. You can still book any tutor and pay per session.</Text>}
       {plans.map((p, i) => {
-        const Icon = ICON[p.id]
-        const featured = p.featured
-        const current = active ? active.plan === p.id : p.id === 'free'
+        const Icon = ICON[p.code] ?? Crown
+        const featured = p.id === featuredId
+        const current = active ? active.plan_id === p.id : p.id === 'free'
         const inner = (
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -54,7 +61,7 @@ export default function Membership() {
             </View>
             <Text style={{ fontFamily: fonts.display, fontSize: 20, marginTop: 14, color: featured ? colors.white : colors.navy950 }}>{p.name}</Text>
             <Text style={{ fontSize: 14, color: featured ? colors.navy200 : colors.navy500, marginTop: 2 }}>{p.tagline}</Text>
-            <Text style={{ fontFamily: fonts.displayHeavy, fontSize: 34, marginTop: 12, color: featured ? colors.white : colors.navy950 }}>{money(p.price)}<Text style={{ fontSize: 14, color: featured ? colors.navy300 : colors.navy400 }}> / month</Text></Text>
+            <Text style={{ fontFamily: fonts.displayHeavy, fontSize: 34, marginTop: 12, color: featured ? colors.white : colors.navy950 }}>{money(p.price)}<Text style={{ fontSize: 14, color: featured ? colors.navy300 : colors.navy400 }}> / {p.id === 'free' ? 'month' : per(p)}</Text></Text>
             <View style={{ gap: 8, marginTop: 14 }}>
               {p.features.map((f) => (
                 <View key={f} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
@@ -64,7 +71,7 @@ export default function Membership() {
               ))}
             </View>
             {p.id !== 'free' && (
-              <Button title={current ? `Add a month · ${money(p.price)}` : `Choose ${p.name}`} variant={featured ? 'mint' : 'primary'} loading={busy === p.id} disabled={!!busy && busy !== p.id} style={{ marginTop: 18 }} onPress={() => buy(p)} full />
+              <Button title={current ? `Renew · ${money(p.price)}` : `Choose ${p.name}`} variant={featured ? 'mint' : 'primary'} loading={busy === p.id} disabled={!!busy && busy !== p.id} style={{ marginTop: 18 }} onPress={() => buy(p)} full />
             )}
             {p.id === 'free' && current && <Text variant="label" style={{ marginTop: 16, color: colors.mint700 }}>Your current plan</Text>}
           </>
@@ -79,7 +86,7 @@ export default function Membership() {
           </Animated.View>
         )
       })}
-      <Text variant="small" style={{ textAlign: 'center' }}>{settings.test_mode ? 'Test mode is on: no money is charged.' : 'Payments are processed securely by Paystack in naira.'}</Text>
+      <Text variant="small" style={{ textAlign: 'center' }}>Payments are processed securely by Paystack in naira. Your plan starts once Paystack confirms the payment.</Text>
       <Button title="Done" variant="ghost" onPress={() => router.back()} />
     </Screen>
   )

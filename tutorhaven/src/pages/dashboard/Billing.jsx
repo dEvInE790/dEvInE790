@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
 import { motion } from 'motion/react'
 import { Crown, Receipt, Sparkles } from 'lucide-react'
+import Tabs from '../../components/ui/Tabs'
 import { PageHeader } from '../../components/layout/DashboardLayout'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
@@ -9,7 +9,7 @@ import Skeleton from '../../components/ui/Skeleton'
 import EmptyState, { ErrorState } from '../../components/ui/EmptyState'
 import { Stagger, StaggerItem } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
-import { getSubscription, listPayments, verifyPaystack } from '../../lib/api'
+import { cancelSubscription, getSubscription, isSubscriptionLive, listPaymentAttempts, listPayments } from '../../lib/api'
 import { dateLong, dateShort, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -18,34 +18,43 @@ import { useSettings } from '../../context/SettingsContext'
 const STATUS = {
   succeeded: null,
   refund_pending: ['amber', 'Refund pending'],
+  refund_processing: ['amber', 'Refund processing'],
   refunded: ['mint', 'Refunded'],
+}
+
+const ATTEMPT = {
+  pending: ['amber', 'Processing'],
+  succeeded: ['mint', 'Paid'],
+  failed: ['coral', 'Failed'],
+  abandoned: ['neutral', 'Not completed'],
 }
 
 export default function Billing() {
   const { profile } = useAuth()
   const toast = useToast()
-  const { plans } = useSettings()
-  const [params, setParams] = useSearchParams()
+  const { learnerPlans } = useSettings()
+  const [tab, setTab] = useState('payments')
+  const [cancelling, setCancelling] = useState(false)
   const sub = useAsync(() => getSubscription(profile.id), [profile.id])
   const payments = useAsync(() => listPayments(profile.id), [profile.id])
+  const attempts = useAsync(() => listPaymentAttempts(profile.id), [profile.id])
 
-  // Returning from a Paystack membership checkout.
-  const returnedRef = params.get('reference')
-  useEffect(() => {
-    if (!returnedRef) return
-    verifyPaystack(returnedRef)
-      .then((r) => (r?.status === 'succeeded' ? toast.success('Payment received. Your membership is active!') : toast.error('Payment was not completed.')))
-      .catch((e) => toast.error(e.message))
-      .finally(() => {
-        setParams({}, { replace: true })
-        sub.reload({ silent: true })
-        payments.reload({ silent: true })
-      })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [returnedRef])
+  const active = isSubscriptionLive(sub.data) ? sub.data : null
+  const plan = active?.plan ?? { name: 'Pay as you go', session_discount: 0 }
+  const discount = Number(plan.session_discount ?? 0)
+  const bestDiscount = Math.max(0, ...learnerPlans.map((p) => p.discount))
 
-  const active = sub.data && new Date(sub.data.current_period_end) > new Date() ? sub.data : null
-  const plan = plans.find((p) => p.id === (active?.plan ?? 'free'))
+  const onCancel = async () => {
+    setCancelling(true)
+    try {
+      sub.setData({ ...(await cancelSubscription('learner')), plan: active.plan })
+      toast.success(`Cancelled. Your benefits continue until ${dateLong(active.current_period_end)}.`)
+    } catch (e) {
+      toast.error(e.message)
+    }
+    setCancelling(false)
+  }
+
   const spent = (payments.data ?? []).filter((p) => p.status === 'succeeded').reduce((s, p) => s + Number(p.amount), 0)
 
   return (
@@ -58,15 +67,21 @@ export default function Billing() {
             <div className="relative">
               <div className="flex items-center justify-between">
                 <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-mint-300">{active ? <Crown className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}</span>
-                {active && <Badge tone="mint">Active</Badge>}
+                {active && <Badge tone={active.status === 'cancelled' ? 'amber' : 'mint'}>{active.status === 'cancelled' ? 'Cancelled' : 'Active'}</Badge>}
+                {!active && sub.data?.status === 'expired' && <Badge tone="neutral">Expired</Badge>}
               </div>
               <p className="mt-6 text-sm text-navy-300">Current plan</p>
               <h2 className="text-3xl font-bold text-white">{plan.name}</h2>
               <p className="mt-2 text-navy-200">
-                {active ? `Active until ${dateLong(active.current_period_end)}. Renew any time to add another month.` : 'Pay per session. Upgrade to save on every lesson.'}
+                {active
+                  ? active.status === 'cancelled'
+                    ? `Cancelled. Your benefits continue until ${dateLong(active.current_period_end)}.`
+                    : `Active until ${dateLong(active.current_period_end)}. Nothing renews automatically; renew any time to add more time.`
+                  : sub.data?.status === 'expired' ? `Your ${sub.data.plan?.name ?? ''} plan ended on ${dateLong(sub.data.current_period_end)}. Renew to get your discount back.` : 'Pay per session. Upgrade to save on every lesson.'}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button to="/pricing" variant="mint">{active ? 'Renew or change plan' : 'Upgrade'}</Button>
+                {active?.status === 'active' && <Button variant="ghost" className="text-navy-200 hover:bg-white/10 hover:text-white" loading={cancelling} onClick={onCancel}>Cancel plan</Button>}
               </div>
             </div>
           )}
@@ -77,14 +92,17 @@ export default function Billing() {
             {payments.loading ? <Skeleton className="mt-2 h-10 w-32" /> : <p className="mt-1 font-display text-4xl font-bold">{money(spent)}</p>}
           </div>
           <p className="mt-4 text-sm text-navy-500">
-            {plan.discount ? `You’re saving ${Math.round(plan.discount * 100)}% on every session.` : `Members save up to ${Math.round(Math.max(...plans.map((p) => p.discount)) * 100)}% on every session.`}
+            {discount ? `You’re saving ${Math.round(discount * 100)}% on every session.` : bestDiscount ? `Members save up to ${Math.round(bestDiscount * 100)}% on every session.` : 'Every payment is processed securely by Paystack.'}
           </p>
         </StaggerItem>
       </Stagger>
 
       <section className="card mt-6 p-6 sm:p-8">
-        <h2 className="text-lg font-semibold">Payment history</h2>
-        {payments.error ? <div className="mt-4"><ErrorState message={payments.error} onRetry={payments.reload} /></div> : payments.loading ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Transactions</h2>
+          <Tabs value={tab} onChange={setTab} tabs={[{ value: 'payments', label: 'Payments' }, { value: 'attempts', label: 'All attempts' }]} />
+        </div>
+        {tab === 'attempts' ? <Attempts state={attempts} /> : payments.error ? <div className="mt-4"><ErrorState message={payments.error} onRetry={payments.reload} /></div> : payments.loading ? (
           <div className="mt-5 space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-12" />)}</div>
         ) : !payments.data.length ? (
           <EmptyState icon={Receipt} title="No payments yet">Payments for sessions and memberships will appear here.</EmptyState>
@@ -99,7 +117,7 @@ export default function Billing() {
                     <p className="truncate text-sm font-medium">{p.description}</p>
                     <p className="text-xs text-navy-400">
                       {dateShort(p.created_at)}
-                      {p.provider === 'paystack' && p.provider_ref ? ` · Ref ${p.provider_ref}` : p.provider === 'test' ? ' · test mode' : ''}
+                      {p.provider_ref ? ` · Ref ${p.provider_ref}` : ''}
                     </p>
                   </div>
                   <div className="text-right">
@@ -113,5 +131,30 @@ export default function Billing() {
         )}
       </section>
     </>
+  )
+}
+
+function Attempts({ state }) {
+  if (state.error) return <div className="mt-4"><ErrorState message={state.error} onRetry={state.reload} /></div>
+  if (state.loading) return <div className="mt-5 space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-12" />)}</div>
+  if (!state.data.length) return <EmptyState icon={Receipt} title="No checkouts yet">Every Paystack checkout you start, including unfinished ones, appears here.</EmptyState>
+  return (
+    <ul className="mt-4 divide-y divide-navy-900/[0.06]">
+      {state.data.map((a) => {
+        const [tone, label] = ATTEMPT[a.status] ?? ['neutral', a.status]
+        return (
+          <li key={a.reference} className="flex items-center gap-4 py-3.5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{a.kind === 'subscription' ? `${a.plan?.name ?? 'Plan'} subscription` : `${a.booking?.subject ?? 'Session'}${a.booking ? ` · ${dateShort(a.booking.starts_at)}` : ''}`}</p>
+              <p className="text-xs text-navy-400">{dateShort(a.created_at)} · Ref {a.reference}{a.failure_reason && a.status !== 'succeeded' ? ` · ${a.failure_reason}` : ''}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-semibold tabular-nums">{money(a.amount)}</p>
+              <Badge tone={tone} className="mt-1">{label}</Badge>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

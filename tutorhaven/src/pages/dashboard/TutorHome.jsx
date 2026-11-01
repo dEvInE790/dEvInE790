@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
-import { ArrowRight, CalendarClock, CircleAlert, CircleCheck, Circle, Clock, Eye, Star, Users, Wallet } from 'lucide-react'
+import { ArrowRight, CalendarClock, CircleAlert, CircleCheck, Circle, Clock, Eye, EyeOff, Star, Users, Wallet } from 'lucide-react'
 import { PageHeader } from '../../components/layout/DashboardLayout'
 import NextSessionCard from '../../components/NextSessionCard'
 import StatCard from '../../components/StatCard'
@@ -12,7 +12,8 @@ import { CardHeader } from '../../components/ui/Card'
 import { ErrorState } from '../../components/ui/EmptyState'
 import { Reveal, Stagger } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
-import { getOwnTutor, listBookings } from '../../lib/api'
+import { getOwnTutor, getSubscription, isSubscriptionLive, listBookings } from '../../lib/api'
+import { useSettings } from '../../context/SettingsContext'
 import { isLive, isThisMonth, isUpcoming, weeklySeries } from '../../lib/stats'
 import { firstName, greeting, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
@@ -34,6 +35,9 @@ export default function TutorHome() {
   const { profile } = useAuth()
   const bookings = useAsync(() => listBookings({ limit: 500 }), [])
   const own = useAsync(() => getOwnTutor(profile.id), [profile.id])
+  const sub = useAsync(() => getSubscription(profile.id, 'tutor'), [profile.id])
+  const { settings } = useSettings()
+  const listed = settings.tutor_subscription_required === false || isSubscriptionLive(sub.data)
 
   const s = useMemo(() => {
     const all = (bookings.data ?? []).filter((b) => b.tutor_id === profile.id)
@@ -77,6 +81,17 @@ export default function TutorHome() {
               ? 'Your listing wasn’t approved. Update your profile with more detail and contact support to request another review.'
               : 'Your listing is being reviewed. Students will be able to find and book you once it’s approved. Meanwhile, make your profile shine.'}
           </p>
+        </motion.div>
+      )}
+      {t?.status === 'approved' && sub.data !== undefined && !listed && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-col gap-3 rounded-2xl bg-navy-950 p-4 text-sm text-navy-100 sm:flex-row sm:items-center">
+          <EyeOff className="h-5 w-5 shrink-0 text-mint-300" />
+          <p className="flex-1">
+            {sub.data?.status === 'expired'
+              ? 'Your subscription has expired, so learners can’t find or book you. Renew to appear in search again.'
+              : 'You’re approved! Subscribe to appear in search and start taking paid bookings.'}
+          </p>
+          <Button to="/dashboard/subscription" variant="mint" size="sm">{sub.data?.status === 'expired' ? 'Renew now' : 'Subscribe'}</Button>
         </motion.div>
       )}
       {(bookings.error || own.error) && <div className="mb-6"><ErrorState message={bookings.error || own.error} onRetry={() => { bookings.reload(); own.reload() }} /></div>}

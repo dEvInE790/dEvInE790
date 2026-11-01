@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ArrowLeft, Award, BadgeCheck, CalendarDays, Clock, Globe, GraduationCap, MapPin, MessageSquareQuote, UserRoundX } from 'lucide-react'
+import { ArrowLeft, Award, BadgeCheck, CalendarDays, Clock, FileCheck2, Globe, GraduationCap, MapPin, MessageCircle, MessageSquareQuote, UserRoundX } from 'lucide-react'
 import PublicLayout from '../components/layout/PublicLayout'
 import PageTransition from '../motion/PageTransition'
 import { Reveal, Stagger, StaggerItem } from '../motion/Reveal'
@@ -14,7 +14,8 @@ import { Stars } from '../components/ui/StarRating'
 import EmptyState, { ErrorState } from '../components/ui/EmptyState'
 import FavouriteButton from '../components/FavouriteButton'
 import useAsync from '../lib/useAsync'
-import { getBusySlots, getTutor, getTutorReviews } from '../lib/api'
+import { getBusySlots, getPublicQualifications, getTutor, getTutorReviews } from '../lib/api'
+import { useSettings } from '../context/SettingsContext'
 import { generateSlots, groupByLocalDay } from '../lib/time'
 import { money, monthDay, pluralize } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
@@ -25,6 +26,9 @@ export default function TutorProfile() {
   const { profile } = useAuth()
   const tutor = useAsync(() => getTutor(id), [id])
   const reviews = useAsync(() => getTutorReviews(id), [id])
+  const quals = useAsync(() => getPublicQualifications(id), [id])
+  const { learnerPlans } = useSettings()
+  const bestDiscount = Math.max(0, ...learnerPlans.map((p) => p.discount))
   const busy = useAsync(() => getBusySlots(id, new Date(), new Date(Date.now() + 8 * 864e5)), [id])
 
   const week = useMemo(() => {
@@ -62,7 +66,10 @@ export default function TutorProfile() {
 
   const t = tutor.data
   const isSelf = profile?.id === id
-  const canBook = t && t.status === 'approved' && !isSelf && profile?.role !== 'tutor'
+  const isLearner = !profile || ['student', 'parent'].includes(profile.role)
+  const canBook = t && t.listed && !isSelf && isLearner
+  const canMessage = t && !isSelf && isLearner && (t.listed || !!profile)
+  const messageTo = profile ? `/dashboard/messages/${id}` : '/signin'
   const maxCount = Math.max(1, ...week.map((w) => w.count))
 
   return (
@@ -154,6 +161,25 @@ export default function TutorProfile() {
               )}
             </Reveal>
 
+            {/* Verified qualifications */}
+            {quals.data?.length > 0 && (
+              <Reveal className="card p-6 sm:p-8">
+                <h2 className="text-xl font-semibold">Verified qualifications</h2>
+                <p className="mt-1 text-sm text-navy-500">Checked by the TutorHaven team against the tutor’s documents.</p>
+                <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {quals.data.map((q) => (
+                    <li key={q.id} className="flex items-start gap-3 rounded-2xl bg-cream-100 p-4">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-mint-100 text-mint-700"><FileCheck2 className="h-4 w-4" /></span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{q.title}</p>
+                        <p className="text-xs text-navy-500">{[q.institution, q.year].filter(Boolean).join(' · ')}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </Reveal>
+            )}
+
             {/* Availability preview */}
             {t && (
               <Reveal className="card p-6 sm:p-8">
@@ -229,12 +255,22 @@ export default function TutorProfile() {
                   <p><span className="font-display text-3xl font-bold">{money(t.hourly_rate)}</span><span className="text-navy-500"> / hour</span></p>
                   <p className="mt-1 text-sm text-navy-500">30, 45, 60 or 90-minute sessions</p>
                   <ul className="mt-5 space-y-2.5 text-sm text-navy-700">
-                    <li className="flex gap-2"><BadgeCheck className="h-4 w-4 text-mint-600" />Identity & credentials reviewed</li>
+                    <li className="flex gap-2"><BadgeCheck className="h-4 w-4 text-mint-600" />Profile reviewed by our team</li>
+                    {quals.data?.length > 0 && <li className="flex gap-2"><BadgeCheck className="h-4 w-4 text-mint-600" />{pluralize(quals.data.length, 'verified qualification')}</li>}
                     <li className="flex gap-2"><BadgeCheck className="h-4 w-4 text-mint-600" />Free cancellation up to 24h before</li>
-                    <li className="flex gap-2"><BadgeCheck className="h-4 w-4 text-mint-600" />Members save up to 15%</li>
+                    <li className="flex gap-2"><BadgeCheck className="h-4 w-4 text-mint-600" />Pay securely with Paystack</li>
+                    {bestDiscount > 0 && <li className="flex gap-2"><BadgeCheck className="h-4 w-4 text-mint-600" />Members save up to {Math.round(bestDiscount * 100)}%</li>}
                   </ul>
                   {canBook ? (
-                    <Button to={`/book/${t.id}`} size="lg" className="mt-6 w-full">Book a session</Button>
+                    <>
+                      <Button to={`/book/${t.id}`} size="lg" className="mt-6 w-full">Book a session</Button>
+                      <Button to={messageTo} state={{ from: `/dashboard/messages/${id}` }} variant="secondary" icon={MessageCircle} className="mt-3 w-full">Message {t.full_name.split(' ')[0]}</Button>
+                    </>
+                  ) : !t.listed && !isSelf ? (
+                    <>
+                      <p className="mt-6 rounded-xl bg-cream-100 p-3 text-center text-sm text-navy-500">This tutor isn’t taking new bookings right now.</p>
+                      {canMessage && <Button to={messageTo} variant="secondary" icon={MessageCircle} className="mt-3 w-full">Message</Button>}
+                    </>
                   ) : isSelf ? (
                     <Button to="/dashboard/listing" variant="secondary" size="lg" className="mt-6 w-full">Edit your listing</Button>
                   ) : (
@@ -251,7 +287,10 @@ export default function TutorProfile() {
           <motion.div initial={{ y: 100 }} animate={{ y: 0 }} transition={{ delay: 0.4, duration: 0.5, ease }} className="fixed inset-x-0 bottom-0 z-30 border-t border-navy-900/[0.06] bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden">
             <div className="mx-auto flex max-w-xl items-center justify-between gap-4">
               <p><span className="font-display text-xl font-bold">{money(t.hourly_rate)}</span><span className="text-sm text-navy-500"> / hour</span></p>
-              {canBook ? <Button to={`/book/${t.id}`}>Book a session</Button> : isSelf ? <Button to="/dashboard/listing" variant="secondary">Edit listing</Button> : null}
+              <div className="flex gap-2">
+                {canMessage && <Button to={messageTo} variant="secondary" size="icon" aria-label={`Message ${t.full_name}`}><MessageCircle className="h-5 w-5" /></Button>}
+                {canBook ? <Button to={`/book/${t.id}`}>Book a session</Button> : isSelf ? <Button to="/dashboard/listing" variant="secondary">Edit listing</Button> : null}
+              </div>
             </div>
           </motion.div>
         )}

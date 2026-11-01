@@ -5,12 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:demo": "vite --mode demo",
     "build": "vite build",
-    "build:demo": "vite build --mode demo --outDir dist-demo",
     "preview": "vite preview",
-    "preview:demo": "vite preview --outDir dist-demo",
-    "test:e2e": "node e2e/run.mjs"
+    "stack": "node --experimental-strip-types --no-warnings e2e/stack/start.mjs",
+    "test:e2e": "node --experimental-strip-types --no-warnings e2e/run.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -25,6 +23,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
+    "pg": "^8.23.1",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.5"
   }

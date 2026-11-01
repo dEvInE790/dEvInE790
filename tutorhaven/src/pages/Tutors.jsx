@@ -5,6 +5,7 @@ import { Search, SearchX, SlidersHorizontal, X } from 'lucide-react'
 import PublicLayout from '../components/layout/PublicLayout'
 import PageTransition from '../motion/PageTransition'
 import TutorCard, { TutorCardSkeleton } from '../components/TutorCard'
+import NoTutorsYet from '../components/NoTutorsYet'
 import Dropdown from '../components/ui/Dropdown'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
@@ -183,6 +184,8 @@ export default function Tutors() {
                   {Array.from({ length: 6 }).map((_, i) => <TutorCardSkeleton key={i} />)}
                 </div>
               </LoadingRegion>
+            ) : results.data.length === 0 && ![...params.keys()].some((k) => params.get(k)) ? (
+              <NoTutorsYet />
             ) : results.data.length === 0 ? (
               <EmptyState
                 icon={SearchX}

@@ -1,13 +1,17 @@
-// Runs the app's web build at iPhone size against an in-memory Supabase stand-in.
-//   EXPO_PUBLIC_SUPABASE_URL=https://demo.tutorhaven.local EXPO_PUBLIC_SUPABASE_ANON_KEY=demo-anon-key-not-a-secret-123456 \
-//     npx expo export --platform web --output-dir dist-web
-//   node e2e/run.mjs            (needs the `playwright` package + Chromium)
-// The stand-in reuses the web app's demo backend (../tutorhaven/src/demo), which mirrors the SQL rules.
+// Runs the app's web build at iPhone size against the local test stack from the
+// web project (../tutorhaven/e2e/stack): real Postgres + migrations + RLS, the real
+// Paystack Edge Function code and a Paystack simulator with its own checkout page.
+//
+//   sudo bash ../tutorhaven/supabase/tests/db/setup.sh    (once: local Postgres 16)
+//   node --experimental-strip-types e2e/run.mjs            (needs `playwright` + Chromium)
 import { createRequire } from 'module'
 import { createServer } from 'http'
-import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'fs'
-import { fileURLToPath, pathToFileURL } from 'url'
+import { spawnSync } from 'child_process'
+import { mkdirSync, readFileSync, existsSync, statSync } from 'fs'
+import { fileURLToPath } from 'url'
 import path from 'path'
+import { startStack } from '../../tutorhaven/e2e/stack/server.mjs'
+import { PASSWORD, createUser, resetData, seedFixture } from '../../tutorhaven/e2e/stack/fixture.mjs'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
@@ -15,16 +19,16 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DIST = path.join(ROOT, 'dist-web')
 const SHOTS = path.join(ROOT, 'e2e', 'screenshots')
 const ONLY = process.argv.find((a) => a.startsWith('--only='))?.slice(7)
-const SUPABASE = 'https://demo.tutorhaven.local'
+const ORIGIN = 'http://localhost:4330'
 mkdirSync(SHOTS, { recursive: true })
 
-// Load the demo backend (fix extension-less ESM import for Node).
-const CACHE = path.join(ROOT, 'e2e', '.cache')
-mkdirSync(CACHE, { recursive: true })
-const DEMO = path.resolve(ROOT, '../tutorhaven/src/demo')
-writeFileSync(path.join(CACHE, 'seed.js'), readFileSync(path.join(DEMO, 'seed.js'), 'utf8'))
-writeFileSync(path.join(CACHE, 'backend.js'), readFileSync(path.join(DEMO, 'backend.js'), 'utf8').replace("from './seed'", "from './seed.js'"))
-const backend = await import(pathToFileURL(path.join(CACHE, 'backend.js')).href)
+const stack = await startStack({ port: 54330, appUrls: ORIGIN, webhookDelayMs: 200, databaseUrl: process.env.DATABASE_URL })
+if (!process.argv.includes('--no-build')) {
+  const r = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', 'dist-web'], {
+    cwd: ROOT, stdio: 'inherit', env: { ...process.env, EXPO_OFFLINE: '1', EXPO_PUBLIC_SUPABASE_URL: stack.url, EXPO_PUBLIC_SUPABASE_ANON_KEY: stack.anonKey },
+  })
+  if (r.status) process.exit(1)
+}
 
 // Static server with SPA fallback.
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.ttf': 'font/ttf', '.ico': 'image/x-icon', '.json': 'application/json' }
@@ -34,190 +38,210 @@ const server = createServer((req, res) => {
   res.setHeader('content-type', TYPES[path.extname(p)] ?? 'application/octet-stream')
   res.end(readFileSync(p))
 }).listen(4330)
-const ORIGIN = 'http://localhost:4330'
 
 const browser = await chromium.launch()
 const results = []
 const IPHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
+let F
 
 async function newPage() {
-  backend.resetDemo()
   const ctx = await browser.newContext({ ...IPHONE })
   const page = await ctx.newPage()
   page.errors = []
   page.on('pageerror', (e) => page.errors.push('pageerror: ' + e.message))
   page.on('console', (m) => {
-    if (m.type() === 'error' && !/status of (400|401|403|406|422)/.test(m.text())) page.errors.push('console: ' + m.text().slice(0, 240))
-  })
-  await page.route(`${SUPABASE}/**`, async (route) => {
-    const req = route.request()
-    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
-    if (req.method() === 'OPTIONS') return route.fulfill({ status: 200, headers: cors })
-    const res = await backend.demoFetch(req.url(), { method: req.method(), headers: req.headers(), body: req.postData() ?? undefined })
-    await route.fulfill({ status: res.status, headers: { ...cors, 'content-type': 'application/json' }, body: res.status === 204 ? '' : await res.text() })
+    if (m.type() === 'error' && !/status of (400|401|403|404|406|409|422)/.test(m.text())) page.errors.push('console: ' + m.text().slice(0, 240))
   })
   return { ctx, page }
 }
 
-const see = (page, text, timeout = 8000) => page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout })
+const see = (page, text, timeout = 10000) => page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout })
 const tapText = (page, text) => page.getByText(text, { exact: true }).first().click()
 const shot = (page, name) => page.screenshot({ path: path.join(SHOTS, `${name}.png`) })
 
 async function signIn(page, email) {
   await page.goto(ORIGIN + '/sign-in')
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill('demo1234')
+  await page.getByLabel('Password').fill(PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
 
-async function flow(name, fn) {
+/** Paystack opens in a popup (openAuthSessionAsync); act on the simulated checkout. */
+async function payInPopup(page, trigger, action = 'Pay with test card') {
+  const [popup] = await Promise.all([page.waitForEvent('popup'), trigger()])
+  await popup.waitForLoadState()
+  await popup.getByRole('button', { name: action }).click()
+  await popup.waitForEvent('close', { timeout: 15000 }).catch(() => { console.log('popup still open at', popup.url()) })
+}
+
+async function bookFirstSlot(page, tutorName) {
+  await tapText(page, 'Find tutors')
+  await page.getByRole('button', { name: new RegExp(tutorName) }).click()
+  await see(page, 'This week’s availability')
+  await page.getByRole('button', { name: 'Book a session' }).click()
+  // Earlier screens stay mounted (hidden) in the stack, so match exact visible text.
+  await page.getByText('Pick a time', { exact: true }).waitFor()
+  await page.waitForTimeout(1500)
+  await page.getByRole('button', { name: /^\d{1,2}:\d\d (AM|PM)$/ }).nth(1).click()
+  await page.getByText(/ · \d{1,2}:\d\d (AM|PM)$/).waitFor()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await see(page, 'Slot held for')
+}
+
+async function flow(name, fn, { empty = false } = {}) {
   if (ONLY && !name.includes(ONLY)) return
+  F = await seedFixture(stack)
+  if (empty) await resetData(stack)
   const { ctx, page } = await newPage()
   try {
     await fn(page)
     if (page.errors.length) throw new Error(page.errors.join(' | '))
     results.push(`PASS  ${name}`)
   } catch (e) {
-    results.push(`FAIL  ${name}: ${e.message.split('\n')[0]}`)
+    results.push(`FAIL  ${name}: ${e.message.split('\n')[0]}${page.errors.length ? ' | ' + page.errors.join(' | ') : ''}`)
     await shot(page, 'fail-' + name.replace(/\W+/g, '-')).catch(() => {})
   }
   await ctx.close()
 }
 
-await flow('welcome → sign up → onboarding → home', async (page) => {
+await flow('welcome → sign up → onboarding → home (no invented content)', async (page) => {
   await page.goto(ORIGIN + '/')
   await see(page, 'Find the right tutor.')
+  await see(page, 'BOOK IN THREE STEPS')
+  if (await page.getByText('Adaeze').count()) throw new Error('invented tutor on welcome screen')
   await page.waitForTimeout(1200)
   await shot(page, '01-welcome')
   await page.getByRole('button', { name: 'Get started' }).click()
   await see(page, 'Create your account')
   await page.getByLabel('Full name').fill('Chioma Okeke')
-  await page.getByLabel('Email').fill('chioma@example.com')
+  await page.getByLabel('Email').fill('chioma@example.test')
   await page.getByLabel('Password').fill('supersecret')
   await page.getByRole('button', { name: 'Create student account' }).click()
   await see(page, 'Welcome, Chioma!')
-  await shot(page, '02-onboarding')
   await page.getByRole('button', { name: 'Let’s go' }).click()
   await tapText(page, 'WAEC')
   await page.getByRole('button', { name: 'Continue' }).click()
-  await tapText(page, 'Chemistry')
+  await tapText(page, 'English')
   await page.getByRole('button', { name: 'Continue' }).click()
   await tapText(page, 'Score high in JAMB')
   await page.getByRole('button', { name: 'Finish' }).click()
   await see(page, 'You’re all set!')
   await page.getByRole('button', { name: 'Let’s go' }).click()
   await see(page, 'Hi, Chioma')
-  await see(page, 'Based on Chemistry')
 })
 
-await flow('student: home, explore, profile, book, pay', async (page) => {
-  await signIn(page, 'sam@demo.tutorhaven.app')
-  await see(page, 'Hi, Sam')
-  await page.waitForTimeout(1400)
-  await shot(page, '03-student-home')
+await flow('empty platform: honest empty state in Find tutors', async (page) => {
+  await createUser(stack, { email: 'solo@example.test', name: 'Solo Learner' })
+  await signIn(page, 'solo@example.test')
+  await see(page, 'Hi, Solo')
   await tapText(page, 'Find tutors')
-  await see(page, '6 tutors found')
-  await page.waitForTimeout(800)
-  await shot(page, '04-explore')
-  await page.getByPlaceholder('Name, subject or keyword').fill('physics')
-  await see(page, '1 tutor found')
-  await page.getByRole('button', { name: /Lucas Meyer/ }).click()
-  await see(page, 'This week’s availability')
-  await page.waitForTimeout(900)
-  await shot(page, '05-tutor-profile')
-  await page.getByRole('button', { name: 'Book a session' }).click()
-  await see(page, 'Pick a time')
-  await page.getByRole('button', { name: /^\d{1,2}:\d\d (AM|PM)$/ }).first().click()
-  await page.waitForTimeout(500)
-  await shot(page, '06-book')
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await see(page, 'Slot held for')
-  await see(page, 'Member discount')
-  await shot(page, '07-checkout')
-  await page.getByRole('button', { name: /^Pay ₦10,800/ }).click()
+  await see(page, 'Our first tutors are on their way')
+  await shot(page, '02-no-tutors')
+}, { empty: true })
+
+await flow('student: book → Paystack → server-confirmed booking', async (page) => {
+  await signIn(page, F.student.email)
+  await see(page, 'Hi, Sola')
+  await bookFirstSlot(page, 'Tobi Tutor')
+  await shot(page, '03-checkout')
+  await payInPopup(page, () => page.getByRole('button', { name: /^Pay ₦8,000/ }).click())
   await see(page, 'You’re booked!')
-  await page.waitForTimeout(700)
-  await shot(page, '08-booked')
+  await see(page, 'confirmed by Paystack')
+  await shot(page, '04-booked')
+  const [b] = await stack.sql(`select status from bookings where student_id = $1`, [F.student.id])
+  if (b.status !== 'confirmed') throw new Error('booking ' + b.status)
 })
 
-await flow('student: sessions cancel + review + membership', async (page) => {
-  await signIn(page, 'sam@demo.tutorhaven.app')
-  await see(page, 'Hi, Sam')
-  await page.getByRole('button', { name: 'Leave a review' }).first().click()
-  await page.getByRole('button', { name: '4 stars' }).click()
-  await page.getByPlaceholder('What went well? What could be better?').fill('Really clear explanations.')
-  await shot(page, '09-review-sheet')
-  await page.getByRole('button', { name: 'Submit review' }).click()
-  await see(page, 'Thanks! Your review')
-  await tapText(page, 'Sessions')
-  await see(page, 'Upcoming  3')
-  await page.waitForTimeout(600)
-  await shot(page, '10-sessions')
-  await page.getByRole('button', { name: 'Cancel' }).last().click()
-  await page.getByRole('button', { name: 'Cancel session' }).click()
-  await see(page, 'Session cancelled')
+await flow('student: declined card shows the server’s answer', async (page) => {
+  await signIn(page, F.student.email)
+  await see(page, 'Hi, Sola')
+  await bookFirstSlot(page, 'Bisi Bello')
+  await payInPopup(page, () => page.getByRole('button', { name: /^Pay ₦6,000/ }).click(), 'Simulate declined card')
+  await see(page, 'Payment failed')
+  await see(page, 'Declined by test card')
+  await shot(page, '05-declined')
+  await tapText(page, 'Dismiss')
+  await payInPopup(page, () => page.getByRole('button', { name: /^Pay ₦6,000/ }).click())
+  await see(page, 'You’re booked!')
+})
+
+await flow('student: Plus membership via Paystack, history and notifications', async (page) => {
+  await signIn(page, F.student.email)
+  await see(page, 'Hi, Sola')
   await tapText(page, 'Account')
-  await see(page, 'Membership')
-  await shot(page, '11-account')
   await page.getByRole('button', { name: /Membership/ }).click()
-  await see(page, 'Choose Family')
-  await page.getByRole('button', { name: 'Choose Family' }).click()
-  await see(page, 'Family is active')
+  await see(page, 'Choose Plus')
+  await payInPopup(page, () => page.getByRole('button', { name: 'Choose Plus' }).click())
+  await see(page, 'Plus is active')
+  await page.goto(ORIGIN + '/payments')
+  await see(page, 'TutorHaven Plus')
+  await tapText(page, 'All attempts')
+  await see(page, 'Plus subscription')
+  await shot(page, '06-payments')
+  await page.goto(ORIGIN + '/notifications')
+  await see(page, 'Plus is active')
 })
 
-await flow('parent: learners, link child, book for child', async (page) => {
-  await signIn(page, 'jordan@demo.tutorhaven.app')
-  await see(page, 'Hello, Jordan')
-  await see(page, 'Sam Rivera')
-  await page.waitForTimeout(1200)
-  await shot(page, '12-parent-home')
-  await page.getByRole('button', { name: 'Link a child' }).first().click()
-  await page.getByLabel('Child’s email').fill('maya@demo.tutorhaven.app')
-  await page.getByRole('button', { name: 'Link account' }).click()
-  await see(page, 'Maya Chen is now linked')
+await flow('tutor: unlisted → subscribe → listed', async (page) => {
+  await signIn(page, F.newTutor.email)
+  await see(page, 'Subscribe to appear in search')
+  await shot(page, '07-tutor-unlisted')
+  await page.getByRole('button', { name: 'Subscribe' }).click()
+  await see(page, 'You’re not listed yet')
+  await payInPopup(page, () => page.getByRole('button', { name: /Pay ₦5,000 with Paystack/ }).click())
+  await see(page, 'You’re listed')
+  await shot(page, '08-tutor-listed')
+  const n = await stack.sql(`select count(*)::int c from tutor_directory`)
+  if (n[0].c !== 3) throw new Error('directory size ' + n[0].c)
+})
+
+await flow('messages: learner asks, tutor replies', async (page) => {
+  await signIn(page, F.student.email)
+  await see(page, 'Hi, Sola')
   await tapText(page, 'Find tutors')
-  await page.getByRole('button', { name: /Chloé Bennett/ }).click()
-  await page.getByRole('button', { name: 'Book a session' }).click()
-  await see(page, 'Who is this for?')
-  await page.getByRole('radio', { name: /Maya Chen/ }).click()
-  await page.getByRole('button', { name: /^\d{1,2}:\d\d (AM|PM)$/ }).first().click()
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await see(page, 'For Maya Chen')
+  await page.getByRole('button', { name: /Tobi Tutor/ }).click()
+  await page.getByRole('button', { name: 'Message Tobi Tutor' }).click()
+  await see(page, 'Say hello to Tobi')
+  await page.getByLabel('Message', { exact: true }).fill('Hello! Can we focus on WAEC past questions?')
+  await page.getByRole('button', { name: 'Send' }).click()
+  await see(page, 'Can we focus on WAEC past questions?')
+  await shot(page, '09-thread')
+  const { ctx, page: tutor } = await newPage()
+  await signIn(tutor, F.tutor.email)
+  await see(tutor, 'Hi, Tobi')
+  await tapText(tutor, 'Messages')
+  await tutor.getByRole('button', { name: /Conversation with Sola Student/ }).click()
+  await tutor.getByLabel('Message', { exact: true }).fill('Absolutely. See you soon!')
+  await tutor.getByRole('button', { name: 'Send' }).click()
+  await see(tutor, 'See you soon!')
+  await ctx.close()
+  await page.reload()
+  await see(page, 'See you soon!')
 })
 
-await flow('tutor: complete session, edit listing', async (page) => {
-  await signIn(page, 'amara@demo.tutorhaven.app')
-  await see(page, 'Hi, Amara')
-  await see(page, 'Ready to complete')
-  await page.waitForTimeout(1200)
-  await shot(page, '13-tutor-home')
-  await page.getByRole('button', { name: 'Mark complete' }).first().click()
-  await page.getByRole('button', { name: 'Mark complete' }).last().click()
-  await see(page, 'Session marked as complete')
-  await tapText(page, 'Listing')
-  await see(page, 'Weekly availability')
-  await page.getByRole('button', { name: 'Increase rate' }).click()
-  await see(page, '₦9,500')
-  await page.getByRole('checkbox', { name: 'Sun morning' }).click()
-  await shot(page, '14-listing')
-  await page.getByRole('button', { name: 'Save listing' }).click()
-  await see(page, 'Listing saved')
+await flow('suspended account sees an explanation', async (page) => {
+  await stack.sql(`update profiles set suspended_at = now(), suspended_reason = 'Payment dispute' where id = $1`, [F.student.id])
+  await signIn(page, F.student.email)
+  await see(page, 'Your account is suspended')
+  await see(page, 'Payment dispute')
 })
 
 await flow('admin is pointed to the web panel', async (page) => {
-  await signIn(page, 'ada@demo.tutorhaven.app')
+  await signIn(page, F.admin.email)
   await see(page, 'use the web admin panel')
 })
 
 await flow('sign in error', async (page) => {
   await page.goto(ORIGIN + '/sign-in')
-  await page.getByLabel('Email').fill('sam@demo.tutorhaven.app')
+  await page.getByLabel('Email').fill(F.student.email)
   await page.getByLabel('Password').fill('wrongpass')
   await page.getByRole('button', { name: 'Sign in' }).click()
   await see(page, 'don’t match')
 })
 
+await resetData(stack)
 await browser.close()
 server.close()
+await stack.close()
 console.log(results.join('\n'))
 process.exit(results.some((r) => r.startsWith('FAIL')) ? 1 : 0)

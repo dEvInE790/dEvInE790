@@ -196,10 +196,14 @@ create table if not exists public.tutor_qualifications (
   status text not null default 'pending' check (status in ('pending', 'verified', 'rejected')),
   review_note text not null default '',
   reviewed_at timestamptz,
-  reviewed_by uuid references public.profiles (id),
+  reviewed_by uuid references public.profiles (id) on delete set null,
   created_at timestamptz not null default now()
 );
 create index if not exists tutor_qualifications_tutor_idx on public.tutor_qualifications (tutor_id);
+-- Deleting an admin account keeps their past reviews (reviewer becomes unknown).
+alter table public.tutor_qualifications drop constraint if exists tutor_qualifications_reviewed_by_fkey;
+alter table public.tutor_qualifications add constraint tutor_qualifications_reviewed_by_fkey
+  foreign key (reviewed_by) references public.profiles (id) on delete set null;
 
 -- Tutors manage their entries; any edit sends it back for review.
 create or replace function public.protect_qualification_review()
@@ -456,6 +460,26 @@ language sql stable security definer set search_path = public as $$
          (select count(*)::int from mine x where x.other = l.other and x.recipient_id = auth.uid() and x.read_at is null)
   from last l join profiles p on p.id = l.other
   order by l.created_at desc;
+$$;
+
+-- One conversation, oldest first (only ever between the caller and p_other).
+create or replace function public.conversation_messages(p_other uuid, p_limit int default 200)
+returns setof public.messages
+language sql stable security definer set search_path = public as $$
+  select * from (
+    select * from messages
+    where (sender_id = auth.uid() and recipient_id = p_other) or (sender_id = p_other and recipient_id = auth.uid())
+    order by created_at desc limit least(p_limit, 500)
+  ) m order by created_at;
+$$;
+
+-- Badge counts for the app header.
+create or replace function public.my_unread_counts()
+returns json language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'messages', (select count(*) from messages where recipient_id = auth.uid() and read_at is null),
+    'notifications', (select count(*) from notifications where user_id = auth.uid() and read_at is null)
+  );
 $$;
 
 -- Name of someone you are allowed to message (for the conversation header).
@@ -1116,6 +1140,9 @@ $$;
 -- ---------------------------------------------------------------------------
 -- Permissions
 -- ---------------------------------------------------------------------------
+-- Internal helpers: used inside other functions, never called directly by apps.
+revoke execute on function public.has_active_subscription(uuid, text), public.is_suspended(uuid) from public, anon, authenticated;
+
 revoke execute on function
   public.fulfill_payment(text, bigint, text, jsonb),
   public.mark_payment_unsuccessful(text, text, text, text, jsonb),
@@ -1145,6 +1172,8 @@ revoke execute on function
   public.send_message(uuid, text),
   public.mark_conversation_read(uuid),
   public.my_conversations(),
+  public.conversation_messages(uuid, int),
+  public.my_unread_counts(),
   public.conversation_partner(uuid),
   public.mark_notifications_read(uuid[]),
   public.admin_update_settings(jsonb),
@@ -1166,6 +1195,8 @@ grant execute on function
   public.send_message(uuid, text),
   public.mark_conversation_read(uuid),
   public.my_conversations(),
+  public.conversation_messages(uuid, int),
+  public.my_unread_counts(),
   public.conversation_partner(uuid),
   public.mark_notifications_read(uuid[]),
   public.admin_update_settings(jsonb),

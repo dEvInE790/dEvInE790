@@ -49,10 +49,17 @@ export async function getSettings() {
   return check(await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle())
 }
 
-/** Creates a server-priced Paystack checkout. Returns { authorization_url, reference }. */
-export const startPaystackCheckout = ({ kind, bookingId = null, plan = null, redirectUrl }) =>
-  invoke('paystack-init', { kind, booking_id: bookingId, plan, redirect_url: redirectUrl })
+/** Active plans for learners and tutors (prices set by admins). */
+export async function listPlans() {
+  ensureConfigured()
+  return check(await supabase.from('subscription_plans').select('*').order('audience').order('sort_order').order('price'))
+}
 
+/** Creates a server-priced Paystack checkout. Returns { authorization_url, reference }. */
+export const startPaystackCheckout = ({ kind, bookingId = null, planId = null, redirectUrl }) =>
+  invoke('paystack-init', { kind, booking_id: bookingId, plan_id: planId, redirect_url: redirectUrl })
+
+/** The server asks Paystack what happened; the app never decides a payment succeeded. */
 export const verifyPaystack = (reference) => invoke('paystack-verify', { reference })
 
 // ---------------------------------------------------------------------------
@@ -90,18 +97,19 @@ export async function getRecommendedTutors(subjects = [], limit = 3) {
   ensureConfigured()
   let query = supabase.from('tutor_directory').select('*')
   if (subjects.length) query = query.overlaps('subjects', subjects)
-  return check(await query.order('rating', { ascending: false }).limit(limit))
+  return check(await query.order('rating', { ascending: false }).order('review_count', { ascending: false }).order('created_at', { ascending: true }).limit(limit))
 }
 
 export async function getTutor(id) {
   ensureConfigured()
-  const [tutor, availability] = await Promise.all([
+  const [tutor, availability, listed] = await Promise.all([
     supabase.from('tutors').select('*, profile:profiles!tutors_id_fkey ( full_name, avatar_url )').eq('id', id).maybeSingle(),
     supabase.from('availability').select('weekday, start_minute, end_minute').eq('tutor_id', id).order('weekday').order('start_minute'),
+    supabase.rpc('is_public_tutor', { p_id: id }),
   ])
   const t = check(tutor)
   if (!t) return null
-  return { ...t, full_name: t.profile?.full_name ?? '', avatar_url: t.profile?.avatar_url, availability: check(availability) }
+  return { ...t, full_name: t.profile?.full_name ?? '', avatar_url: t.profile?.avatar_url, availability: check(availability), listed: !!check(listed) }
 }
 
 export async function getTutorReviews(id) {
@@ -180,11 +188,6 @@ export async function listBookings({ from = null, to = null, limit = 200 } = {})
   return check(await q.order('starts_at', { ascending: true }).limit(limit))
 }
 
-export async function payForBooking(id) {
-  ensureConfigured()
-  return check(await supabase.rpc('pay_for_booking', { p_booking: id }))
-}
-
 export async function setBookingStatus(id, status) {
   ensureConfigured()
   return check(await supabase.rpc('set_booking_status', { p_booking: id, p_status: status }))
@@ -236,11 +239,24 @@ export async function setFavourite(userId, tutorId, on) {
 }
 
 // ---------------------------------------------------------------------------
-// Billing
+// Subscriptions & billing
 // ---------------------------------------------------------------------------
-export async function getSubscription(userId) {
+export async function getSubscription(userId, audience = 'learner') {
   ensureConfigured()
-  return check(await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle())
+  return check(
+    await supabase.from('subscriptions').select('*, plan:subscription_plans ( * )').eq('user_id', userId).eq('audience', audience).maybeSingle(),
+  )
+}
+
+/** Paid access runs until the end of the period, even after cancelling. */
+export const isSubscriptionLive = (sub) =>
+  !!sub && ['active', 'cancelled'].includes(sub.status) && !!sub.current_period_end && new Date(sub.current_period_end) > new Date()
+
+export const activeDiscount = (sub) => (isSubscriptionLive(sub) ? Number(sub.plan?.session_discount ?? 0) : 0)
+
+export async function cancelSubscription(audience = 'learner') {
+  ensureConfigured()
+  return check(await supabase.rpc('cancel_subscription', { p_audience: audience }))
 }
 
 export async function listPayments(userId) {
@@ -248,17 +264,62 @@ export async function listPayments(userId) {
   return check(await supabase.from('payments').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100))
 }
 
-export async function subscribe(plan) {
+/** Every checkout attempt: pending, succeeded, failed or abandoned. */
+export async function listPaymentAttempts(userId) {
   ensureConfigured()
-  return check(await supabase.rpc('subscribe', { p_plan: plan }))
+  return check(
+    await supabase
+      .from('payment_intents')
+      .select('reference, kind, amount, status, failure_reason, created_at, booking_id, plan:subscription_plans ( name ), booking:bookings ( subject, starts_at )')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100),
+  )
 }
 
-export async function cancelSubscription() {
+// ---------------------------------------------------------------------------
+// Notifications & messages
+// ---------------------------------------------------------------------------
+export async function getUnreadCounts() {
   ensureConfigured()
-  return check(await supabase.rpc('cancel_subscription'))
+  return check(await supabase.rpc('my_unread_counts'))
 }
 
-export const activeDiscount = (sub, plans) => {
-  if (!sub || new Date(sub.current_period_end) <= new Date()) return 0
-  return plans.find((p) => p.id === sub.plan)?.discount ?? 0
+export async function listNotifications(limit = 40) {
+  ensureConfigured()
+  return check(await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(limit))
+}
+
+export async function markNotificationsRead(ids = null) {
+  ensureConfigured()
+  return check(await supabase.rpc('mark_notifications_read', { p_ids: ids }))
+}
+
+export async function listConversations() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_conversations'))
+}
+
+export async function getConversation(otherId) {
+  ensureConfigured()
+  const [partner, messages] = await Promise.all([
+    supabase.rpc('conversation_partner', { p_other: otherId }),
+    supabase.rpc('conversation_messages', { p_other: otherId }),
+  ])
+  return { partner: check(partner)?.[0] ?? null, messages: check(messages) }
+}
+
+export async function sendMessage(to, body) {
+  ensureConfigured()
+  return check(await supabase.rpc('send_message', { p_to: to, p_body: body }))
+}
+
+export async function markConversationRead(otherId) {
+  ensureConfigured()
+  return check(await supabase.rpc('mark_conversation_read', { p_other: otherId }))
+}
+
+export async function getPublicQualifications(tutorId) {
+  ensureConfigured()
+  return check(await supabase.rpc('tutor_public_qualifications', { p_tutor: tutorId }))
 }

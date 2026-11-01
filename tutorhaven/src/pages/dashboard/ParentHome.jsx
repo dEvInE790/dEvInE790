@@ -15,9 +15,9 @@ import { CardHeader } from '../../components/ui/Card'
 import { ErrorState } from '../../components/ui/EmptyState'
 import { Reveal, Stagger } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
-import { getSubscription, linkChild, listBookings, listChildren, listPayments, unlinkChild } from '../../lib/api'
+import { getSubscription, isSubscriptionLive, linkChild, listBookings, listChildren, listPayments, unlinkChild } from '../../lib/api'
 import { hours, hoursFmt, isThisMonth, isUpcoming, monthlySeries } from '../../lib/stats'
-import { useSettings } from '../../context/SettingsContext'
+import { PAY_AS_YOU_GO } from '../../lib/constants'
 import { firstName, greeting, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -34,7 +34,6 @@ export default function ParentHome() {
   const [email, setEmail] = useState('')
   const [linking, setLinking] = useState(false)
   const [menu, setMenu] = useState(null)
-  const { plans: PLANS } = useSettings()
 
   const s = useMemo(() => {
     const all = bookings.data ?? []
@@ -53,7 +52,7 @@ export default function ParentHome() {
     }
   }, [bookings.data, payments.data])
 
-  const plan = sub.data && new Date(sub.data.current_period_end) > new Date() ? PLANS.find((p) => p.id === sub.data.plan) : PLANS[0]
+  const plan = isSubscriptionLive(sub.data) ? { ...sub.data.plan, id: sub.data.plan?.code, discount: Number(sub.data.plan?.session_discount ?? 0) } : PAY_AS_YOU_GO
   const replace = (nb) => bookings.setData((list) => list.map((x) => (x.id === nb.id ? nb : x)))
 
   const onLink = async (e) => {

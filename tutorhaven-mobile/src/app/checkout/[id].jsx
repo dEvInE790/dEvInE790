@@ -3,12 +3,13 @@ import useNow from '../../lib/useNow'
 import { View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated'
-import { CalendarDays, Clock, FlaskConical, ShieldCheck, Timer } from 'lucide-react-native'
+import { CalendarDays, Clock, ShieldCheck, Timer } from 'lucide-react-native'
 import Screen from '../../components/Screen'
 import { Avatar, Button, Card, EmptyState, Skeleton, StatusBadge, Text } from '../../components/ui'
 import useAsync from '../../lib/useAsync'
 import { activeDiscount, getBooking, getSubscription } from '../../lib/api'
 import { payBooking } from '../../lib/pay'
+import PaymentResult from '../../components/PaymentResult'
 import { dateLong, money, time } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useSettings } from '../../context/SettingsContext'
@@ -19,26 +20,27 @@ import { colors, fonts } from '../../theme'
 export default function Checkout() {
   const { id } = useLocalSearchParams()
   const { profile } = useAuth()
-  const { settings, plans } = useSettings()
+  const { settings } = useSettings()
   const toast = useToast()
   const booking = useAsync(() => getBooking(id), [id])
   const sub = useAsync(() => getSubscription(profile.id), [profile.id])
   const [paying, setPaying] = useState(false)
+  const [result, setResult] = useState(null)
   const b = booking.data
   const now = useNow(1000)
   const remaining = b ? Math.max(0, new Date(b.created_at).getTime() + settings.hold_minutes * 60000 - now) : 0
-  const discount = activeDiscount(sub.data, plans)
+  const discount = activeDiscount(sub.data)
   const total = b ? Math.round(b.price * (1 - discount)) : 0
   const tutorName = b?.tutor?.profile?.full_name ?? 'your tutor'
   const expired = b?.status === 'pending_payment' && remaining === 0
 
   const pay = async () => {
     setPaying(true)
+    setResult(null)
     try {
-      const r = await payBooking(id, settings.test_mode)
-      if (r.status === 'succeeded') toast.success('Payment received. You’re booked!')
-      else if (r.status === 'refund_pending') toast.error(`${r.note || 'We couldn’t confirm this booking'}. You’ll be refunded in full.`)
-      else toast.info('Payment not completed. You can try again.')
+      const r = await payBooking(id)
+      if (r.status === 'succeeded') toast.success('Paystack confirmed your payment. You’re booked!')
+      else setResult(r)
     } catch (e) {
       toast.error(e.message)
     } finally {
@@ -59,7 +61,7 @@ export default function Checkout() {
           </Animated.View>
           <Text variant="h1" style={{ marginTop: 12 }}>You’re booked!</Text>
           <Text variant="muted" style={{ textAlign: 'center', fontSize: 16, lineHeight: 24 }}>{b.subject} with {tutorName}{'\n'}{dateLong(b.starts_at)} at {time(b.starts_at)}</Text>
-          {b.amount_paid != null && <Text variant="small">Paid {money(b.amount_paid)}</Text>}
+          {b.amount_paid != null && <Text variant="small">{money(b.amount_paid)} paid · confirmed by Paystack</Text>}
           <Button title="View my sessions" size="lg" style={{ marginTop: 20 }} onPress={() => router.replace('/(tabs)/sessions')} />
         </Animated.View>
       </Screen>
@@ -78,12 +80,13 @@ export default function Checkout() {
   }
 
   return (
-    <Screen back title="Checkout" footer={
+    <Screen back title="Checkout" footer={result?.status === 'refund_pending' ? null : (
       <View style={{ padding: 20, paddingBottom: 34, backgroundColor: colors.white, borderTopWidth: 1, borderColor: colors.line, gap: 8 }}>
         <Button title={`Pay ${money(total)}`} size="lg" loading={paying} onPress={pay} full />
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}><ShieldCheck size={14} color={colors.mint600} /><Text variant="small">Free cancellation up to {discount ? '2' : '24'} hours before</Text></View>
       </View>
-    }>
+    )}>
+      <PaymentResult result={result} kind="session" onDismiss={() => setResult(null)} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: colors.amberBg, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 }}>
         <Timer size={15} color={colors.amberInk} />
         <Text style={{ color: colors.amberInk, fontFamily: fonts.semibold, fontSize: 13 }}>Slot held for {Math.floor(remaining / 60000)}:{String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0')}</Text>
@@ -106,9 +109,9 @@ export default function Checkout() {
         </View>
       </Card>
       <View style={{ flexDirection: 'row', gap: 10, backgroundColor: colors.cream200, borderRadius: 16, padding: 14 }}>
-        {settings.test_mode ? <FlaskConical size={18} color={colors.navy500} /> : <ShieldCheck size={18} color={colors.mint600} />}
+        <ShieldCheck size={18} color={colors.mint600} />
         <Text variant="muted" style={{ flex: 1, fontSize: 13 }}>
-          {settings.test_mode ? 'Test mode is on: no money is charged.' : 'You’ll pay securely with Paystack (card, bank transfer or USSD), then return to the app.'}
+          You’ll pay securely with Paystack (card, bank transfer or USSD). Your session is confirmed once Paystack confirms the payment to us.
         </Text>
       </View>
     </Screen>

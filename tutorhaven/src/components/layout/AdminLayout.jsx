@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import FrozenOutlet from './FrozenOutlet'
 import { AnimatePresence, motion } from 'motion/react'
-import { CalendarDays, ExternalLink, GraduationCap, LayoutDashboard, LogOut, Settings, ShieldCheck, Users, Wallet } from 'lucide-react'
+import { BadgeCheck, CalendarDays, ExternalLink, FileCheck2, GraduationCap, LayoutDashboard, LogOut, Settings, ShieldCheck, Tags, Users, Wallet } from 'lucide-react'
 import { LogoMark, Wordmark } from '../../motion/AnimatedLogo'
 import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
@@ -13,7 +13,10 @@ const NAV = [
   { to: '/admin/tutors', label: 'Tutors', icon: GraduationCap },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/bookings', label: 'Bookings', icon: CalendarDays },
+  { to: '/admin/qualifications', label: 'Qualifications', icon: FileCheck2 },
   { to: '/admin/payments', label: 'Payments', icon: Wallet },
+  { to: '/admin/subscriptions', label: 'Subscriptions', icon: BadgeCheck },
+  { to: '/admin/plans', label: 'Plans & prices', icon: Tags },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ]
 

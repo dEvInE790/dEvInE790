@@ -8,6 +8,7 @@ import Skeleton from '../../components/ui/Skeleton'
 import { ChipGroup, Input, Select, Textarea } from '../../components/ui/Field'
 import { ErrorState } from '../../components/ui/EmptyState'
 import { Reveal } from '../../motion/Reveal'
+import Qualifications from '../../components/Qualifications'
 import useAsync from '../../lib/useAsync'
 import { getOwnTutor, replaceAvailability, updateTutor } from '../../lib/api'
 import { LANGUAGES, LEVELS, SUBJECTS } from '../../lib/constants'
@@ -99,6 +100,10 @@ export default function TutorListing() {
           <div><p className="mb-2.5 text-sm font-medium text-navy-800">Subjects</p><ChipGroup size="sm" options={[...new Set([...SUBJECTS, ...form.subjects])]} value={form.subjects} onChange={set('subjects')} label="Subjects" /></div>
           <div><p className="mb-2.5 text-sm font-medium text-navy-800">Levels</p><ChipGroup size="sm" options={LEVELS} value={form.levels} onChange={set('levels')} label="Levels" /></div>
           <div><p className="mb-2.5 text-sm font-medium text-navy-800">Languages</p><ChipGroup size="sm" options={[...new Set([...LANGUAGES, ...form.languages])]} value={form.languages} onChange={set('languages')} label="Languages" /></div>
+        </Reveal>
+
+        <Reveal>
+          <Qualifications tutorId={profile.id} />
         </Reveal>
 
         <Reveal className="card p-6 sm:p-8">

@@ -196,7 +196,7 @@ export default function Onboarding() {
                 <h1 className="mt-6 text-3xl font-bold">You’re all set!</h1>
                 <p className="mx-auto mt-3 max-w-md text-navy-600">
                   {role === 'tutor'
-                    ? 'Your listing has been submitted for review. We’ll make it visible to students as soon as it’s approved.'
+                    ? 'Your listing has been submitted for review. Once it’s approved and you’ve started a tutor subscription, students can find and book you.'
                     : 'Your dashboard is ready, with tutor recommendations based on your answers.'}
                 </p>
                 <Button size="lg" className="mt-8" onClick={enterDashboard} iconRight={ArrowRight}>Go to my dashboard</Button>

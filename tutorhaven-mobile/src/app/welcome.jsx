@@ -3,9 +3,9 @@ import { router } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated'
-import { ArrowRight, CircleCheck, Star } from 'lucide-react-native'
+import { ArrowRight, BadgeCheck, CalendarCheck2, Lock, Search, ShieldCheck } from 'lucide-react-native'
 import { LogoMark, Wordmark } from '../components/Logo'
-import { Avatar, Button, Floating, Text } from '../components/ui'
+import { Button, Floating, Text } from '../components/ui'
 import { colors, fonts, shadow } from '../theme'
 
 export default function Welcome() {
@@ -18,32 +18,29 @@ export default function Welcome() {
           <Wordmark light size={21} />
         </Animated.View>
 
-        {/* Floating product moments */}
+        {/* How it works (no invented people, sessions or numbers) */}
         <View style={styles.art}>
           <Animated.View entering={FadeInDown.delay(250).duration(700)} style={{ position: 'absolute', top: 30, left: 0, right: 40 }}>
             <Floating distance={6} duration={3200}>
               <View style={styles.sessionCard}>
-                <Text variant="small" style={{ color: colors.navy400, letterSpacing: 0.6 }}>NEXT SESSION</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
-                  <Avatar name="Adaeze Okafor" size={42} />
-                  <View>
-                    <Text variant="h3">WAEC Mathematics</Text>
-                    <Text variant="muted" style={{ fontSize: 13 }}>Tomorrow · 4:00 PM</Text>
-                  </View>
-                </View>
-                <View style={styles.progress}><View style={styles.progressFill} /></View>
-                <Text variant="small" style={{ marginTop: 6 }}>Weekly goal · 3 of 4</Text>
+                <Text variant="small" style={{ color: colors.navy400, letterSpacing: 0.6 }}>BOOK IN THREE STEPS</Text>
+                {[[Search, 'Find a verified tutor'], [CalendarCheck2, 'Pick a time that suits you'], [Lock, 'Pay securely with Paystack']].map(([Icon, label], i) => (
+                  <Animated.View key={label} entering={FadeInDown.delay(600 + i * 150).duration(450)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                    <View style={[styles.step, i === 2 && { backgroundColor: colors.mint400 }]}><Icon size={17} color={colors.navy900} /></View>
+                    <Text variant="label" style={{ flex: 1 }}>{label}</Text>
+                  </Animated.View>
+                ))}
               </View>
             </Floating>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(500).duration(700)} style={{ position: 'absolute', top: 0, right: 0 }}>
             <Floating distance={9} duration={2800}>
-              <View style={styles.chip}><Star size={16} color={colors.amber} fill={colors.amber} /><Text variant="label">Top-rated tutors</Text></View>
+              <View style={styles.chip}><BadgeCheck size={17} color={colors.mint600} /><Text variant="label">Reviewed tutors</Text></View>
             </Floating>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(750).duration(700)} style={{ position: 'absolute', bottom: 6, right: 4 }}>
             <Floating distance={7} duration={3400}>
-              <View style={styles.chip}><CircleCheck size={18} color={colors.mint500} /><Text variant="label">Paid with Paystack</Text></View>
+              <View style={styles.chip}><ShieldCheck size={18} color={colors.mint500} /><Text variant="label">Pay in naira</Text></View>
             </Floating>
           </Animated.View>
         </View>
@@ -67,8 +64,7 @@ const styles = StyleSheet.create({
   glow: { position: 'absolute', top: -120, right: -120, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(76,200,151,0.18)' },
   art: { height: 260, marginTop: 28 },
   sessionCard: { backgroundColor: colors.white, borderRadius: 24, padding: 18, ...shadow.lift },
-  progress: { height: 8, borderRadius: 4, backgroundColor: colors.navy50, marginTop: 14, overflow: 'hidden' },
-  progressFill: { width: '75%', height: '100%', borderRadius: 4, backgroundColor: colors.mint500 },
+  step: { width: 34, height: 34, borderRadius: 11, backgroundColor: colors.cream200, alignItems: 'center', justifyContent: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.white, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 11, ...shadow.lift },
   title: { fontFamily: fonts.displayHeavy, fontSize: 36, lineHeight: 40, letterSpacing: -1, color: colors.white },
   lede: { fontFamily: fonts.body, fontSize: 16, lineHeight: 24, color: colors.navy200, marginTop: 14 },

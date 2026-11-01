@@ -10,6 +10,7 @@ import { AuthProvider } from '../context/AuthContext'
 import { SettingsProvider } from '../context/SettingsContext'
 import { ToastProvider } from '../context/ToastContext'
 import { FavouritesProvider } from '../context/FavouritesContext'
+import { UnreadProvider } from '../context/UnreadContext'
 import { colors } from '../theme'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
@@ -30,6 +31,7 @@ export default function RootLayout() {
         <SettingsProvider>
           <AuthProvider>
             <FavouritesProvider>
+              <UnreadProvider>
               <StatusBar style="dark" />
               <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.cream100 }, animation: 'slide_from_right' }}>
                 <Stack.Screen name="index" options={{ animation: 'fade' }} />
@@ -37,6 +39,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
                 <Stack.Screen name="membership" options={{ presentation: 'modal' }} />
               </Stack>
+              </UnreadProvider>
             </FavouritesProvider>
           </AuthProvider>
         </SettingsProvider>

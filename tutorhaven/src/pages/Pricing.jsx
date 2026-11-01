@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Check, Crown, FlaskConical, Sparkles, Users } from 'lucide-react'
+import { Check, Crown, GraduationCap, ShieldCheck, Sparkles, Users } from 'lucide-react'
 import PublicLayout from '../components/layout/PublicLayout'
 import PageTransition from '../motion/PageTransition'
 import { Reveal, Stagger, StaggerItem } from '../motion/Reveal'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
-import { SuccessMark } from './Checkout'
 import useAsync from '../lib/useAsync'
-import { getSubscription, startPaystackCheckout, subscribe } from '../lib/api'
+import { getSubscription, isSubscriptionLive, paymentReturnUrl, startPaystackCheckout } from '../lib/api'
 import { useSettings } from '../context/SettingsContext'
 import { dateLong, money } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
@@ -17,10 +16,12 @@ import { useToast } from '../context/ToastContext'
 import { spring } from '../motion/variants'
 
 const planIcon = { free: Sparkles, plus: Crown, family: Users }
+export const per = (p) => (p.interval_months > 1 ? `${p.interval_months} months` : 'month')
 
 const FAQ = [
   ['How do tutor prices work?', 'Each tutor sets their own hourly rate. You pay per session at checkout, and membership discounts are applied automatically.'],
-  ['Does membership renew automatically?', 'No. Each payment covers one month and nothing is charged automatically. Renew from Billing whenever you like; extra time is added to your current month.'],
+  ['Does membership renew automatically?', 'No. Nothing is charged automatically. We remind you three days before your plan ends, and renewing early adds the time to the end of your current period.'],
+  ['Is paying online safe?', 'Payments are processed by Paystack, a licensed Nigerian payment provider. TutorHaven never sees your card details, and a booking is only confirmed after Paystack confirms the payment to our server.'],
   ['What is the cancellation policy for sessions?', 'Cancel up to 24 hours before a session for a full refund, or up to 2 hours before with Plus or Family.'],
   ['Who is the Family plan for?', 'Parents who book for one or more children. The discount applies to every session you book for a linked learner.'],
 ]
@@ -32,35 +33,24 @@ export default function Pricing() {
   const sub = useAsync(() => getSubscription(user.id), [user?.id], { enabled: !!user })
   const [choice, setChoice] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(null)
   const [openFaq, setOpenFaq] = useState(0)
-  const { settings, plans: PLANS } = useSettings()
+  const { plans: PLANS, tutorPlans, plansLoaded } = useSettings()
 
-  const current = sub.data && new Date(sub.data.current_period_end) > new Date() ? sub.data : null
+  const current = isSubscriptionLive(sub.data) ? sub.data : null
+  const featuredId = PLANS.find((p) => p.id !== 'free')?.id
 
   const choose = (plan) => {
     if (plan.id === 'free') return navigate(user ? '/tutors' : '/signup')
     if (!user) return navigate('/signup', { state: { from: '/pricing' } })
     if (profile?.role === 'tutor') return toast.info('Memberships are for students and parents.')
-    setDone(null)
+    if (profile?.role === 'admin') return toast.info('Admins don’t need a membership.')
     setChoice(plan)
   }
 
   const confirm = async () => {
     setBusy(true)
     try {
-      if (settings.test_mode) {
-        const s = await subscribe(choice.id)
-        sub.setData(s)
-        setDone(s)
-        setBusy(false)
-        return
-      }
-      const { authorization_url } = await startPaystackCheckout({
-        kind: 'subscription',
-        plan: choice.id,
-        redirectUrl: `${window.location.origin}/dashboard/billing`,
-      })
+      const { authorization_url } = await startPaystackCheckout({ kind: 'subscription', planId: choice.id, redirectUrl: paymentReturnUrl() })
       window.location.assign(authorization_url)
     } catch (e) {
       toast.error(e.message)
@@ -81,10 +71,11 @@ export default function Pricing() {
         </section>
 
         <section className="container-page pb-20">
-          <Stagger className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3" gap={0.1}>
+          <Stagger className={`mx-auto grid gap-6 ${PLANS.length >= 3 ? 'max-w-6xl lg:grid-cols-3' : PLANS.length === 2 ? 'max-w-4xl md:grid-cols-2' : 'max-w-md'}`} gap={0.1} key={PLANS.length}>
             {PLANS.map((p) => {
-              const Icon = planIcon[p.id]
-              const isCurrent = current ? current.plan === p.id : user && p.id === 'free'
+              const Icon = planIcon[p.code] ?? Crown
+              p = { ...p, featured: p.id === featuredId }
+              const isCurrent = current ? current.plan_id === p.id : user && p.id === 'free'
               return (
                 <StaggerItem key={p.id} className="h-full">
                   <motion.div
@@ -102,7 +93,7 @@ export default function Pricing() {
                     <h2 className={`mt-6 text-xl font-semibold ${p.featured ? 'text-white' : ''}`}>{p.name}</h2>
                     <p className={`mt-1.5 text-sm ${p.featured ? 'text-navy-200' : 'text-navy-500'}`}>{p.tagline}</p>
                     <p className="mt-6 font-display text-5xl font-bold tracking-tight">
-                      {money(p.price)}<span className={`text-base font-medium ${p.featured ? 'text-navy-300' : 'text-navy-400'}`}> / month</span>
+                      {money(p.price)}<span className={`text-base font-medium ${p.featured ? 'text-navy-300' : 'text-navy-400'}`}> / {p.id === 'free' ? 'month' : per(p)}</span>
                     </p>
                     <ul className="mt-7 space-y-3.5 text-sm">
                       {p.features.map((f) => (
@@ -115,7 +106,7 @@ export default function Pricing() {
                     <div className="mt-auto pt-8">
                       {isCurrent ? (
                         <p className={`rounded-xl py-3 text-center text-sm font-semibold ${p.featured ? 'bg-white/10 text-mint-300' : 'bg-mint-50 text-mint-700'}`}>
-                          Your current plan{current?.plan === p.id && current.status === 'canceled' ? ` · ends ${dateLong(current.current_period_end)}` : ''}
+                          Your current plan{current?.plan_id === p.id ? ` · ${current.status === 'cancelled' ? 'ends' : 'active until'} ${dateLong(current.current_period_end)}` : ''}
                         </p>
                       ) : (
                         <Button variant={p.featured ? 'mint' : 'primary'} size="lg" className="w-full" onClick={() => choose(p)}>
@@ -128,6 +119,26 @@ export default function Pricing() {
               )
             })}
           </Stagger>
+          {plansLoaded && PLANS.length === 1 && (
+            <p className="mx-auto mt-6 max-w-md text-center text-sm text-navy-500">Membership plans aren’t available right now. You can still book any tutor and pay per session.</p>
+          )}
+
+          {tutorPlans.length > 0 && (
+            <Reveal className="mx-auto mt-14 max-w-6xl">
+              <div className="card flex flex-col gap-6 p-7 sm:p-8 md:flex-row md:items-center">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-mint-100 text-mint-700"><GraduationCap className="h-6 w-6" /></span>
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold">Are you a tutor?</h2>
+                  <p className="mt-1.5 text-sm text-navy-500">
+                    {tutorPlans.map((t) => `${t.name}: ${money(t.price)} / ${per(t)}`).join(' · ')}. Your profile appears in search and takes paid bookings while your subscription is active.
+                  </p>
+                </div>
+                <Button variant="secondary" to={profile?.role === 'tutor' ? '/dashboard/subscription' : '/signup?role=tutor'}>
+                  {profile?.role === 'tutor' ? 'Manage subscription' : 'Apply to teach'}
+                </Button>
+              </div>
+            </Reveal>
+          )}
         </section>
 
         <section className="container-page max-w-3xl pb-28">
@@ -150,30 +161,18 @@ export default function Pricing() {
           </div>
         </section>
 
-        <Modal open={!!choice} onClose={() => setChoice(null)} title={done ? 'Welcome to ' + choice?.name : `Upgrade to ${choice?.name}`} description={done ? null : `${money(choice?.price)} per month · cancel any time`}>
-          {done ? (
-            <div className="text-center">
-              <SuccessMark />
-              <p className="mt-5 text-navy-600">Your {choice?.name} benefits are active until <strong>{dateLong(done.current_period_end)}</strong>. Discounts apply automatically at checkout.</p>
-              <Button className="mt-6 w-full" to="/tutors">Find a tutor</Button>
-            </div>
-          ) : (
-            <>
-              <ul className="space-y-2.5 text-sm">
-                {choice?.features.map((f) => <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 text-mint-600" />{f}</li>)}
-              </ul>
-              <p className="mt-5 flex items-start gap-2 rounded-xl bg-cream-100 p-3 text-xs text-navy-600">
-                <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-navy-400" />
-                {settings.test_mode
-                  ? 'Test mode is on: no money is charged. The membership and payment are recorded in your account.'
-                  : 'You’ll pay securely on Paystack (card, bank transfer or USSD). Membership lasts one month; renew any time to extend it.'}
-              </p>
-              <div className="mt-6 flex gap-3">
-                <Button variant="secondary" className="flex-1" onClick={() => setChoice(null)}>Not now</Button>
-                <Button className="flex-1" loading={busy} onClick={confirm}>Pay {money(choice?.price)}</Button>
-              </div>
-            </>
-          )}
+        <Modal open={!!choice} onClose={() => !busy && setChoice(null)} title={`Upgrade to ${choice?.name}`} description={choice ? `${money(choice.price)} per ${per(choice)} · no automatic charges` : null}>
+          <ul className="space-y-2.5 text-sm">
+            {choice?.features.map((f) => <li key={f} className="flex gap-2.5"><Check className="h-4 w-4 text-mint-600" />{f}</li>)}
+          </ul>
+          <p className="mt-5 flex items-start gap-2 rounded-xl bg-cream-100 p-3 text-xs text-navy-600">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
+            You’ll pay securely on Paystack (card, bank transfer or USSD). Your plan starts once Paystack confirms the payment to us.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <Button variant="secondary" className="flex-1" onClick={() => setChoice(null)} disabled={busy}>Not now</Button>
+            <Button className="flex-1" loading={busy} onClick={confirm}>Pay {money(choice?.price)}</Button>
+          </div>
         </Modal>
       </PageTransition>
     </PublicLayout>

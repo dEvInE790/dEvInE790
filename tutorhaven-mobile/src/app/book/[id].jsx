@@ -19,7 +19,7 @@ import { colors, fonts, radius, shadow } from '../../theme'
 export default function Book() {
   const { id } = useLocalSearchParams()
   const { profile } = useAuth()
-  const { plans, settings } = useSettings()
+  const { settings } = useSettings()
   const toast = useToast()
   const isParent = profile.role === 'parent'
   const tutor = useAsync(() => getTutor(id), [id])
@@ -43,7 +43,7 @@ export default function Book() {
   const day = days.find((d) => d.key === dayKey) ?? days[0]
   const slot = pick && pick.dayKey === day?.key && pick.duration === duration ? pick.time : null
   const setSlot = (time) => setPick(time ? { dayKey: day?.key, duration, time } : null)
-  const discount = activeDiscount(sub.data, plans)
+  const discount = activeDiscount(sub.data)
   const price = t ? Math.round((t.hourly_rate * duration) / 60) : 0
   const total = Math.round(price * (1 - discount))
   const needsChild = isParent && children.data && children.data.length === 0

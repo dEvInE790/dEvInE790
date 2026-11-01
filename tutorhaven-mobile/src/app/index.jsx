@@ -28,6 +28,18 @@ export default function Gate() {
       </View>
     )
   }
+  if (profile.suspended_at && profile.role !== 'admin') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, backgroundColor: colors.cream100 }}>
+        <Text variant="h2" style={{ textAlign: 'center' }}>Your account is suspended</Text>
+        <Text variant="muted" style={{ textAlign: 'center' }}>
+          You can’t book sessions, make payments or send messages right now.{profile.suspended_reason ? ` Reason: ${profile.suspended_reason}.` : ''} If you think this is a mistake, contact TutorHaven support.
+        </Text>
+        <Button title="Check again" onPress={refreshProfile} />
+        <Button title="Sign out" variant="ghost" onPress={signOut} />
+      </View>
+    )
+  }
   if (!profile.onboarded) return <Redirect href="/onboarding" />
   if (profile.role === 'admin') return <Redirect href="/admin" />
   return <Redirect href="/(tabs)" />

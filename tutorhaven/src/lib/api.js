@@ -42,18 +42,30 @@ async function invoke(name, body) {
 }
 
 // ---------------------------------------------------------------------------
-// Settings & payments (Paystack)
+// Settings, plans & payments (Paystack)
 // ---------------------------------------------------------------------------
 export async function getSettings() {
   ensureConfigured()
   return check(await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle())
 }
 
-/** Creates a server-priced Paystack checkout. Returns { authorization_url, reference }. */
-export const startPaystackCheckout = ({ kind, bookingId = null, plan = null, redirectUrl }) =>
-  invoke('paystack-init', { kind, booking_id: bookingId, plan, redirect_url: redirectUrl })
+/** Active plans (admins also see inactive ones). */
+export async function listPlans() {
+  ensureConfigured()
+  return check(await supabase.from('subscription_plans').select('*').order('audience').order('sort_order').order('price'))
+}
 
+/**
+ * Creates a server-priced Paystack checkout. Returns { authorization_url, reference }.
+ * The amount is worked out in the database; nothing here can change it.
+ */
+export const startPaystackCheckout = ({ kind, bookingId = null, planId = null, redirectUrl }) =>
+  invoke('paystack-init', { kind, booking_id: bookingId, plan_id: planId, redirect_url: redirectUrl })
+
+/** Asks the server (which asks Paystack) what happened to a payment. */
 export const verifyPaystack = (reference) => invoke('paystack-verify', { reference })
+
+export const paymentReturnUrl = () => `${window.location.origin}/payment/return`
 
 // ---------------------------------------------------------------------------
 // Public
@@ -90,18 +102,20 @@ export async function getRecommendedTutors(subjects = [], limit = 3) {
   ensureConfigured()
   let query = supabase.from('tutor_directory').select('*')
   if (subjects.length) query = query.overlaps('subjects', subjects)
-  return check(await query.order('rating', { ascending: false }).limit(limit))
+  return check(await query.order('rating', { ascending: false }).order('review_count', { ascending: false }).order('created_at', { ascending: true }).limit(limit))
 }
 
 export async function getTutor(id) {
   ensureConfigured()
-  const [tutor, availability] = await Promise.all([
+  const [tutor, availability, listed] = await Promise.all([
     supabase.from('tutors').select('*, profile:profiles!tutors_id_fkey ( full_name, avatar_url )').eq('id', id).maybeSingle(),
     supabase.from('availability').select('weekday, start_minute, end_minute').eq('tutor_id', id).order('weekday').order('start_minute'),
+    supabase.rpc('is_public_tutor', { p_id: id }),
   ])
   const t = check(tutor)
   if (!t) return null
-  return { ...t, full_name: t.profile?.full_name ?? '', avatar_url: t.profile?.avatar_url, availability: check(availability) }
+  // listed: approved, not suspended and (if required) subscribed, so it can take bookings.
+  return { ...t, full_name: t.profile?.full_name ?? '', avatar_url: t.profile?.avatar_url, availability: check(availability), listed: !!check(listed) }
 }
 
 export async function getTutorReviews(id) {
@@ -180,11 +194,6 @@ export async function listBookings({ from = null, to = null, limit = 200 } = {})
   return check(await q.order('starts_at', { ascending: true }).limit(limit))
 }
 
-export async function payForBooking(id) {
-  ensureConfigured()
-  return check(await supabase.rpc('pay_for_booking', { p_booking: id }))
-}
-
 export async function setBookingStatus(id, status) {
   ensureConfigured()
   return check(await supabase.rpc('set_booking_status', { p_booking: id, p_status: status }))
@@ -236,31 +245,124 @@ export async function setFavourite(userId, tutorId, on) {
 }
 
 // ---------------------------------------------------------------------------
-// Billing
+// Subscriptions & billing
 // ---------------------------------------------------------------------------
-export async function getSubscription(userId) {
+/** The user's subscription for 'learner' or 'tutor' plans, with its plan. */
+export async function getSubscription(userId, audience = 'learner') {
   ensureConfigured()
-  return check(await supabase.from('subscriptions').select('*').eq('user_id', userId).maybeSingle())
+  return check(
+    await supabase.from('subscriptions').select('*, plan:subscription_plans ( * )').eq('user_id', userId).eq('audience', audience).maybeSingle(),
+  )
 }
 
+/** Paid access runs until the end of the period, even after cancelling. */
+export const isSubscriptionLive = (sub) =>
+  !!sub && ['active', 'cancelled'].includes(sub.status) && !!sub.current_period_end && new Date(sub.current_period_end) > new Date()
+
+export const activeDiscount = (sub) => (isSubscriptionLive(sub) ? Number(sub.plan?.session_discount ?? 0) : 0)
+
+export async function cancelSubscription(audience = 'learner') {
+  ensureConfigured()
+  return check(await supabase.rpc('cancel_subscription', { p_audience: audience }))
+}
+
+/** Completed payments (and refunds). */
 export async function listPayments(userId) {
   ensureConfigured()
   return check(await supabase.from('payments').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(100))
 }
 
-export async function subscribe(plan) {
+/** Every checkout attempt: pending, succeeded, failed or abandoned. */
+export async function listPaymentAttempts(userId) {
   ensureConfigured()
-  return check(await supabase.rpc('subscribe', { p_plan: plan }))
+  return check(
+    await supabase
+      .from('payment_intents')
+      .select('reference, kind, amount, status, failure_reason, created_at, updated_at, booking_id, plan:subscription_plans ( name ), booking:bookings ( subject, starts_at )')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(100),
+  )
 }
 
-export async function cancelSubscription() {
+// ---------------------------------------------------------------------------
+// Notifications & messages
+// ---------------------------------------------------------------------------
+export async function getUnreadCounts() {
   ensureConfigured()
-  return check(await supabase.rpc('cancel_subscription'))
+  return check(await supabase.rpc('my_unread_counts'))
 }
 
-export const activeDiscount = (sub, plans) => {
-  if (!sub || new Date(sub.current_period_end) <= new Date()) return 0
-  return plans.find((p) => p.id === sub.plan)?.discount ?? 0
+export async function listNotifications(limit = 30) {
+  ensureConfigured()
+  return check(await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(limit))
+}
+
+export async function markNotificationsRead(ids = null) {
+  ensureConfigured()
+  return check(await supabase.rpc('mark_notifications_read', { p_ids: ids }))
+}
+
+export async function listConversations() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_conversations'))
+}
+
+export async function getConversation(otherId) {
+  ensureConfigured()
+  const [partner, messages] = await Promise.all([
+    supabase.rpc('conversation_partner', { p_other: otherId }),
+    supabase.rpc('conversation_messages', { p_other: otherId }),
+  ])
+  return { partner: check(partner)?.[0] ?? null, messages: check(messages) }
+}
+
+export async function sendMessage(to, body) {
+  ensureConfigured()
+  return check(await supabase.rpc('send_message', { p_to: to, p_body: body }))
+}
+
+export async function markConversationRead(otherId) {
+  ensureConfigured()
+  return check(await supabase.rpc('mark_conversation_read', { p_other: otherId }))
+}
+
+// ---------------------------------------------------------------------------
+// Tutor qualifications
+// ---------------------------------------------------------------------------
+export async function listMyQualifications(tutorId) {
+  ensureConfigured()
+  return check(await supabase.from('tutor_qualifications').select('*').eq('tutor_id', tutorId).order('created_at'))
+}
+
+export async function getPublicQualifications(tutorId) {
+  ensureConfigured()
+  return check(await supabase.rpc('tutor_public_qualifications', { p_tutor: tutorId }))
+}
+
+/** Saves a qualification; the optional document goes to the private `qualifications` bucket. */
+export async function addQualification(tutorId, { title, institution, year, file }) {
+  ensureConfigured()
+  let document_path = null
+  if (file) {
+    if (file.size > 5 * 1024 * 1024) throw new ApiError('Please upload a file under 5 MB.')
+    const safe = file.name.replace(/[^\w.-]+/g, '_').slice(-80)
+    document_path = `${tutorId}/${Date.now()}-${safe}`
+    check(await supabase.storage.from('qualifications').upload(document_path, file, { contentType: file.type || undefined }))
+  }
+  return check(
+    await supabase
+      .from('tutor_qualifications')
+      .insert({ tutor_id: tutorId, title: title.trim(), institution: institution.trim(), year: year ? Number(year) : null, document_path })
+      .select()
+      .single(),
+  )
+}
+
+export async function deleteQualification(q) {
+  ensureConfigured()
+  if (q.document_path) await supabase.storage.from('qualifications').remove([q.document_path])
+  return check(await supabase.from('tutor_qualifications').delete().eq('id', q.id))
 }
 
 // ---------------------------------------------------------------------------
@@ -309,12 +411,11 @@ export async function adminListPayments(status = '', search = '') {
   return check(await supabase.rpc('admin_list_payments', { p_status: status, p_search: search, p_limit: 300 }))
 }
 
-/** Paystack payments are refunded through Paystack; test payments are just marked refunded. */
-export async function adminRefund(payment) {
-  if (payment.provider === 'paystack') return invoke('paystack-refund', { payment_id: payment.id })
-  ensureConfigured()
-  return check(await supabase.rpc('admin_mark_refunded', { p_payment: payment.id, p_note: 'Refunded by admin' }))
-}
+/** Refunds through Paystack; the refund.processed webhook marks it refunded. */
+export const adminRefund = (payment) => invoke('paystack-refund', { payment_id: payment.id })
+
+/** Re-checks pending payments with Paystack (in case a webhook was missed). */
+export const adminReconcile = () => invoke('paystack-reconcile', {})
 
 export async function adminMarkRefunded(paymentId, note) {
   ensureConfigured()
@@ -329,4 +430,50 @@ export async function adminUpdateSettings(patch) {
 export async function adminRecentBookings(limit = 8) {
   ensureConfigured()
   return check(await supabase.from('bookings').select(BOOKING_SELECT).order('created_at', { ascending: false }).limit(limit))
+}
+
+export async function adminUpsertPlan(plan) {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_upsert_plan', { p: plan }))
+}
+
+export async function adminListSubscriptions(status = '', audience = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_list_subscriptions', { p_status: status, p_audience: audience }))
+}
+
+export async function adminSetSuspended(userId, suspend, reason = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_set_suspended', { p_user: userId, p_suspend: suspend, p_reason: reason }))
+}
+
+export async function adminListQualifications(status = 'pending') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_list_qualifications', { p_status: status }))
+}
+
+export async function adminReviewQualification(id, status, note = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_review_qualification', { p_id: id, p_status: status, p_note: note }))
+}
+
+/** A short-lived link to a private qualification document. */
+export async function adminQualificationUrl(path) {
+  ensureConfigured()
+  return check(await supabase.storage.from('qualifications').createSignedUrl(path, 300)).signedUrl
+}
+
+export async function adminListPaymentAttempts(status = '', search = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_list_payment_intents', { p_status: status, p_search: search, p_limit: 300 }))
+}
+
+export async function adminPaymentEvents(reference = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_payment_events', { p_reference: reference, p_limit: 300 }))
+}
+
+export async function adminRunMaintenance() {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_run_maintenance'))
 }

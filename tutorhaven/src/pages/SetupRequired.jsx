@@ -5,7 +5,7 @@ import Button from '../components/ui/Button'
 import { Stagger, StaggerItem } from '../motion/Reveal'
 
 const STEPS = [
-  { icon: Database, title: 'Create the database', body: 'In your Supabase project, open the SQL editor and run supabase/migrations/20261030000000_init.sql (and optionally supabase/seed.sql for demo tutors).' },
+  { icon: Database, title: 'Create the database', body: 'In your Supabase project, open the SQL editor and run the three files in supabase/migrations, in order (oldest first).' },
   { icon: KeyRound, title: 'Add your keys', body: 'Copy the Project URL and anon public key from Project Settings → API into tutorhaven/.env.' },
   { icon: Play, title: 'Restart the app', body: 'Stop and re-run npm run dev so Vite picks up the new environment variables.' },
 ]

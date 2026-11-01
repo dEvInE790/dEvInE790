@@ -11,8 +11,10 @@ Do this once per Supabase project. The web app and the iOS app share everything 
 1. **Database.** In the Supabase SQL editor, run these in order:
    - `tutorhaven/supabase/migrations/20261030000000_init.sql`
    - `tutorhaven/supabase/migrations/20261101000000_naira_paystack_admin.sql`
-   - optionally `tutorhaven/supabase/seed.sql`, which adds six demo Nigerian tutors
-2. **Paystack keys.** Create a free account at paystack.com. Use the **test** secret key (`sk_test_…`) until you're ready to go live.
+   - `tutorhaven/supabase/migrations/20261102000000_production_payments.sql`
+
+   Then enable **pg_cron** (Database → Extensions) and schedule maintenance. The README in `tutorhaven` explains how, and how to remove any old demo data safely.
+2. **Paystack keys.** Create an account at paystack.com. Use the **test** secret key (`sk_test_…`) until every check in `tutorhaven/TESTING.md` passes.
 3. **Edge Functions.** These handle Paystack on the server. Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then run from the `tutorhaven` folder:
 
    ```bash
@@ -22,6 +24,7 @@ Do this once per Supabase project. The web app and the iOS app share everything 
    supabase functions deploy paystack-init
    supabase functions deploy paystack-verify
    supabase functions deploy paystack-refund
+   supabase functions deploy paystack-reconcile
    supabase functions deploy paystack-callback --no-verify-jwt
    supabase functions deploy paystack-webhook --no-verify-jwt
    ```
@@ -64,30 +67,34 @@ Do this once per Supabase project. The web app and the iOS app share everything 
 
 ## Paying with Paystack
 
-Tapping **Pay** opens Paystack's secure checkout (card, bank transfer or USSD) in an in-app browser. Here's what happens:
+Tapping **Pay** opens Paystack's secure checkout (card, bank transfer or USSD) in an in-app browser.
 
 1. The server works out the exact naira amount, including any membership discount.
-2. Once Paystack confirms the payment, the server verifies it and confirms the booking or activates the membership.
-3. You land back in the app.
+2. When the browser closes, the app asks the server for the result, and the server asks Paystack. The app never decides a payment succeeded.
+3. You see one of these outcomes:
+   - **booked / plan active**
+   - **still processing:** you'll get a notification
+   - **failed:** with Paystack's reason
+   - **not completed:** nothing was charged
 
-The webhook confirms payments even if someone closes the browser early.
+The webhook also confirms payments if someone closes the browser before returning.
 
-To test, use Paystack's test cards, for example `4084 0840 8408 4081`, any future expiry, CVV `408`, PIN `0000`, OTP `123456`.
-
-Admins can switch on **Test mode** in the web admin panel (Settings). Payments are then simulated without Paystack, which is useful before your keys are set up.
+To test, use Paystack's test cards (see <https://paystack.com/docs/payments/test-payments/>), for example `4084 0840 8408 4081`, any future expiry, CVV `408`, PIN `0000`, OTP `123456`.
 
 ## What's in the app
 
 | Tab or screen | Students & parents | Tutors |
 |---|---|---|
-| Home | Next session, stats, learning-hours or family-spending chart, sessions to review, recommendations; parents link children | Earnings chart, sessions to complete, profile strength |
-| Find tutors | Search, subject chips, level and price filters, sorting | — |
-| Tutor profile | Weekly availability, reviews, favourites, Book | Preview of your own listing |
-| Booking | Subject, learner (parents), length, day and time slots in your time zone | — |
-| Checkout | Slot hold countdown, member discount, Paystack | — |
+| Home | Next session, stats, learning-hours or family-spending chart, sessions to review, recommendations; parents link children | Earnings chart, sessions to complete, profile strength, a banner when not listed |
+| Find tutors | Search, subject chips, level and price filters, sorting; an honest empty state while no tutors are listed | — |
+| Tutor profile | Weekly availability, verified qualifications, reviews, favourites, Message, Book | Preview of your own listing |
+| Booking & checkout | Subject, learner (parents), length, time slots, slot hold countdown, member discount, Paystack | — |
 | Sessions | Upcoming, past and cancelled; pay, cancel, review | Complete or cancel sessions |
-| Listing | — | Headline, bio, ₦ rate, subjects, levels, languages, weekly availability grid |
-| Account | Membership (Plus/Family), payment history with refund status, name, password | Name, password |
+| Messages | Conversations with tutors, unread badge | Replies to learners and parents |
+| Listing | — | Headline, bio, ₦ rate, subjects, levels, languages, weekly availability |
+| Account | Membership, notifications, payment history (payments and every checkout attempt), name, password | Subscription (pay, renew, cancel), notifications, payment history, name, password |
+
+Suspended accounts see an explanation instead of the app. Admins are pointed to the web admin panel.
 
 Animation is built with Reanimated: an animated logo, staggered card entrances, spring press feedback with haptics, floating illustrations, count-up stats, growing chart bars, a bottom sheet and slide transitions in onboarding. Everything respects the iPhone's **Reduce Motion** setting.
 
@@ -98,7 +105,7 @@ npx expo lint                         # ESLint (Expo config, React Compiler rule
 npx expo export --platform ios        # Hermes bundle, as shipped to devices
 ```
 
-`e2e/run.mjs` drives the app's web build at iPhone size against the web app's demo backend, covering every role's main flows. See the comment at the top of that file for how to run it.
+`e2e/run.mjs` drives the app's web build at iPhone size against the local test stack in `tutorhaven/e2e/stack`. That stack is a real Postgres with the migrations, the real Paystack function code and a simulated Paystack checkout. Run it with `node --experimental-strip-types e2e/run.mjs`; see the comment at the top of that file.
 
 ## Shipping to the App Store
 

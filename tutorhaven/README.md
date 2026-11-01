@@ -12,59 +12,59 @@ The iOS app (Expo Go) lives in `../tutorhaven-mobile` and shares this database; 
 cd tutorhaven
 npm install
 # 1. Put your Supabase Project URL and anon key in .env (see below)
-# 2. Run the SQL in supabase/ against your project (see below)
+# 2. Run the SQL in supabase/migrations against your project (see below)
+# 3. Deploy the Paystack Edge Functions (see "Payments")
 npm run dev
 ```
 
-### Try it without Supabase (demo mode)
+There is no demo mode: every tutor, booking and payment you see comes from your database. When no tutors are listed yet, the app says so and invites visitors to apply or to invite a tutor.
 
-```bash
-npm run dev:demo        # http://localhost:5173 with seeded demo data
-```
+### Environment variables
 
-Demo mode swaps Supabase for an in-browser backend that applies the same rules as the database. It comes with six tutors, sessions, reviews and payments already in place. The sign-in page offers one-click demo accounts (student, parent, tutor, admin); every demo password is `demo1234`. You can also sign up with any email to try onboarding. Data is saved in your browser; use the **Demo** badge (top right on phones, bottom right on desktop) to reset it.
+| Where | Variable | Value |
+|---|---|---|
+| `tutorhaven/.env` (web) | `VITE_SUPABASE_URL` | `https://<project-ref>.supabase.co` |
+| | `VITE_SUPABASE_ANON_KEY` | anon public key (Project Settings → API) |
+| `tutorhaven-mobile/.env` (iOS) | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | the same two values |
+| Supabase secrets (Edge Functions) | `PAYSTACK_SECRET_KEY` | `sk_test_…` while testing; `sk_live_…` only when going live |
+| | `APP_URLS` | comma-separated web origins allowed after payment, e.g. `https://tutorhaven.ng,http://localhost:5173` |
+| Provided by Supabase automatically | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | nothing to set |
 
-For a phone-framed preview, open **http://localhost:5173/phone.html** while `npm run dev:demo` is running. It shows the live app at true phone width inside a device frame, with device-size switches (iPhone 15, iPhone 15 Pro Max, Pixel 8, iPhone SE), quick links and a reset button.
+The anon key is designed to be public, because Row Level Security protects the data. **Never** put the `service_role` key or the Paystack secret key in either `.env` file: they belong only in Supabase secrets. The Paystack *public* key is not needed, because checkout runs on Paystack's hosted page.
 
-`npm run build:demo` produces a static copy in `dist-demo/`. It uses hash URLs, so it works on any static host. Production builds (`npm run build`) contain none of the demo code.
+### 1. Create the database
 
-### Automated checks
+In the Supabase **SQL editor**, run these files in order (each one is safe to run again):
 
-```bash
-npm run build:demo
-npm run test:e2e                 # role-based end-to-end flows + click-every-button crawl
-npm run test:e2e -- --shots      # also saves mobile/tablet/desktop screenshots to e2e/screenshots
-```
+1. `supabase/migrations/20261030000000_init.sql`
+2. `supabase/migrations/20261101000000_naira_paystack_admin.sql`
+3. `supabase/migrations/20261102000000_production_payments.sql` adds subscription plans, tutor subscriptions, the payment event log, messaging, qualification review, suspension and scheduled maintenance. It also removes simulated "test mode" payments.
 
-The tests need the `playwright` package and Chromium (`npm i -D playwright && npx playwright install chromium`).
+Then turn on scheduled maintenance. It expires subscriptions, sends renewal reminders and abandons stale checkouts.
 
-### 1. Connect Supabase
+1. Open **Database → Extensions** and enable **pg_cron**.
+2. Run:
 
-Open **Project Settings → API** in your Supabase project and copy the values into `tutorhaven/.env`:
+   ```sql
+   select cron.schedule('tutorhaven-maintenance', '*/15 * * * *', 'select public.run_maintenance()');
+   ```
 
-```
-VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
-VITE_SUPABASE_ANON_KEY=<anon public key>
-```
+If pg_cron was already enabled when you ran migration 3, the job was created for you.
 
-The anon key is designed to be public, because Row Level Security protects the data. Never put the `service_role` key in this file. If you prefer not to commit keys, put them in `.env.local` instead; it is git-ignored and overrides `.env`.
+### 2. Remove old demo data (only if you used the old seed or test mode)
 
-Until real keys are present, the app still runs. It shows a setup banner, and the sign-in pages explain what's missing.
-
-### 2. Create the database
-
-In the Supabase **SQL editor**, run:
-
-1. `supabase/migrations/20261030000000_init.sql` creates the tables, Row Level Security policies, triggers and RPCs. It is required.
-2. `supabase/migrations/20261101000000_naira_paystack_admin.sql` adds naira pricing, Paystack payments, the refund queue and admin settings. It is required.
-3. `supabase/seed.sql` adds six demo Nigerian tutors with availability. It is optional; delete those accounts before launch.
-
-If you use the Supabase CLI instead, run `supabase db push` and the migration applies directly.
+1. Run `supabase/cleanup/01_inspect_demo_data.sql`. It is **read-only** and lists what it found:
+   - the six seeded `@demo.tutorhaven.app` tutors
+   - their bookings and reviews
+   - simulated test-mode payments
+   - test-mode memberships
+   - and, separately, your real accounts and real Paystack payments
+2. If the numbers look right, run `supabase/cleanup/02_remove_demo_data.sql`. It runs in one transaction and stops without changing anything if a demo account has a real payment. Real accounts and real Paystack payments are never deleted. A real payment made to a demo tutor is kept and put in the refund queue.
 
 ### 3. Auth settings
 
 - **Authentication → URL Configuration:** set the Site URL to your deployed origin, and add `http://localhost:5173/**` to the redirect URLs for local development.
-- Email confirmation can stay on. After signing up, people see a "check your inbox" screen, and the confirmation link brings them back to onboarding.
+- Email confirmation can stay on. After signing up, people see a "check your inbox" screen.
 
 ### 4. Make yourself an admin
 
@@ -75,7 +75,7 @@ update public.profiles set role = 'admin'
 where id = (select id from auth.users where email = 'you@example.com');
 ```
 
-Nobody can choose the admin role at sign-up; the database trigger ignores it.
+Nobody can choose the admin role at sign-up; the database ignores it.
 
 ## What's inside
 
@@ -85,14 +85,16 @@ Nobody can choose the admin role at sign-up; the database trigger ignores it.
 | Discovery | `/tutors` | Debounced search, subject/level/price filters synced to the URL, sorting, mobile filter sheet |
 | Tutor profile | `/tutors/:id` | Weekly availability preview in the viewer's timezone, reviews, favourites |
 | Booking | `/book/:tutorId` | Timezone-aware slot picker, session length, booking for a linked child, member pricing |
-| Checkout | `/checkout/:id` | Paystack in naira, slot hold with countdown, member discount, success animation, calendar (.ics) export |
-| Pricing | `/pricing` | Plans, subscribe flow, FAQ |
+| Checkout | `/checkout/:id` | Paystack in naira, slot hold with countdown, member discount, calendar (.ics) export |
+| Payment result | `/payment/return` | Server-verified outcome: booked, plan active, still processing, failed or not completed |
+| Pricing | `/pricing` | Plans from the database, subscribe flow, tutor plans, FAQ |
+| Messages | `/dashboard/messages` | Learners message tutors; tutors reply; unread badges |
 | Onboarding | `/onboarding` | Animated, role-specific steps (tutors publish their listing and availability here) |
 | Student dashboard | `/dashboard` | Next session, learning-hours chart, sessions to review, favourites, recommendations |
 | Parent dashboard | `/dashboard` | Linked learners, family spending chart, booking on a child's behalf |
-| Tutor dashboard | `/dashboard`, `/dashboard/listing` | Earnings chart, sessions to complete, profile strength, listing and availability editor |
+| Tutor dashboard | `/dashboard`, `/dashboard/listing`, `/dashboard/subscription` | Earnings chart, sessions to complete, listing and availability editor, qualifications, subscription and renewals |
 | Admin panel | `/admin/*` | Overview, tutors, users, bookings, payments & refunds, settings (see below) |
-| Shared | `/dashboard/sessions`, `/billing`, `/settings` | Cancel, complete and review sessions; payment history; profile and password |
+| Shared | `/dashboard/sessions`, `/billing`, `/settings` | Cancel, complete and review sessions; payments and every checkout attempt; notifications bell; profile and password |
 
 ### Business rules (enforced in Postgres)
 
@@ -100,53 +102,97 @@ Nobody can choose the admin role at sign-up; the database trigger ignores it.
 - Double-booking is impossible: an exclusion constraint prevents overlapping sessions for the same tutor.
 - Bookings must fall inside the tutor's availability, in the tutor's own timezone.
 - Unpaid checkouts release their slot after the hold time (30 minutes by default).
-- Plus and Family discounts (10% and 15% by default, editable in Admin → Settings) apply on the server. Members can cancel up to 2 hours before a session; pay-as-you-go allows up to 24 hours.
+- Membership discounts come from the plan (editable in Admin → Plans & prices) and apply on the server. Members can cancel up to 2 hours before a session; pay-as-you-go allows up to 24 hours.
+- Only listed tutors can be booked: approved, not suspended and (if required) with an active subscription.
 - Hourly rates must be between ₦1,000 and ₦1,000,000.
-- Cancelling a paid session queues a full refund for an admin to issue. Only the tutor can mark a session complete, and only after it has started.
+- Cancelling a paid session queues a full refund for an admin to issue through Paystack. Only the tutor can mark a session complete, and only after it has started.
 - Users can't change their own role, and tutors can't change their own approval status or ratings.
 
 ### Payments (Paystack, naira)
 
-Checkout and memberships use **Paystack**. Five Supabase Edge Functions in `supabase/functions/` do the work:
+Every payment goes through **Paystack**. Nothing is ever simulated, and the browser or app never decides that a payment succeeded.
+
+```
+App ──► paystack-init ──► start_checkout()        server prices the booking or plan
+  │                         └─► Paystack /transaction/initialize
+  └──► Paystack checkout (card, transfer, USSD)
+         ├─► paystack-callback ──► Paystack /transaction/verify ──► fulfill_payment()
+         └─► paystack-webhook  ──► signature check ─► de-duplicate ─► verify ─► fulfill_payment()
+App ──► /payment/return ──► paystack-verify ──► shows the server's answer
+```
 
 | Function | Role |
 |---|---|
-| `paystack-init` | Calls `start_checkout`, which prices the session or plan on the server, then creates the Paystack transaction |
-| `paystack-callback` | Paystack returns the customer here; it verifies the payment and redirects back to the web or iOS app |
-| `paystack-verify` | The apps call this after checkout to confirm the result |
-| `paystack-webhook` | Paystack's server-to-server notice. Its HMAC signature is verified, so payments are confirmed even if the customer closes the browser |
-| `paystack-refund` | Admins only: refunds through Paystack and records the refund |
+| `paystack-init` | Calls `start_checkout`, which prices the session or plan in the database, then creates the Paystack transaction. If Paystack is unreachable, the attempt is marked failed |
+| `paystack-callback` | Paystack returns the customer here. It verifies the payment with Paystack and redirects back to the web or iOS app |
+| `paystack-verify` | The apps call this after checkout. It asks Paystack and records `succeeded`, `failed`, `abandoned` or `pending` |
+| `paystack-webhook` | Paystack's server-to-server events. The HMAC-SHA512 signature is checked; each event is processed once (`payment_events.idempotency_key`); `charge.success` is re-verified through the API; `refund.processed` and `refund.failed` complete refunds |
+| `paystack-refund` | Admins only: starts a Paystack refund. The payment shows *Refund processing* until Paystack's webhook confirms it |
+| `paystack-reconcile` | Admins only: re-checks pending payments with Paystack in case a webhook never arrived |
 
-Only the server can mark a payment as paid: `fulfill_payment` can be called by the service role alone. Fulfilment is idempotent, and it refuses underpayments. If a slot was taken while someone was paying, the payment goes to the refund queue.
+Safeguards:
 
-**Deploy:** install the Supabase CLI, then from this folder run:
+- Only the service role can mark a payment as paid (`fulfill_payment`, `mark_payment_unsuccessful`, `record_refund`). Users can read their own payments but can never write them.
+- Fulfilment is idempotent and locks the payment row, so a callback, a verify call and a webhook arriving together produce exactly one payment.
+- Short amounts and non-NGN payments are recorded as failed and flagged in the event log.
+- If a slot was taken while someone was paying, the payment goes to the refund queue and the learner is told.
+- Every step is logged in `payment_events` (Admin → Payments → Event log).
+
+**Deploy.** Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then from this folder run:
 
 ```bash
+supabase login
 supabase link --project-ref <your-project-ref>
 supabase secrets set PAYSTACK_SECRET_KEY=sk_test_xxx APP_URLS=http://localhost:5173,https://your-domain
 supabase functions deploy paystack-init
 supabase functions deploy paystack-verify
 supabase functions deploy paystack-refund
+supabase functions deploy paystack-reconcile
 supabase functions deploy paystack-callback --no-verify-jwt
 supabase functions deploy paystack-webhook --no-verify-jwt
 ```
 
-Then set the webhook URL in Paystack Dashboard → Settings → API Keys & Webhooks to `https://<your-project-ref>.supabase.co/functions/v1/paystack-webhook`.
+Then, in Paystack Dashboard → Settings → API Keys & Webhooks, set the webhook URL to `https://<your-project-ref>.supabase.co/functions/v1/paystack-webhook`. Set it for test mode now, and for live mode when you go live.
 
-Cancelling a paid session puts its payment in the **refund queue** (Admin → Payments). There, an admin refunds it through Paystack, or marks it refunded if the money was returned another way.
+### Subscriptions
 
-**Test mode** (Admin → Settings) simulates payments without Paystack. It's useful before your keys are ready, but keep it off in production.
+- **Learners** (Plus, Family) pay monthly for a discount on every session and a shorter cancellation window.
+- **Tutors** (Tutor Pro) pay monthly to appear in search and take paid bookings. Admins can make this optional in Settings.
+- Statuses:
+  - **pending:** checkout started
+  - **active:** paid
+  - **cancelled:** benefits continue until the period ends
+  - **expired:** the period ended
+- Nothing is charged automatically. Learners and tutors get a reminder three days before the end. Paying early adds the time to the current period.
+- Prices, discounts, billing period and plan names are edited in Admin → Plans & prices. New checkouts use the new price immediately.
+
+See **TESTING.md** for the automated tests and the manual Paystack test checklist.
+
+### Going live
+
+Do these only after every item in TESTING.md passes with test keys.
+
+1. Complete Paystack business verification, then switch the dashboard to **Live**.
+2. `supabase secrets set PAYSTACK_SECRET_KEY=sk_live_…` (the functions pick it up on their next request).
+3. Set the **live** webhook URL in Paystack (the same `…/paystack-webhook` address).
+4. Add your production web origin to `APP_URLS`, and set the Supabase Auth Site URL to it.
+5. Confirm pg_cron is running `tutorhaven-maintenance`.
+6. Run `supabase/cleanup/01_inspect_demo_data.sql` once more; it should report no demo data.
+7. Make a small real payment, refund it from the admin panel, and check both in the Paystack dashboard.
 
 ## Web admin panel (`/admin`)
 
 | Section | What admins can do |
 |---|---|
-| Overview | Users, revenue, memberships, bookings mix, revenue chart, pending applications, refund alerts |
-| Tutors | Approve or reject applications; suspend or reinstate live tutors; search by name, subject or city |
-| Users | Search accounts; change roles |
-| Bookings | Every session, filtered by status and searchable; cancel or complete |
-| Payments | Every Paystack and test payment, with totals; refund through Paystack or mark refunded |
-| Settings | Plus/Family monthly prices and discounts (₦), checkout hold time, test mode |
+| Overview | Users, revenue split (sessions, tutor subscriptions, memberships, refunds), listed tutors, payments in progress, failed or abandoned payments, alerts for refunds and qualifications |
+| Tutors | Approve or reject applications; suspend or reinstate live tutors |
+| Users | Search accounts, change roles, suspend or reinstate accounts (with a reason shown to the user), see subscription status |
+| Bookings | Every session, filtered by status; cancel or complete |
+| Qualifications | Open tutors' certificates through short-lived private links; verify or reject them with a note |
+| Payments | Confirmed payments and refunds (refund through Paystack, or mark refunded); every checkout attempt with its failure reason; the full payment event log |
+| Subscriptions | Every learner and tutor subscription with status, period and days left |
+| Plans & prices | Create and edit plans: price, billing period, session discount, features, on sale or hidden |
+| Settings | Checkout hold time, whether tutors need a subscription, manual maintenance, and "Check with Paystack" for pending payments |
 
 ## Design system
 
@@ -173,9 +219,19 @@ Every animation uses transforms and opacity only. `MotionConfig reducedMotion="u
 ## Scripts
 
 ```bash
-npm run dev       # local dev server
-npm run build     # production build to dist/
-npm run preview   # serve the production build
+npm run dev        # local dev server
+npm run build      # production build to dist/
+npm run preview    # serve the production build
+npm run stack      # local test stack (see TESTING.md); --fixture adds test accounts
+npm run test:e2e   # browser tests against the local test stack
 ```
 
 Deploy `dist/` to any static host (Vercel, Netlify, Cloudflare Pages). Configure the host to rewrite all paths to `index.html` so client-side routes work.
+
+`e2e/stack/` is test-only. It is a stand-in for Supabase's HTTP APIs on a local Postgres with the real migrations, plus a Paystack simulator, and is never part of a build. To click through the real app locally without a Supabase project:
+
+```bash
+sudo bash supabase/tests/db/setup.sh
+npm run stack -- --fixture          # test accounts use the password test-password-123
+VITE_SUPABASE_URL=http://localhost:54321 VITE_SUPABASE_ANON_KEY=local-stack-anon-key-not-a-secret-0123456789 npm run dev
+```

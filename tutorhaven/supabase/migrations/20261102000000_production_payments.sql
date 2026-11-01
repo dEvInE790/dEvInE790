@@ -261,8 +261,9 @@ do $$ begin
   execute $p$drop policy if exists "qualifications: owner deletes" on storage.objects$p$;
   execute $p$create policy "qualifications: owner deletes" on storage.objects for delete to authenticated
     using (bucket_id = 'qualifications' and (storage.foldername(name))[1] = auth.uid()::text)$p$;
-exception when undefined_table or invalid_schema_name or undefined_function then
-  raise notice 'Supabase Storage not available here; skipped the qualifications bucket.';
+exception when others then
+  -- Never let storage setup abort the migration; certificates are optional.
+  raise notice 'Skipped the qualifications storage bucket (%). Tutors can still add qualifications without documents.', sqlerrm;
 end $$;
 
 -- Public directory: only listed tutors, with their verified qualification count.

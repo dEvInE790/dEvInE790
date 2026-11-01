@@ -31,7 +31,14 @@ const TEXT = {
   eyebrow: { fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase', color: colors.mint700 },
 }
 export function Text({ variant = 'body', style, ...rest }) {
-  return <RNText style={[TEXT[variant], style]} {...rest} />
+  const base = TEXT[variant]
+  const own = StyleSheet.flatten(style) ?? {}
+  // A bigger font than the variant's keeps the variant's line height unless we
+  // adjust it, and iOS then clips the tops of the glyphs (e.g. large prices).
+  const fix = own.fontSize && !own.lineHeight && base.lineHeight && own.fontSize > base.fontSize
+    ? { lineHeight: Math.round(own.fontSize * 1.22) }
+    : null
+  return <RNText style={[base, style, fix]} {...rest} />
 }
 
 // ---------------------------------------------------------------------------

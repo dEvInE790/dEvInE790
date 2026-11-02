@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
+import { Link } from 'react-router-dom'
 import { BadgeCheck, CalendarClock, Check, EyeOff, Receipt, ShieldCheck } from 'lucide-react'
 import { PageHeader } from '../../components/layout/DashboardLayout'
 import Button from '../../components/ui/Button'
@@ -94,8 +95,10 @@ export default function TutorSubscription() {
                         ? `Your subscription ended on ${dateLong(sub.data.current_period_end)}. Learners can’t find or book you until you renew.`
                         : 'Subscribe to appear in search and accept paid bookings.'}
               </p>
-              {needsPayout && approved && (
-                <p className="mt-3 text-sm text-mint-200">You also need to <a href="/dashboard/payouts" className="font-semibold underline">add your bank account</a> before learners can book you.</p>
+              {needsPayout ? (
+                <p className="mt-3 text-sm text-mint-200">You also need to <Link to="/dashboard/payouts" className="font-semibold underline">add your bank account</Link> before learners can book you.</p>
+              ) : payout.data && (
+                <p className="mt-3 text-sm text-navy-300">Earnings are paid to {payout.data.bank_name} ••••{payout.data.account_number_last4}. <Link to="/dashboard/payouts" className="font-semibold text-mint-300 underline">Manage payouts</Link></p>
               )}
               {live && daysLeft <= 3 && <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-300"><CalendarClock className="h-3.5 w-3.5" />Renew soon to stay listed</p>}
               {sub.data?.status === 'active' && live && (

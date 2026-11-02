@@ -89,7 +89,7 @@ export default function TutorSubscription() {
                       ? `Expired on ${dateLong(sub.data.current_period_end)}. Learners can’t find or book you until you renew.`
                       : 'Subscribe to appear in search and accept paid bookings.'}
             </Text>
-            {needsPayout && approved && <Button title="Add your bank account" variant="mint" size="sm" style={{ alignSelf: 'flex-start', marginTop: 6 }} onPress={() => router.push('/payouts')} />}
+            {needsPayout && <Button title="Add your bank account" variant="mint" size="sm" style={{ alignSelf: 'flex-start', marginTop: 6 }} onPress={() => router.push('/payouts')} />}
             {live && sub.data.status === 'active' && <Button title="Cancel subscription" variant="light" size="sm" loading={busy === 'cancel'} onPress={cancel} style={{ alignSelf: 'flex-start', marginTop: 6 }} />}
           </LinearGradient>
         </Animated.View>

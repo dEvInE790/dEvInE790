@@ -86,7 +86,7 @@ export default function TutorHome() {
           </p>
         </motion.div>
       )}
-      {t?.status === 'approved' && needsPayout && (
+      {t && t.status !== 'rejected' && needsPayout && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 flex flex-col gap-3 rounded-2xl bg-mint-50 p-4 text-sm text-mint-900 sm:flex-row sm:items-center">
           <Landmark className="h-5 w-5 shrink-0 text-mint-700" />
           <p className="flex-1">Add the bank account your earnings should be paid into. Learners can only book you once it’s connected.</p>

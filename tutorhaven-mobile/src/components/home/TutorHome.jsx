@@ -56,7 +56,7 @@ export default function TutorHome() {
           </Text>
         </View>
       )}
-      {t?.status === 'approved' && needsPayout && (
+      {t && t.status !== 'rejected' && needsPayout && (
         <View style={{ borderRadius: 20, padding: 16, backgroundColor: colors.mint50, gap: 10 }}>
           <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
             <Landmark size={18} color={colors.mint700} />

@@ -7,6 +7,7 @@ import Sheet from '../components/Sheet'
 import { Badge, Button, Card, Field, Skeleton, Tappable, Text } from '../components/ui'
 import useAsync from '../lib/useAsync'
 import { getMyEarnings, getMyPayoutAccount, listPayoutBanks, resolvePayoutAccount, savePayoutAccount } from '../lib/api'
+import { searchBanks } from '../lib/banks'
 import { dateShort, money } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../context/SettingsContext'
@@ -42,9 +43,13 @@ export default function Payouts() {
   const current = resolved?.key === `${bank?.code}${number}` ? resolved : null
   const checking = !!bank && /^\d{10}$/.test(number) && !current
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return (banks.data ?? []).filter((b) => !q || b.name.toLowerCase().includes(q))
+  // Popular banks first; nicknames like GTB, UBA or Opay work in the search.
+  const rows = useMemo(() => {
+    const all = banks.data ?? []
+    const { popular, rest } = searchBanks(all, query)
+    return popular.length
+      ? [{ header: 'Popular' }, ...popular, { header: `All banks (${all.length})` }, ...rest]
+      : rest
   }, [banks.data, query])
 
   const save = async () => {
@@ -130,16 +135,18 @@ export default function Payouts() {
       <Sheet visible={picking} onClose={() => setPicking(false)} title="Choose your bank">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.line, borderRadius: 14, paddingHorizontal: 12 }}>
           <Search size={16} color={colors.navy400} />
-          <TextInput value={query} onChangeText={setQuery} placeholder="Search banks" placeholderTextColor={colors.navy300} accessibilityLabel="Search banks"
+          <TextInput value={query} onChangeText={setQuery} placeholder="Search (e.g. GTB, Opay, Zenith)" placeholderTextColor={colors.navy300} accessibilityLabel="Search banks" autoCorrect={false}
             style={{ flex: 1, height: 44, fontFamily: fonts.body, fontSize: 15, color: colors.navy900 }} />
         </View>
         {banks.error ? <Text style={{ color: colors.coralInk }}>{banks.error}</Text> : (
           <FlatList
-            data={filtered}
-            keyExtractor={(b) => b.code}
+            data={rows}
+            keyExtractor={(b) => b.header ?? b.code}
             style={{ maxHeight: 380 }}
             keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
+            renderItem={({ item }) => item.header ? (
+              <Text variant="eyebrow" style={{ color: colors.navy400, paddingTop: 12, paddingBottom: 4 }}>{item.header}</Text>
+            ) : (
               <Tappable onPress={() => { setBank(item); setPicking(false); setQuery('') }} accessibilityRole="button" style={{ paddingVertical: 13, borderBottomWidth: 1, borderColor: colors.line }}>
                 <Text style={{ color: colors.navy900 }}>{item.name}</Text>
               </Tappable>

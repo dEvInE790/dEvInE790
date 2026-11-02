@@ -5,7 +5,8 @@ import { PageHeader } from '../../components/layout/DashboardLayout'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Skeleton from '../../components/ui/Skeleton'
-import { Input, Select } from '../../components/ui/Field'
+import { Input } from '../../components/ui/Field'
+import BankPicker from '../../components/BankPicker'
 import { ErrorState } from '../../components/ui/EmptyState'
 import { Stagger, StaggerItem } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
@@ -129,10 +130,7 @@ export default function TutorPayouts() {
           </div>
           {banks.error ? <ErrorState message={banks.error} onRetry={banks.reload} /> : (
             <div className="grid gap-4 sm:grid-cols-2">
-              <Select label="Bank" value={bank} onChange={(ev) => setBank(ev.target.value)} disabled={banks.loading} required>
-                <option value="">{banks.loading ? 'Loading banks…' : 'Choose your bank'}</option>
-                {bankOptions.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
-              </Select>
+              <BankPicker banks={bankOptions} value={bank} onChange={setBank} loading={banks.loading} />
               <Input label="Account number" inputMode="numeric" maxLength={10} value={number} onChange={(ev) => setNumber(ev.target.value.replace(/\D/g, ''))} placeholder="10 digits" required />
             </div>
           )}

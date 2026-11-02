@@ -5,7 +5,10 @@ export const PASSWORD = 'test-password-123'
 export async function resetData(stack) {
   await stack.sql(`delete from auth.users where email like '%@example.test'`)
   await stack.sql(`delete from payment_events`)
-  await stack.sql(`update platform_settings set tutor_subscription_required = true, payout_account_required = true, commission_rate = 0.15, hold_minutes = 30 where id = 1`)
+  await stack.sql(`update platform_settings set tutor_subscription_required = true, payout_account_required = true, commission_rate = 0.15, hold_minutes = 30,
+    business_name = 'TutorHaven', operator_name = 'Ojigbani Divine', support_email = 'tutorhaven737@gmail.com', support_phone = '+2348028139086',
+    whatsapp_number = '+2348028139086', business_city = 'Lagos', business_state = 'Lagos State', business_country = 'Nigeria',
+    terms_text = null, privacy_text = null, refund_text = null where id = 1`)
   await stack.sql(`update subscription_plans set price = case code when 'plus' then 7500 when 'family' then 15000 when 'tutor_pro' then 5000 else price end`)
   stack.paystack.tx.clear()
   stack.paystack.refunds.length = 0

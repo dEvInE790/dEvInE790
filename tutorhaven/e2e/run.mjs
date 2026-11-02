@@ -166,6 +166,11 @@ await flow('auth: wrong password, protected redirect, sign out', {}, async (page
 await flow('student: book → Paystack → server-verified booking → notification', {}, async (page) => {
   await signIn(page, F.student.email)
   await bookFirstSlot(page, F.tutor.id)
+  // Refund terms are visible next to the Pay button, before Paystack.
+  const notice = page.getByTestId('refund-notice')
+  await notice.getByText('24 hours').waitFor()
+  await notice.getByText('if the tutor cancels').waitFor()
+  if (await notice.getByRole('link', { name: 'Refund Policy' }).getAttribute('href') !== '/refunds') throw new Error('refund policy link')
   await page.getByRole('button', { name: /^Pay ₦8,000/ }).click()
   await paystack(page)
   await see(page, 'You’re booked!')
@@ -229,6 +234,9 @@ await flow('student: Plus membership → discount at checkout → cancel keeps b
   await signIn(page, F.student.email)
   await page.goto(url('/pricing'))
   await page.getByRole('button', { name: 'Choose Plus' }).click()
+  await page.getByRole('dialog').getByText('Non-refundable once paid').waitFor()
+  await page.getByRole('dialog').getByText('Nothing renews automatically').waitFor()
+  await page.getByRole('dialog').getByText('access continues until the end of the paid period').waitFor()
   await page.getByRole('dialog').getByRole('button', { name: /Pay ₦7,500/ }).click()
   await paystack(page)
   await see(page, 'Your plan is active')
@@ -236,6 +244,7 @@ await flow('student: Plus membership → discount at checkout → cancel keeps b
   await see(page, 'Active until')
   await bookFirstSlot(page, F.tutor.id)
   await see(page, 'Member discount')
+  await page.getByTestId('refund-notice').getByText('2 hours').waitFor()
   await page.getByRole('button', { name: /^Pay ₦7,200/ }).waitFor()
   await page.goto(url('/dashboard/billing'))
   await page.getByRole('button', { name: 'Cancel plan' }).click()
@@ -498,6 +507,74 @@ await flow('motion: reduced motion', { intro: true, reducedMotion: 'reduce' }, a
   await page.waitForTimeout(300)
   if (await page.locator('.z-\\[100\\]').count()) throw new Error('intro shown with reduced motion')
 })
+// ---------------------------------------------------------------------------
+// Business information and policies
+// ---------------------------------------------------------------------------
+await flow('legal: footer, contact and policy pages show the business details', { viewport: MOBILE }, async (page) => {
+  await page.goto(url('/'))
+  const footer = page.locator('footer')
+  for (const t of ['Ojigbani Divine', 'tutorhaven737@gmail.com', '0802 813 9086', 'Lagos, Lagos State, Nigeria', 'Refund Policy', 'Terms and Conditions', 'Privacy Policy', 'Contact us']) {
+    await footer.getByText(t).first().waitFor({ timeout: 8000 })
+  }
+  const wa = await footer.getByRole('link', { name: /WhatsApp/ }).getAttribute('href')
+  if (!wa.startsWith('https://wa.me/2348028139086')) throw new Error('whatsapp link ' + wa)
+  if (await footer.getByRole('link', { name: 'tutorhaven737@gmail.com' }).getAttribute('href') !== 'mailto:tutorhaven737@gmail.com') throw new Error('mail link')
+  await footer.getByRole('link', { name: 'Contact us' }).click()
+  await see(page, 'We’re here to help')
+  await see(page, '+2348028139086')
+  if (!(await page.getByRole('link', { name: 'Chat on WhatsApp' }).getAttribute('href')).startsWith('https://wa.me/2348028139086')) throw new Error('contact whatsapp')
+  await page.goto(url('/refunds'))
+  await see(page, 'Refund Policy')
+  await see(page, 'Last updated')
+  for (const t of ['Cancelled at least 24 hours before the start:', 'Members (Plus or Family plan):', 'Cancelled by the tutor:', 'Duplicate or mistaken payments:', 'non-refundable once paid', 'Nothing renews automatically.', 'consumer protection law']) await see(page, t)
+  await page.goto(url('/terms'))
+  await see(page, 'operated by Ojigbani Divine from Lagos, Lagos State, Nigeria')
+  await see(page, 'Federal Republic of Nigeria')
+  await see(page, '85%')
+  await page.goto(url('/privacy'))
+  await see(page, 'Nigeria Data Protection Act 2023')
+  for (const route of ['/', '/contact', '/terms', '/privacy', '/refunds']) {
+    await page.goto(url(route))
+    const body = await page.locator('body').innerText()
+    if (/\bCAC\b|RC\s?\d|Ltd\b|Limited\b|\{\{/.test(body)) throw new Error(`${route} shows an invented registration detail or a raw placeholder`)
+  }
+})
+
+await flow('admin: edit business details and the refund policy without code', {}, async (page) => {
+  await signIn(page, F.admin.email)
+  await page.goto(url('/admin/business'))
+  await page.getByLabel('WhatsApp number (international format)').fill('0803 000 0000')
+  await see(page, 'Use international format')
+  await page.getByLabel('WhatsApp number (international format)').fill('+234 803 000 0000')
+  await page.getByLabel('Support email').fill('help@example.test')
+  await page.getByRole('button', { name: 'Save business details' }).click()
+  await see(page, 'Business details saved')
+  await page.getByRole('button', { name: 'Start from the built-in text' }).click()
+  const box = page.getByLabel('Refund Policy text')
+  if (!(await box.inputValue()).includes('## Tutoring sessions')) throw new Error('built-in text not loaded')
+  await box.fill('Our custom refund promise.\n\n## Custom heading\n- Write to {{support_email}} or WhatsApp {{whatsapp}}.')
+  await page.getByRole('button', { name: 'Preview' }).click()
+  await see(page, 'Write to help@example.test or WhatsApp 0803 000 0000.')
+  await page.getByRole('button', { name: 'Save Refund Policy' }).click()
+  await see(page, 'Refund Policy saved')
+  await see(page, 'Using your custom text')
+  // Visitors see the change straight away, with no code change or redeploy.
+  const visitor = await newPage()
+  await visitor.page.goto(url('/refunds'))
+  await see(visitor.page, 'Custom heading')
+  await see(visitor.page, 'Write to help@example.test or WhatsApp 0803 000 0000.')
+  if (!(await visitor.page.locator('footer').getByRole('link', { name: /WhatsApp/ }).getAttribute('href')).startsWith('https://wa.me/2348030000000')) throw new Error('footer whatsapp not updated')
+  // Stored in the database, not in the code.
+  const [{ refund_text }] = await stack.sql(`select refund_text from platform_settings`)
+  if (!refund_text.startsWith('Our custom refund promise.')) throw new Error('db refund_text ' + refund_text)
+  await page.getByRole('button', { name: 'Reset to built-in text' }).click()
+  await see(page, 'Using the built-in TutorHaven text')
+  await visitor.page.goto(url('/refunds'))
+  await see(visitor.page, 'Cancelled at least 24 hours before the start:')
+  const [{ refund_text: after }] = await stack.sql(`select refund_text from platform_settings`)
+  if (after !== null) throw new Error('reset failed')
+})
+
 await flow('misc: 404 page', {}, async (page) => {
   await page.goto(url('/does-not-exist'))
   await see(page, 'This page took a different path')
@@ -513,11 +590,11 @@ let clicks = 0
 if (!ONLY || ONLY === 'crawl') {
   F = await seedFixture(stack)
   const CRAWL = [
-    [null, ['/', '/tutors', `/tutors/${F.tutor.id}`, '/pricing', '/signin', '/signup']],
+    [null, ['/', '/tutors', `/tutors/${F.tutor.id}`, '/pricing', '/signin', '/signup', '/contact', '/refunds', '/terms', '/privacy']],
     [F.student.email, ['/dashboard', '/dashboard/sessions', '/dashboard/messages', '/dashboard/billing', '/dashboard/settings', `/book/${F.tutor.id}`, '/pricing']],
     [F.parent.email, ['/dashboard', '/dashboard/billing']],
     [F.tutor.email, ['/dashboard', '/dashboard/sessions', '/dashboard/listing', '/dashboard/subscription', '/dashboard/payouts']],
-    [F.admin.email, ['/admin', '/admin/tutors', '/admin/users', '/admin/bookings', '/admin/qualifications', '/admin/payments', '/admin/payments?view=attempts', '/admin/payments?view=events', '/admin/payouts', '/admin/subscriptions', '/admin/plans', '/admin/settings']],
+    [F.admin.email, ['/admin', '/admin/tutors', '/admin/users', '/admin/bookings', '/admin/qualifications', '/admin/payments', '/admin/payments?view=attempts', '/admin/payments?view=events', '/admin/payouts', '/admin/subscriptions', '/admin/plans', '/admin/business', '/admin/settings']],
   ]
   for (const [who, routes] of CRAWL) {
     for (const viewport of [DESKTOP, MOBILE]) {
@@ -545,7 +622,7 @@ if (!ONLY || ONLY === 'crawl') {
           return out
         }, SEL)
         for (const t of targets) {
-          if (SKIP.test(t.label) || t.href?.startsWith('blob:')) continue
+          if (SKIP.test(t.label) || /^(blob:|mailto:|tel:|https?:)/.test(t.href ?? '')) continue
           const where = `[${who ?? 'visitor'} ${viewport.width}px] ${route} → "${t.label}"`
           await page.goto('about:blank')
           await page.goto(url(route))
@@ -578,10 +655,10 @@ if (!ONLY || ONLY === 'crawl') {
 if (SHOTS) {
   F = await seedFixture(stack)
   const shots = [
-    [null, '/', 'landing'], [null, '/tutors', 'tutors'], [null, `/tutors/${F.tutor.id}`, 'profile'], [null, '/pricing', 'pricing'],
+    [null, '/', 'landing'], [null, '/tutors', 'tutors'], [null, `/tutors/${F.tutor.id}`, 'profile'], [null, '/pricing', 'pricing'], [null, '/contact', 'contact'], [null, '/refunds', 'refunds'],
     [F.student.email, '/dashboard', 'student'], [F.student.email, `/book/${F.tutor.id}`, 'book'], [F.student.email, '/dashboard/billing', 'billing'], [F.student.email, '/dashboard/messages', 'messages'],
     [F.tutor.email, '/dashboard', 'tutor'], [F.tutor.email, '/dashboard/subscription', 'tutor-subscription'], [F.tutor.email, '/dashboard/payouts', 'tutor-payouts'], [F.newTutor.email, '/dashboard/payouts', 'tutor-connect-bank'],
-    [F.admin.email, '/admin', 'admin'], [F.admin.email, '/admin/plans', 'admin-plans'], [F.admin.email, '/admin/payments', 'admin-payments'], [F.admin.email, '/admin/settings', 'admin-settings'],
+    [F.admin.email, '/admin', 'admin'], [F.admin.email, '/admin/plans', 'admin-plans'], [F.admin.email, '/admin/payments', 'admin-payments'], [F.admin.email, '/admin/settings', 'admin-settings'], [F.admin.email, '/admin/business', 'admin-business'],
   ]
   for (const [vpName, viewport] of [['mobile', MOBILE], ['tablet', { width: 820, height: 1180 }], ['desktop', { width: 1440, height: 900 }]]) {
     for (const [who, route, name] of shots) {

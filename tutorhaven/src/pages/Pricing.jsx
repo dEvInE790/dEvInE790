@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { Check, Crown, GraduationCap, ShieldCheck, Sparkles, Users } from 'lucide-react'
 import PublicLayout from '../components/layout/PublicLayout'
@@ -14,6 +14,7 @@ import { dateLong, money } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { spring } from '../motion/variants'
+import RefundNotice from '../components/RefundNotice'
 
 const planIcon = { free: Sparkles, plus: Crown, family: Users }
 export const per = (p) => (p.interval_months > 1 ? `${p.interval_months} months` : 'month')
@@ -22,7 +23,8 @@ const FAQ = [
   ['How do tutor prices work?', 'Each tutor sets their own hourly rate. You pay per session at checkout, and membership discounts are applied automatically.'],
   ['Does membership renew automatically?', 'No. Nothing is charged automatically. We remind you three days before your plan ends, and renewing early adds the time to the end of your current period.'],
   ['Is paying online safe?', 'Payments are processed by Paystack, a licensed Nigerian payment provider. TutorHaven never sees your card details, and a booking is only confirmed after Paystack confirms the payment to our server.'],
-  ['What is the cancellation policy for sessions?', 'Cancel up to 24 hours before a session for a full refund, or up to 2 hours before with Plus or Family.'],
+  ['What is the cancellation policy for sessions?', 'Cancel up to 24 hours before a session for a full refund, or up to 2 hours before with Plus or Family. If your tutor cancels, you get a full refund. See the Refund Policy for details.'],
+  ['Can I get a refund on a membership?', 'Memberships and tutor subscriptions are non-refundable once paid, except where the law requires it. If you cancel, your benefits continue until the end of the period you paid for.'],
   ['Who is the Family plan for?', 'Parents who book for one or more children. The discount applies to every session you book for a linked learner.'],
 ]
 
@@ -119,6 +121,10 @@ export default function Pricing() {
               )
             })}
           </Stagger>
+          <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-navy-500">
+            Prices in Nigerian Naira (NGN). Memberships don’t renew automatically and are non-refundable once paid, except where the law requires it; benefits continue until the end of the paid period.{' '}
+            <Link to="/refunds" className="font-semibold text-navy-800 underline underline-offset-2">Read the Refund Policy</Link>
+          </p>
           {plansLoaded && PLANS.length === 1 && (
             <p className="mx-auto mt-6 max-w-md text-center text-sm text-navy-500">Membership plans aren’t available right now. You can still book any tutor and pay per session.</p>
           )}
@@ -169,6 +175,7 @@ export default function Pricing() {
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />
             You’ll pay securely on Paystack (card, bank transfer or USSD). Your plan starts once Paystack confirms the payment to us.
           </p>
+          {choice && <RefundNotice className="mt-3" kind="plan" period={`${choice.interval_months > 1 ? choice.interval_months : 1} month${choice.interval_months > 1 ? 's' : ''}`} />}
           <div className="mt-6 flex gap-3">
             <Button variant="secondary" className="flex-1" onClick={() => setChoice(null)} disabled={busy}>Not now</Button>
             <Button className="flex-1" loading={busy} onClick={confirm}>Pay {money(choice?.price)}</Button>

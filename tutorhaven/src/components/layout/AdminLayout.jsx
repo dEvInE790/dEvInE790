@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import FrozenOutlet from './FrozenOutlet'
 import { AnimatePresence, motion } from 'motion/react'
-import { BadgeCheck, CalendarDays, ExternalLink, FileCheck2, GraduationCap, Landmark, LayoutDashboard, LogOut, Settings, ShieldCheck, Tags, Users, Wallet } from 'lucide-react'
+import { BadgeCheck, Building2, CalendarDays, ExternalLink, FileCheck2, GraduationCap, Landmark, LayoutDashboard, LogOut, Settings, ShieldCheck, Tags, Users, Wallet } from 'lucide-react'
 import { LogoMark, Wordmark } from '../../motion/AnimatedLogo'
 import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
@@ -18,6 +18,7 @@ const NAV = [
   { to: '/admin/payouts', label: 'Tutor payouts', icon: Landmark },
   { to: '/admin/subscriptions', label: 'Subscriptions', icon: BadgeCheck },
   { to: '/admin/plans', label: 'Plans & prices', icon: Tags },
+  { to: '/admin/business', label: 'Business & policies', icon: Building2 },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
 ]
 
@@ -38,7 +39,7 @@ export default function AdminLayout() {
         <p className="mt-3 ml-2 flex w-fit items-center gap-1.5 rounded-full bg-mint-400/15 px-2.5 py-1 text-[0.7rem] font-semibold tracking-wide text-mint-300 uppercase">
           <ShieldCheck className="h-3.5 w-3.5" />Admin panel
         </p>
-        <nav className="mt-8 flex-1 space-y-1" aria-label="Admin">
+        <nav className="mt-8 flex-1 space-y-1 overflow-y-auto" aria-label="Admin">
           {NAV.map((it) => {
             const active = isActive(it)
             return (

@@ -19,6 +19,8 @@ const Book = lazy(() => import('./pages/Book'))
 const Checkout = lazy(() => import('./pages/Checkout'))
 const PaymentReturn = lazy(() => import('./pages/PaymentReturn'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const Policy = lazy(() => import('./pages/Policy'))
+const Contact = lazy(() => import('./pages/Contact'))
 const DashboardHome = lazy(() => import('./pages/dashboard/DashboardHome'))
 const Sessions = lazy(() => import('./pages/dashboard/Sessions'))
 const Billing = lazy(() => import('./pages/dashboard/Billing'))
@@ -38,6 +40,7 @@ const AdminPlans = lazy(() => import('./pages/admin/Plans'))
 const AdminSubscriptions = lazy(() => import('./pages/admin/Subscriptions'))
 const AdminQualifications = lazy(() => import('./pages/admin/Qualifications'))
 const AdminPayouts = lazy(() => import('./pages/admin/Payouts'))
+const AdminBusiness = lazy(() => import('./pages/admin/Business'))
 
 // Admins use the separate admin panel; send them there before the learner dashboard mounts.
 function DashboardGate() {
@@ -64,6 +67,11 @@ function AnimatedRoutes() {
         <Route path="/tutors" element={<Tutors />} />
         <Route path="/tutors/:id" element={<TutorProfile />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/terms" element={<Policy kind="terms" />} />
+        <Route path="/privacy" element={<Policy kind="privacy" />} />
+        <Route path="/refunds" element={<Policy kind="refund" />} />
+        <Route path="/refund-policy" element={<Navigate to="/refunds" replace />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/onboarding" element={<RequireAuth allowIncomplete><Onboarding /></RequireAuth>} />
@@ -91,6 +99,7 @@ function AnimatedRoutes() {
           <Route path="subscriptions" element={<AdminSubscriptions />} />
           <Route path="qualifications" element={<AdminQualifications />} />
           <Route path="payouts" element={<AdminPayouts />} />
+          <Route path="business" element={<AdminBusiness />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
         <Route path="/login" element={<Navigate to="/signin" replace />} />

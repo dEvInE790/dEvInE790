@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { Check, Crown, Sparkles, Users } from 'lucide-react-native'
+import RefundNotice from '../components/RefundNotice'
 import Screen from '../components/Screen'
 import { Button, Text } from '../components/ui'
 import useAsync from '../lib/useAsync'
@@ -88,6 +89,7 @@ export default function Membership() {
           </Animated.View>
         )
       })}
+      {PLAN_PURCHASES_IN_APP && <RefundNotice kind="plan" />}
       {PLAN_PURCHASES_IN_APP && <Text variant="small" style={{ textAlign: 'center' }}>Payments are processed securely by Paystack in naira. Your plan starts once Paystack confirms the payment.</Text>}
       <Button title="Done" variant="ghost" onPress={() => router.back()} />
     </Screen>

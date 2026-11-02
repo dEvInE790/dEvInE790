@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useSettings } from '../../context/SettingsContext'
 import { spring } from '../../motion/variants'
+import RefundNotice from '../../components/RefundNotice'
 
 const STATUS = {
   active: ['mint', 'Active'],
@@ -127,6 +128,8 @@ export default function TutorSubscription() {
         {!plansLoaded ? <Skeleton className="h-40 rounded-3xl" /> : !tutorPlans.length ? (
           <div className="card"><EmptyState icon={BadgeCheck} title="No tutor plans available">An admin hasn’t published a tutor plan yet. Please check back soon.</EmptyState></div>
         ) : (
+          <>
+          <RefundNotice className="mb-5 max-w-2xl" kind="plan" period="the subscription period shown on each plan" />
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {tutorPlans.map((p) => (
               <motion.div key={p.id} whileHover={{ y: -4 }} transition={spring} className="card flex flex-col p-6">
@@ -142,6 +145,7 @@ export default function TutorSubscription() {
               </motion.div>
             ))}
           </div>
+          </>
         )}
       </section>
 

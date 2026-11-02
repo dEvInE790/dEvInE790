@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
+import { Link } from 'react-router-dom'
+import SupportCard from '../../components/SupportCard'
 import { Crown, Receipt, Sparkles } from 'lucide-react'
 import Tabs from '../../components/ui/Tabs'
 import { PageHeader } from '../../components/layout/DashboardLayout'
@@ -130,6 +132,11 @@ export default function Billing() {
           </motion.ul>
         )}
       </section>
+      <SupportCard className="mt-6" title="Questions about a payment or refund?" />
+      <p className="mt-4 text-center text-sm text-navy-500">
+        <Link to="/refunds" className="font-semibold text-navy-800 underline-offset-2 hover:underline">Refund Policy</Link>
+        {' · '}<Link to="/terms" className="font-semibold text-navy-800 underline-offset-2 hover:underline">Terms and Conditions</Link>
+      </p>
     </>
   )
 }

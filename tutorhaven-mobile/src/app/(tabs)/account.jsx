@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
-import { BadgeCheck, Bell, ChevronRight, Crown, Landmark, LogOut, Receipt } from 'lucide-react-native'
+import { BadgeCheck, Bell, ChevronRight, Crown, ExternalLink, FileText, Landmark, Lock, LogOut, Mail, MessageCircle, Phone, Receipt, RotateCcw } from 'lucide-react-native'
 import Screen from '../../components/Screen'
 import { Avatar, Badge, Button, Card, Field, Tappable, Text } from '../../components/ui'
 import useAsync from '../../lib/useAsync'
@@ -13,12 +13,16 @@ import { dateLong } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { colors } from '../../theme'
+import { useSettings } from '../../context/SettingsContext'
+import { businessInfo, openEmail, openPhone, openPolicy, openWhatsApp } from '../../lib/business'
 
 
 export default function Account() {
   const { profile, user, setProfile, signOut } = useAuth()
   const toast = useToast()
   const { notifications } = useUnread()
+  const { settings } = useSettings()
+  const info = businessInfo(settings)
   const learner = profile.role !== 'tutor'
   const sub = useAsync(() => getSubscription(profile.id, learner ? 'learner' : 'tutor'), [profile.id])
   const [name, setName] = useState(profile.full_name)
@@ -91,6 +95,29 @@ export default function Account() {
           </Tappable>
         ))}
       </Card>
+
+      <Text variant="h3" style={{ marginTop: 4 }}>Help & legal</Text>
+      <Card delay={100} style={{ padding: 0, overflow: 'hidden' }}>
+        {[
+          [MessageCircle, 'WhatsApp support', info.whatsappDisplay, () => openWhatsApp(info), false],
+          [Mail, 'Email support', info.support_email, () => openEmail(info), false],
+          [Phone, 'Call us', info.phoneDisplay, () => openPhone(info), false],
+          [RotateCcw, 'Refund Policy', null, () => openPolicy('refund'), true],
+          [FileText, 'Terms and Conditions', null, () => openPolicy('terms'), true],
+          [Lock, 'Privacy Policy', null, () => openPolicy('privacy'), true],
+        ].map(([Icon, label, value, onPress, external], i) => (
+          <Tappable key={label} onPress={onPress} accessibilityRole={external ? 'link' : 'button'} accessibilityLabel={label}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderTopWidth: i ? 1 : 0, borderColor: colors.line }}>
+            <Icon size={19} color={colors.navy600} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label">{label}</Text>
+              {!!value && <Text variant="small">{value}</Text>}
+            </View>
+            {external ? <ExternalLink size={16} color={colors.navy300} /> : <ChevronRight size={18} color={colors.navy300} />}
+          </Tappable>
+        ))}
+      </Card>
+      <Text variant="small" style={{ textAlign: 'center' }}>{info.business_name} · operated by {info.operator_name} · {info.location}</Text>
 
       <Card delay={120} style={{ gap: 12 }}>
         <Field label="Full name" value={name} onChangeText={setName} />

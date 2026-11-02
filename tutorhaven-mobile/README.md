@@ -92,7 +92,9 @@ To test, use Paystack's test cards (see <https://paystack.com/docs/payments/test
 | Sessions | Upcoming, past and cancelled; pay, cancel, review | Complete or cancel sessions |
 | Messages | Conversations with tutors, unread badge | Replies to learners and parents |
 | Listing | — | Headline, bio, ₦ rate, subjects, levels, languages, weekly availability |
-| Account | Membership, notifications, payment history (payments and every checkout attempt), name, password | Subscription (pay, renew, cancel), notifications, payment history, name, password |
+| Account | Membership, notifications, payment history (payments and every checkout attempt), name, password, Help & legal (WhatsApp, email, phone, Terms, Privacy, Refund Policy) | Subscription (pay, renew, cancel), notifications, payment history, name, password, Help & legal |
+
+Support contact details come from the admin panel (Business & policies). The policy pages open on the website in an in-app browser. Set `EXPO_PUBLIC_SITE_URL` if your site isn't at `https://tutorhaven.pages.dev`. Refund and renewal terms are shown above every Pay button.
 
 Suspended accounts see an explanation instead of the app. Admins are pointed to the web admin panel.
 

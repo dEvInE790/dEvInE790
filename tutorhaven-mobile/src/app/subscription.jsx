@@ -3,6 +3,7 @@ import { View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import Animated, { FadeInDown } from 'react-native-reanimated'
 import { BadgeCheck, Check, EyeOff } from 'lucide-react-native'
+import RefundNotice from '../components/RefundNotice'
 import Screen from '../components/Screen'
 import PaymentResult from '../components/PaymentResult'
 import { Badge, Button, Card, EmptyState, Skeleton, Text } from '../components/ui'
@@ -96,6 +97,7 @@ export default function TutorSubscription() {
       )}
 
       {PLAN_PURCHASES_IN_APP && <Text variant="h2">{live ? 'Renew' : 'Choose a plan'}</Text>}
+      {PLAN_PURCHASES_IN_APP && tutorPlans.length > 0 && <RefundNotice kind="plan" />}
       {!PLAN_PURCHASES_IN_APP ? null : !plansLoaded ? <Skeleton style={{ height: 140, borderRadius: 20 }} /> : !tutorPlans.length ? (
         <EmptyState icon={BadgeCheck} title="No tutor plans available" body="An admin hasn’t published a tutor plan yet. Please check back soon." />
       ) : tutorPlans.map((p, i) => (

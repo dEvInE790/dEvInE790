@@ -10,6 +10,7 @@ import useAsync from '../../lib/useAsync'
 import { activeDiscount, getBooking, getSubscription } from '../../lib/api'
 import { payBooking } from '../../lib/pay'
 import PaymentResult from '../../components/PaymentResult'
+import RefundNotice from '../../components/RefundNotice'
 import { dateLong, money, time } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useSettings } from '../../context/SettingsContext'
@@ -82,8 +83,8 @@ export default function Checkout() {
   return (
     <Screen back title="Checkout" footer={result?.status === 'refund_pending' ? null : (
       <View style={{ padding: 20, paddingBottom: 34, backgroundColor: colors.white, borderTopWidth: 1, borderColor: colors.line, gap: 8 }}>
+        <RefundNotice kind="session" member={discount > 0} />
         <Button title={`Pay ${money(total)}`} size="lg" loading={paying} onPress={pay} full />
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}><ShieldCheck size={14} color={colors.mint600} /><Text variant="small">Free cancellation up to {discount ? '2' : '24'} hours before</Text></View>
       </View>
     )}>
       <PaymentResult result={result} kind="session" onDismiss={() => setResult(null)} />

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LogOut } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import SupportCard from '../../components/SupportCard'
 import { PageHeader } from '../../components/layout/DashboardLayout'
 import Button from '../../components/ui/Button'
 import Avatar from '../../components/ui/Avatar'
@@ -94,6 +95,15 @@ export default function Settings() {
             <Input label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="flex-1" />
             <Button type="submit" variant="secondary" loading={pwSaving}>Update</Button>
           </form>
+        </Reveal>
+
+        <Reveal>
+          <SupportCard title="Help & support" />
+          <p className="mt-3 flex flex-wrap gap-x-5 gap-y-1 px-1 text-sm">
+            {[['Contact us', '/contact'], ['Refund Policy', '/refunds'], ['Terms and Conditions', '/terms'], ['Privacy Policy', '/privacy']].map(([label, to]) => (
+              <Link key={to} to={to} className="font-semibold text-navy-700 underline-offset-2 hover:underline">{label}</Link>
+            ))}
+          </p>
         </Reveal>
 
         <Reveal className="card flex items-center justify-between gap-4 p-6 sm:p-8">

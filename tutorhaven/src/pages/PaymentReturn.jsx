@@ -11,6 +11,7 @@ import { getBooking, verifyPaystack } from '../lib/api'
 import { dateLong, money, time } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { ease } from '../motion/variants'
+import SupportCard from '../components/SupportCard'
 
 const POLL_MS = 4000
 const MAX_POLLS = 30
@@ -97,7 +98,14 @@ export default function PaymentReturn() {
 
   return (
     <PublicLayout footer={false}>
-      <PageTransition className="container-page max-w-2xl pt-28 pb-24">{body}</PageTransition>
+      <PageTransition className="container-page max-w-2xl pt-28 pb-24">
+        {body}
+        {reference && result && result.status !== 'succeeded' && (
+          <SupportCard className="mt-6" title="Need help with this payment?" reference={reference}
+            subtitle={`Contact us with your reference ${reference}. Duplicate or mistaken charges are refunded once we’ve confirmed them with Paystack.`} />
+        )}
+        {reference && error && <SupportCard className="mt-6" title="Need help with this payment?" reference={reference} />}
+      </PageTransition>
     </PublicLayout>
   )
 }

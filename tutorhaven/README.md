@@ -40,6 +40,9 @@ In the Supabase **SQL editor**, run these files in order (each one is safe to ru
 2. `supabase/migrations/20261101000000_naira_paystack_admin.sql`
 3. `supabase/migrations/20261102000000_production_payments.sql` adds subscription plans, tutor subscriptions, the payment event log, messaging, qualification review, suspension and scheduled maintenance. It also removes simulated "test mode" payments.
 4. `supabase/migrations/20261103000000_tutor_payouts.sql` adds tutor payout accounts and Paystack split payments (15% commission by default).
+5. `supabase/migrations/20261104000000_business_info.sql` adds the business contact details and the editable Terms, Privacy and Refund Policy pages.
+
+After running a migration, run `notify pgrst, 'reload schema';` so the API sees the new columns straight away.
 
 If you ever re-run an older file, re-run every later file after it, in order.
 
@@ -206,7 +209,35 @@ Do these only after every item in TESTING.md passes with test keys.
 | Payments | Confirmed payments and refunds (refund through Paystack, or mark refunded); every checkout attempt with its failure reason; the full payment event log |
 | Subscriptions | Every learner and tutor subscription with status, period and days left |
 | Plans & prices | Create and edit plans: price, billing period, session discount, features, on sale or hidden |
-| Settings | Checkout hold time, whether tutors need a subscription, manual maintenance, and "Check with Paystack" for pending payments |
+| Business & policies | Business name, operator, support email, phone, WhatsApp number and location; edit, preview or reset the Terms, Privacy Policy and Refund Policy (placeholders such as `{{support_email}}` stay in sync with the details) |
+| Settings | Checkout hold time, whether tutors need a subscription, commission, manual maintenance, and "Check with Paystack" for pending payments |
+
+### Business information and policies
+
+The confirmed business details live in `platform_settings`. Anyone can read them, and only admins can change them, through `admin_update_settings`. They appear in:
+
+- the site footer, with a WhatsApp chat link
+- `/contact`, `/terms`, `/privacy` and `/refunds`
+- the dashboard's Settings and Billing support sections
+- payment result pages
+- the mobile app's Account → Help & legal
+
+Refund and renewal terms sit next to every Pay button: session checkout, the membership upgrade dialog and tutor subscriptions, on web and mobile. Each one links to the Refund Policy and the Terms.
+
+The built-in policy text is in `src/lib/business.js`. Saving custom text in the admin panel overrides it, and saving an empty text reverts to it. No registered company name, CAC number or street address is shown. Add them in the admin panel once you have them.
+
+The session rules match what the database enforces:
+
+| Situation | Refund |
+|---|---|
+| Learner cancels 24+ hours before the session | Full |
+| Learner with a membership cancels 2+ hours before | Full |
+| Learner tries to cancel later than that | Blocked |
+| Tutor cancels | Full |
+| Slot was taken while the learner paid | Full, automatically queued |
+| Duplicate or mistaken payment | Admin refunds it from Admin → Payments |
+
+Memberships and tutor subscriptions never renew automatically and are not refunded when cancelled. Access runs to the end of the paid period. An admin can still refund any payment when the law requires it.
 
 ## Design system
 

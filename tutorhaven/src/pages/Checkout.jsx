@@ -17,6 +17,7 @@ import { icsForBooking } from '../lib/time'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { ease } from '../motion/variants'
+import RefundNotice from '../components/RefundNotice'
 
 function useCountdown(deadline) {
   const [now, setNow] = useState(Date.now())
@@ -168,8 +169,8 @@ export default function Checkout() {
                       {discount > 0 && <div className="flex justify-between"><dt className="text-navy-500">Member discount</dt><dd className="text-mint-700">−{money(b.price - total)}</dd></div>}
                       <div className="flex items-end justify-between border-t border-navy-900/[0.06] pt-3"><dt className="font-semibold">Total</dt><dd className="font-display text-2xl font-bold">{money(total)}</dd></div>
                     </dl>
-                    <Button size="lg" className="mt-5 w-full" loading={paying} onClick={onPay}>Pay {money(total)}</Button>
-                    <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-navy-400"><ShieldCheck className="h-3.5 w-3.5" />Free cancellation up to {discount ? '2' : '24'} hours before</p>
+                    <RefundNotice className="mt-5" kind="session" member={discount > 0} />
+                    <Button size="lg" className="mt-4 w-full" loading={paying} onClick={onPay}>Pay {money(total)}</Button>
                   </div>
                 </div>
                 <p className="mt-6 text-center text-sm text-navy-500">Changed your mind? <Link to="/dashboard/sessions" className="font-semibold text-navy-800 underline-offset-2 hover:underline">Manage your sessions</Link></p>

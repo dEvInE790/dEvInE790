@@ -575,6 +575,34 @@ await test('admins can waive the tutor subscription requirement', async () => {
   await rpc(admin, 'admin_update_settings', { p: { commission_rate: 0.15 } })
 })
 
+await test('business details and policies: public to read, admins only to change', async () => {
+  const pub = (await sql('anon', 'select business_name, operator_name, support_email, support_phone, whatsapp_number, business_city, business_state, business_country, refund_text from platform_settings where id = 1'))[0]
+  eq(pub, {
+    business_name: 'TutorHaven', operator_name: 'Ojigbani Divine', support_email: 'tutorhaven737@gmail.com',
+    support_phone: '+2348028139086', whatsapp_number: '+2348028139086', business_city: 'Lagos', business_state: 'Lagos State', business_country: 'Nigeria', refund_text: null,
+  }, 'confirmed details are the defaults, readable by anyone')
+  denied(await rpc(student, 'admin_update_settings', { p: { support_email: 'evil@example.com' } }), /Admins only/, 'learner')
+  denied(await rpc(tutor, 'admin_update_settings', { p: { refund_text: 'All sales final' } }), /Admins only/, 'tutor')
+  for (const who of ['anon', student, tutor]) {
+    await sql(who, `update platform_settings set support_email = 'x@y.z', refund_text = 'All sales final'`).catch(() => {})
+  }
+  eq(Object.values(await one('select support_email, refund_text from platform_settings')), ['tutorhaven737@gmail.com', null], 'direct writes by non-admins change nothing')
+  const before = (await one('select policies_updated_at from platform_settings')).policies_updated_at
+  const r = await rpc(admin, 'admin_update_settings', { p: { support_phone: '0802 813 9086', support_email: ' Help@TutorHaven.ng ' } })
+  denied(r, /check/, 'local phone format rejected')
+  const r2 = await rpc(admin, 'admin_update_settings', { p: { support_phone: '+234 802 813 9086', support_email: ' Help@Example.ng ', business_name: '  ' } })
+  eq([r2.data.support_phone, r2.data.support_email, r2.data.business_name], ['+2348028139086', 'help@example.ng', 'TutorHaven'], 'spaces removed, email lower-cased, blanks ignored')
+  denied(await rpc(admin, 'admin_update_settings', { p: { support_email: 'not-an-email' } }), /check/, 'invalid email rejected')
+  eq(String((await one('select policies_updated_at from platform_settings')).policies_updated_at), String(before), 'contact changes keep the policy date')
+  const r3 = await rpc(admin, 'admin_update_settings', { p: { refund_text: '## Custom\n- Item' } })
+  eq(r3.data.refund_text, '## Custom\n- Item', 'policy saved')
+  ok(new Date(r3.data.policies_updated_at) > new Date(before), 'policy date bumped')
+  const r4 = await rpc(admin, 'admin_update_settings', { p: { refund_text: '  ', support_email: 'tutorhaven737@gmail.com' } })
+  eq([r4.data.refund_text, r4.data.terms_text, r4.data.support_email], [null, null, 'tutorhaven737@gmail.com'], 'empty text resets to the built-in policy')
+  const log = await one(`select payload from payment_events where event = 'settings.saved' order by created_at desc limit 1`)
+  ok(log && !('refund_text' in log.payload) && log.payload.policies_changed === true, 'change logged without the policy text')
+})
+
 await test('stale checkouts are marked abandoned', async () => {
   const b = await bookAndInit(student2)
   await sql('postgres', `update payment_intents set created_at = now() - interval '25 hours' where reference = $1`, [b.reference])
@@ -734,7 +762,7 @@ await test('Paystack HTTP client sends the right requests', async () => {
 
 await test('migration can be re-run safely', async () => {
   const { readFileSync } = await import('node:fs')
-  for (const f of ['20261102000000_production_payments.sql', '20261103000000_tutor_payouts.sql']) {
+  for (const f of ['20261102000000_production_payments.sql', '20261103000000_tutor_payouts.sql', '20261104000000_business_info.sql']) {
     await sql('postgres', readFileSync(new URL('../migrations/' + f, import.meta.url), 'utf8'))
   }
   eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'data intact after re-run')

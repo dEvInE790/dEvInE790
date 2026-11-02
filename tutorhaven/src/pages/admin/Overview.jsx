@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { AlertTriangle, Ban, BadgeCheck, CalendarDays, Crown, Eye, FileCheck2, Hourglass, RotateCcw, Users, Wallet, X } from 'lucide-react'
+import { AlertTriangle, Ban, BadgeCheck, CalendarDays, Crown, Eye, FileCheck2, Hourglass, Landmark, RotateCcw, Users, Wallet, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '../../components/layout/DashboardLayout'
 import StatCard from '../../components/StatCard'
@@ -66,6 +66,15 @@ export default function Overview() {
           <span><strong>{o.qualifications_pending} qualification{o.qualifications_pending > 1 ? 's' : ''}</strong> waiting for verification.</span>
         </Link>
       )}
+      {(o?.tutors_without_payout > 0 || Number(o?.awaiting_manual_payout) > 0) && (
+        <Link to="/admin/payouts" className="mb-6 flex items-center gap-3 rounded-2xl bg-navy-50 p-4 text-sm text-navy-800 transition-colors hover:bg-navy-100">
+          <Landmark className="h-5 w-5 shrink-0" />
+          <span>
+            {o.tutors_without_payout > 0 && <><strong>{o.tutors_without_payout} approved tutor{o.tutors_without_payout > 1 ? 's' : ''}</strong> without a payout account. </>}
+            {Number(o.awaiting_manual_payout) > 0 && <><strong>{money(Number(o.awaiting_manual_payout))}</strong> to pay tutors manually.</>}
+          </span>
+        </Link>
+      )}
       {overview.error && <div className="mb-6"><ErrorState message={overview.error} onRetry={overview.reload} /></div>}
 
       <Stagger onMount className="grid grid-cols-2 gap-4 lg:grid-cols-4" gap={0.06}>
@@ -84,8 +93,8 @@ export default function Overview() {
           <CardHeader title="Revenue" subtitle="Payments confirmed by Paystack, last 6 months" />
           <div className="mt-6">{overview.loading ? <Skeleton className="h-[220px]" /> : <BarChart data={revenueChart} format={money} title="Revenue per month" />}</div>
           {o && (
-            <dl className="mt-6 grid grid-cols-2 gap-3 border-t border-navy-900/[0.06] pt-5 text-sm sm:grid-cols-4">
-              {[['Sessions', o.revenue_sessions], ['Tutor subscriptions', o.revenue_tutor_subscriptions], ['Memberships', o.revenue_learner_subscriptions], ['Refunded', o.refunded_total]].map(([k, v]) => (
+            <dl className="mt-6 grid grid-cols-2 gap-3 border-t border-navy-900/[0.06] pt-5 text-sm sm:grid-cols-3">
+              {[['Sessions (gross)', o.revenue_sessions], ['Session commission', o.session_commission], ['Paid to tutors', o.tutor_earnings], ['Tutor subscriptions', o.revenue_tutor_subscriptions], ['Memberships', o.revenue_learner_subscriptions], ['Refunded', o.refunded_total]].map(([k, v]) => (
                 <div key={k}><dt className="text-navy-500">{k}</dt><dd className="font-display text-lg font-bold tabular-nums">{money(Number(v))}</dd></div>
               ))}
             </dl>

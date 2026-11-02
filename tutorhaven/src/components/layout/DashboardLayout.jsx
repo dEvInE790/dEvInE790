@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import FrozenOutlet from './FrozenOutlet'
 import { AnimatePresence, motion } from 'motion/react'
-import { BadgeCheck, CalendarDays, CreditCard, LayoutDashboard, LogOut, MessageCircle, Search, Settings, ShieldCheck, UserRoundPen } from 'lucide-react'
+import { BadgeCheck, CalendarDays, CreditCard, Landmark, LayoutDashboard, LogOut, MessageCircle, Search, Settings, ShieldCheck, UserRoundPen } from 'lucide-react'
 import { LogoMark, Wordmark } from '../../motion/AnimatedLogo'
 import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
@@ -30,6 +30,7 @@ const NAV = {
     { to: '/dashboard/messages', label: 'Messages', icon: MessageCircle, badge: 'messages' },
     { to: '/dashboard/listing', label: 'My listing', icon: UserRoundPen },
     { to: '/dashboard/subscription', label: 'Subscription', icon: BadgeCheck },
+    { to: '/dashboard/payouts', label: 'Payouts', icon: Landmark, mobile: false },
     { to: '/dashboard/settings', label: 'Settings', icon: Settings, mobile: false },
   ],
   admin: [

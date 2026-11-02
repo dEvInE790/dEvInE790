@@ -5,7 +5,7 @@ export const PASSWORD = 'test-password-123'
 export async function resetData(stack) {
   await stack.sql(`delete from auth.users where email like '%@example.test'`)
   await stack.sql(`delete from payment_events`)
-  await stack.sql(`update platform_settings set tutor_subscription_required = true, hold_minutes = 30 where id = 1`)
+  await stack.sql(`update platform_settings set tutor_subscription_required = true, payout_account_required = true, commission_rate = 0.15, hold_minutes = 30 where id = 1`)
   await stack.sql(`update subscription_plans set price = case code when 'plus' then 7500 when 'family' then 15000 when 'tutor_pro' then 5000 else price end`)
   stack.paystack.tx.clear()
   stack.paystack.refunds.length = 0
@@ -23,13 +23,20 @@ export async function createUser(stack, { email, name, role = 'student', onboard
 }
 
 /** An approved tutor, optionally with an active subscription paid "earlier". */
-export async function createTutor(stack, { email, name, rate = 8000, subjects = ['Mathematics', 'Physics'], subscribed = true }) {
+export async function createTutor(stack, { email, name, rate = 8000, subjects = ['Mathematics', 'Physics'], subscribed = true, payout = true }) {
   const t = await createUser(stack, { email, name, role: 'tutor' })
   await stack.sql(
     `update tutors set status = 'approved', hourly_rate = $2, subjects = $3, levels = '{SSS,WAEC}', headline = $4, bio = $5, location = 'Lagos', timezone = 'Africa/Lagos' where id = $1`,
     [t.id, rate, subjects, `${subjects[0]} tutor for exam success`, 'Test fixture tutor used by the automated end-to-end tests.'],
   )
   await stack.sql(`insert into availability (tutor_id, weekday, start_minute, end_minute) select $1, d, 420, 1260 from generate_series(0, 6) d`, [t.id])
+  if (payout) {
+    await stack.sql(
+      `insert into tutor_payout_accounts (tutor_id, bank_code, bank_name, account_number_last4, account_name, subaccount_code)
+       values ($1, '044', 'Access Bank', '6789', $2, $3)`,
+      [t.id, name.toUpperCase(), 'ACCT_fixture_' + t.id.slice(0, 8)],
+    )
+  }
   if (subscribed) {
     await stack.sql(
       `insert into subscriptions (user_id, audience, plan_id, status, current_period_start, current_period_end)
@@ -49,6 +56,6 @@ export async function seedFixture(stack) {
   await stack.sql(`insert into parent_links (parent_id, student_id) values ($1, $2)`, [parent.id, child.id])
   const tutor = await createTutor(stack, { email: 'tutor@example.test', name: 'Tobi Tutor', rate: 8000 })
   const tutor2 = await createTutor(stack, { email: 'tutor2@example.test', name: 'Bisi Bello', rate: 6000, subjects: ['English', 'Literature'] })
-  const newTutor = await createTutor(stack, { email: 'newtutor@example.test', name: 'Uche Unlisted', subscribed: false })
+  const newTutor = await createTutor(stack, { email: 'newtutor@example.test', name: 'Uche Unlisted', subscribed: false, payout: false })
   return { admin, student, parent, child, tutor, tutor2, newTutor }
 }

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
-import { ArrowRight, CalendarClock, CircleAlert, CircleCheck, Circle, Clock, Eye, EyeOff, Star, Users, Wallet } from 'lucide-react'
+import { ArrowRight, CalendarClock, CircleAlert, CircleCheck, Circle, Clock, Eye, EyeOff, Landmark, Star, Users, Wallet } from 'lucide-react'
 import { PageHeader } from '../../components/layout/DashboardLayout'
 import NextSessionCard from '../../components/NextSessionCard'
 import StatCard from '../../components/StatCard'
@@ -12,7 +12,7 @@ import { CardHeader } from '../../components/ui/Card'
 import { ErrorState } from '../../components/ui/EmptyState'
 import { Reveal, Stagger } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
-import { getOwnTutor, getSubscription, isSubscriptionLive, listBookings } from '../../lib/api'
+import { getMyEarnings, getMyPayoutAccount, getOwnTutor, getSubscription, isSubscriptionLive, listBookings } from '../../lib/api'
 import { useSettings } from '../../context/SettingsContext'
 import { isLive, isThisMonth, isUpcoming, weeklySeries } from '../../lib/stats'
 import { firstName, greeting, money } from '../../lib/format'
@@ -37,7 +37,10 @@ export default function TutorHome() {
   const own = useAsync(() => getOwnTutor(profile.id), [profile.id])
   const sub = useAsync(() => getSubscription(profile.id, 'tutor'), [profile.id])
   const { settings } = useSettings()
-  const listed = settings.tutor_subscription_required === false || isSubscriptionLive(sub.data)
+  const payout = useAsync(() => getMyPayoutAccount(profile.id), [profile.id])
+  const earnings = useAsync(getMyEarnings, [])
+  const subscribed = settings.tutor_subscription_required === false || isSubscriptionLive(sub.data)
+  const needsPayout = settings.payout_account_required !== false && payout.data === null
 
   const s = useMemo(() => {
     const all = (bookings.data ?? []).filter((b) => b.tutor_id === profile.id)
@@ -83,7 +86,14 @@ export default function TutorHome() {
           </p>
         </motion.div>
       )}
-      {t?.status === 'approved' && sub.data !== undefined && !listed && (
+      {t?.status === 'approved' && needsPayout && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 flex flex-col gap-3 rounded-2xl bg-mint-50 p-4 text-sm text-mint-900 sm:flex-row sm:items-center">
+          <Landmark className="h-5 w-5 shrink-0 text-mint-700" />
+          <p className="flex-1">Add the bank account your earnings should be paid into. Learners can only book you once it’s connected.</p>
+          <Button to="/dashboard/payouts" size="sm">Add bank account</Button>
+        </motion.div>
+      )}
+      {t?.status === 'approved' && sub.data !== undefined && !subscribed && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex flex-col gap-3 rounded-2xl bg-navy-950 p-4 text-sm text-navy-100 sm:flex-row sm:items-center">
           <EyeOff className="h-5 w-5 shrink-0 text-mint-300" />
           <p className="flex-1">
@@ -107,7 +117,7 @@ export default function TutorHome() {
           />
         )}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard icon={Wallet} label="Earnings this month" value={s.monthEarnings} format={money} loading={bookings.loading} />
+          <StatCard icon={Wallet} label="Earned this month" value={Number(earnings.data?.this_month ?? 0)} format={money} hint="Your share, after commission" loading={earnings.loading} />
           <StatCard icon={CalendarClock} label="Upcoming sessions" value={s.upcoming.length} loading={bookings.loading} accent="navy" />
           <StatCard icon={Users} label="Students" value={s.students} loading={bookings.loading} accent="cream" />
           <StatCard icon={Star} label="Rating" value={Number(t?.rating ?? 0)} format={(v) => (t?.review_count ? v.toFixed(1) : '—')} hint={t ? `${t.review_count} reviews` : ''} loading={own.loading} accent="amber" />

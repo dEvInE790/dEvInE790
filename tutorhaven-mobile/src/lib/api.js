@@ -323,3 +323,24 @@ export async function getPublicQualifications(tutorId) {
   ensureConfigured()
   return check(await supabase.rpc('tutor_public_qualifications', { p_tutor: tutorId }))
 }
+
+// ---------------------------------------------------------------------------
+// Tutor payouts (Paystack split payments)
+// ---------------------------------------------------------------------------
+export async function getMyPayoutAccount(tutorId) {
+  ensureConfigured()
+  return check(await supabase.from('tutor_payout_accounts').select('*').eq('tutor_id', tutorId).maybeSingle())
+}
+export const listPayoutBanks = () => invoke('paystack-payout-account', { action: 'banks' }).then((r) => r.banks)
+export const resolvePayoutAccount = (bankCode, accountNumber) =>
+  invoke('paystack-payout-account', { action: 'resolve', bank_code: bankCode, account_number: accountNumber })
+export const savePayoutAccount = (bankCode, accountNumber) =>
+  invoke('paystack-payout-account', { action: 'save', bank_code: bankCode, account_number: accountNumber })
+export async function getMyEarnings() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_earnings'))
+}
+export async function isTutorListed(tutorId) {
+  ensureConfigured()
+  return check(await supabase.rpc('is_public_tutor', { p_id: tutorId }))
+}

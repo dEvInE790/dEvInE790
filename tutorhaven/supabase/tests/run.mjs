@@ -90,6 +90,29 @@ const paystack = {
     if (!t) throw new Error('Transaction reference not found')
     return { id: t.id, status: t.status, reference, amount: t.paidAmount ?? t.amount, currency: t.paidCurrency ?? t.currency, paid_at: t.paid_at, channel: t.channel, gateway_response: t.gateway_response }
   },
+  banks: [{ name: 'Access Bank', code: '044' }, { name: 'Guaranty Trust Bank', code: '058' }],
+  accounts: { '044:0123456789': 'TOBI TUTOR', '058:1111111111': 'TOBI TUTOR' },
+  subaccounts: new Map(),
+  async listBanks() {
+    this.calls.push(['banks'])
+    return this.banks
+  },
+  async resolveAccount(accountNumber, bankCode) {
+    const name = this.accounts[`${bankCode}:${accountNumber}`]
+    if (!name) throw new Error('Could not resolve account name. Check parameters or try again.')
+    return { account_number: accountNumber, account_name: name }
+  },
+  async createSubaccount(body) {
+    const code = 'ACCT_sim' + (this.subaccounts.size + 1)
+    this.subaccounts.set(code, body)
+    this.calls.push(['createSubaccount', body])
+    return { subaccount_code: code }
+  },
+  async updateSubaccount(code, body) {
+    this.subaccounts.set(code, { ...this.subaccounts.get(code), ...body })
+    this.calls.push(['updateSubaccount', code, body])
+    return { subaccount_code: code }
+  },
   async refund(reference, amount) {
     this.calls.push(['refund', reference, amount])
     if (!this.tx.get(reference) || this.tx.get(reference).status !== 'success') throw new Error('Transaction has not been paid')
@@ -145,10 +168,14 @@ async function user(role, name) {
   if (role === 'admin') await sql('postgres', `update profiles set role = 'admin' where id = $1`, [id])
   return { id, email, name }
 }
-async function approvedTutor(name, rate = 10000) {
+async function approvedTutor(name, rate = 10000, { payout = true } = {}) {
   const t = await user('tutor', name)
   await sql('postgres', `update tutors set status = 'approved', hourly_rate = $2, subjects = '{Mathematics,Physics}', timezone = 'Africa/Lagos' where id = $1`, [t.id, rate])
   await sql('postgres', `insert into availability (tutor_id, weekday, start_minute, end_minute) select $1, d, 360, 1320 from generate_series(0, 6) d`, [t.id])
+  if (payout) {
+    await sql('postgres', `insert into tutor_payout_accounts (tutor_id, bank_code, bank_name, account_number_last4, account_name, subaccount_code)
+      values ($1, '044', 'Access Bank', '0000', $2, $3)`, [t.id, name.toUpperCase(), 'ACCT_fixture_' + t.id.slice(0, 8)])
+  }
   return t
 }
 let slot = 0
@@ -207,7 +234,7 @@ const admin = await user('admin', 'Ada Admin')
 const student = await user('student', 'Sola Student')
 const student2 = await user('student', 'Bisi Learner')
 const parent = await user('parent', 'Pat Parent')
-const tutor = await approvedTutor('Tobi Tutor', 10000)
+const tutor = await approvedTutor('Tobi Tutor', 10000, { payout: false })
 
 await test('demo mode is gone: no test_mode setting, no simulated payment functions', async () => {
   const cols = await sql('postgres', `select column_name from information_schema.columns where table_name = 'platform_settings'`)
@@ -244,6 +271,30 @@ await test('server-only payment functions cannot be called by users', async () =
     denied(await rpc(student, fn, args), /permission denied/, `student → ${fn}`)
     denied(await rpc('anon', fn, args), /permission denied/, `anon → ${fn}`)
   }
+})
+
+await test('payout account: tutors verify their bank and get a Paystack subaccount', async () => {
+  const call = async (u, payload) => body(await core.handlePayoutAccount(post(u, payload), deps))
+  eq((await call(student, { action: 'banks' })).status, 403, 'learners cannot add payout accounts')
+  const banks = await call(tutor, { action: 'banks' })
+  eq(banks.banks.map((b) => b.code), ['044', '058'], 'bank list')
+  eq((await call(tutor, { action: 'resolve', bank_code: '044', account_number: '01234' })).error, 'Enter your 10-digit account number', 'short number')
+  eq((await call(tutor, { action: 'resolve', bank_code: '999', account_number: '0123456789' })).error, 'Choose your bank from the list', 'unknown bank')
+  ok(/couldn’t verify/.test((await call(tutor, { action: 'resolve', bank_code: '044', account_number: '9999999999' })).error), 'unresolvable account')
+  eq((await call(tutor, { action: 'resolve', bank_code: '044', account_number: '0123456789' })).account_name, 'TOBI TUTOR', 'resolved name')
+  const saved = await call(tutor, { action: 'save', bank_code: '044', account_number: '0123456789' })
+  eq([saved.bank_name, saved.account_number_last4, saved.account_name, saved.subaccount_code], ['Access Bank', '6789', 'TOBI TUTOR', 'ACCT_sim1'], 'saved account')
+  const created = paystack.calls.find((c) => c[0] === 'createSubaccount')[1]
+  eq([created.settlement_bank, created.account_number, created.percentage_charge], ['044', '0123456789', 0], 'subaccount created with no default charge')
+  eq((await sql({ id: tutor.id }, 'select account_number_last4 from tutor_payout_accounts'))[0]?.account_number_last4, '6789', 'tutor sees own account')
+  eq((await sql({ id: student.id }, 'select * from tutor_payout_accounts')).length, 0, 'others cannot see it')
+  eq((await sql('anon', 'select * from tutor_payout_accounts').catch(() => [])).length, 0, 'anon cannot see it')
+  denied(await rpc(tutor, 'save_payout_account', { p_tutor: tutor.id, p_bank_code: '1', p_bank_name: 'x', p_account_last4: '0000', p_account_name: 'x', p_subaccount_code: 'x' }), /permission denied/, 'cannot write directly')
+  // Changing bank updates the same Paystack subaccount.
+  const again = await call(tutor, { action: 'save', bank_code: '058', account_number: '1111111111' })
+  eq([again.subaccount_code, again.bank_name], ['ACCT_sim1', 'Guaranty Trust Bank'], 'updated account')
+  ok(paystack.calls.some((c) => c[0] === 'updateSubaccount' && c[1] === 'ACCT_sim1'), 'subaccount updated, not duplicated')
+  eq((await one(`select count(*)::int c from notifications where user_id = $1 and kind = 'payout_account'`, [tutor.id])).c, 2, 'tutor notified')
 })
 
 await test('unsubscribed tutor is hidden and cannot be booked', async () => {
@@ -288,6 +339,8 @@ await test('tutor subscription: pending → paid via callback → active and lis
   eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'listed after payment')
   const pay = await one(`select kind, amount, status, audience, provider from payments where provider_ref = $1`, [tutorRef])
   eq([pay.kind, Number(pay.amount), pay.status, pay.audience, pay.provider], ['subscription', 6000, 'succeeded', 'tutor', 'paystack'], 'payment row')
+  eq((await one(`select platform_fee, tutor_share from payments where provider_ref = $1`, [tutorRef])), { platform_fee: '6000.00', tutor_share: '0.00' }, 'subscriptions are all platform revenue')
+  ok(!sent.subaccount, 'subscriptions are not split')
   ok((await one(`select count(*)::int c from notifications where user_id = $1 and kind = 'subscription_active'`, [tutor.id])).c === 1, 'notification sent')
 })
 
@@ -324,6 +377,11 @@ await test('session: abandoned checkout completed later is confirmed by the webh
   const b = await one('select status, amount_paid from bookings where id = $1', [bookingA.id])
   eq([b.status, Number(b.amount_paid)], ['confirmed', 10000], 'booking confirmed')
   eq((await one(`select status from payment_intents where reference = $1`, [refA])).status, 'succeeded', 'intent succeeded')
+  const sent = paystack.tx.get(refA)
+  eq([sent.subaccount, sent.transaction_charge, sent.bearer], ['ACCT_sim1', 150000, 'account'], 'Paystack split: 15% to TutorHaven, rest to the tutor')
+  const pay = await one(`select tutor_id, platform_fee, tutor_share, split_subaccount from payments where provider_ref = $1`, [refA])
+  eq([pay.tutor_id, pay.platform_fee, pay.tutor_share, pay.split_subaccount], [tutor.id, '1500.00', '8500.00', 'ACCT_sim1'], 'payment split recorded')
+  eq((await rpc(tutor, 'my_earnings')).data.total, 8500, 'tutor earnings')
   const notes = await sql('postgres', `select user_id, kind from notifications where kind in ('booking_confirmed', 'new_booking') order by kind`)
   eq(notes.map((x) => x.kind), ['booking_confirmed', 'new_booking'], 'student and tutor notified')
 })
@@ -464,6 +522,7 @@ await test('learner subscription: discount, cancel keeps access, renewal extends
   eq(s1.status, 'active', 'active')
   const b = await bookAndInit(student)
   eq(Number(b.amount), 9000, '10% member discount on ₦10,000')
+  eq(paystack.tx.get(b.reference).transaction_charge, 50000, 'discount comes out of the commission, tutor still gets ₦8,500')
   await sql('postgres', `update bookings set status = 'cancelled' where id = $1`, [b.booking.id])
 
   eq((await rpc(student, 'cancel_subscription', { p_audience: 'learner' })).data?.status, 'cancelled', 'cancel')
@@ -505,7 +564,15 @@ await test('admins can waive the tutor subscription requirement', async () => {
   denied(await rpc(student, 'admin_update_settings', { p: { tutor_subscription_required: false } }), /Admins only/, 'student')
   await rpc(admin, 'admin_update_settings', { p: { tutor_subscription_required: false } })
   eq((await sql('anon', 'select id from tutor_directory where id = $1', [t2.id])).length, 1, 'listed when not required')
-  await rpc(admin, 'admin_update_settings', { p: { tutor_subscription_required: true } })
+  const t3 = await approvedTutor('No Bank Yet', 5000, { payout: false })
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [t3.id])).length, 0, 'hidden without a payout account')
+  await rpc(admin, 'admin_update_settings', { p: { payout_account_required: false } })
+  eq((await sql('anon', 'select id from tutor_directory where id = $1', [t3.id])).length, 1, 'listed when payout accounts are optional')
+  await rpc(admin, 'admin_update_settings', { p: { tutor_subscription_required: true, payout_account_required: true } })
+  const b = await rpc(admin, 'admin_update_settings', { p: { commission_rate: 0.2 } })
+  eq(b.data.commission_rate, 0.2, 'commission editable')
+  denied(await rpc(admin, 'admin_update_settings', { p: { commission_rate: 0.9 } }), /check/, 'commission capped at 50%')
+  await rpc(admin, 'admin_update_settings', { p: { commission_rate: 0.15 } })
 })
 
 await test('stale checkouts are marked abandoned', async () => {
@@ -621,6 +688,10 @@ await test('admin reporting: revenue split, payment attempts, event log', async 
   ok(Number(o.revenue_sessions) > 0 && Number(o.refunded_total) === 10000, 'sessions / refunds')
   ok(o.payments_failed_30d >= 3, 'failed attempts counted')
   eq(o.tutors_listed, 1, 'listed tutors')
+  ok(Number(o.session_commission) > 0 && Number(o.tutor_earnings) > Number(o.session_commission), 'commission and tutor earnings')
+  const payouts = (await rpc(admin, 'admin_payout_accounts')).data
+  ok(payouts.some((x) => x.tutor_id === tutor.id && x.subaccount_code === 'ACCT_sim1' && Number(x.earned) > 0), 'payout overview')
+  denied(await rpc(student, 'admin_payout_accounts'), /Admins only/, 'student payout overview')
   denied(await rpc(student, 'admin_overview'), /Admins only/, 'student overview')
   const intents = (await rpc(admin, 'admin_list_payment_intents', { p_status: 'failed' })).data
   ok(intents.some((i) => i.failure_reason === 'Insufficient Funds'), 'failed attempt with reason')
@@ -663,8 +734,9 @@ await test('Paystack HTTP client sends the right requests', async () => {
 
 await test('migration can be re-run safely', async () => {
   const { readFileSync } = await import('node:fs')
-  const text = readFileSync(new URL('../migrations/20261102000000_production_payments.sql', import.meta.url), 'utf8')
-  await sql('postgres', text)
+  for (const f of ['20261102000000_production_payments.sql', '20261103000000_tutor_payouts.sql']) {
+    await sql('postgres', readFileSync(new URL('../migrations/' + f, import.meta.url), 'utf8'))
+  }
   eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'data intact after re-run')
   eq((await one(`select count(*)::int c from subscriptions where status = 'active'`)).c, 2, 'subscriptions intact')
 })

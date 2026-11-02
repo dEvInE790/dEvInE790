@@ -328,6 +328,33 @@ export async function markConversationRead(otherId) {
 }
 
 // ---------------------------------------------------------------------------
+// Tutor payouts (Paystack split payments)
+// ---------------------------------------------------------------------------
+/** The tutor's own payout account, or null. */
+export async function getMyPayoutAccount(tutorId) {
+  ensureConfigured()
+  return check(await supabase.from('tutor_payout_accounts').select('*').eq('tutor_id', tutorId).maybeSingle())
+}
+
+export const listPayoutBanks = () => invoke('paystack-payout-account', { action: 'banks' }).then((r) => r.banks)
+export const resolvePayoutAccount = (bankCode, accountNumber) =>
+  invoke('paystack-payout-account', { action: 'resolve', bank_code: bankCode, account_number: accountNumber })
+/** Verifies the account with Paystack and connects it (creates or updates the tutor's subaccount). */
+export const savePayoutAccount = (bankCode, accountNumber) =>
+  invoke('paystack-payout-account', { action: 'save', bank_code: bankCode, account_number: accountNumber })
+
+export async function getMyEarnings() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_earnings'))
+}
+
+/** Whether a tutor is visible in search and bookable right now. */
+export async function isTutorListed(tutorId) {
+  ensureConfigured()
+  return check(await supabase.rpc('is_public_tutor', { p_id: tutorId }))
+}
+
+// ---------------------------------------------------------------------------
 // Tutor qualifications
 // ---------------------------------------------------------------------------
 export async function listMyQualifications(tutorId) {
@@ -476,4 +503,9 @@ export async function adminPaymentEvents(reference = '') {
 export async function adminRunMaintenance() {
   ensureConfigured()
   return check(await supabase.rpc('admin_run_maintenance'))
+}
+
+export async function adminPayoutAccounts() {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_payout_accounts'))
 }

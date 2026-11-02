@@ -25,6 +25,7 @@ const Billing = lazy(() => import('./pages/dashboard/Billing'))
 const Settings = lazy(() => import('./pages/dashboard/Settings'))
 const TutorListing = lazy(() => import('./pages/dashboard/TutorListing'))
 const TutorSubscription = lazy(() => import('./pages/dashboard/TutorSubscription'))
+const TutorPayouts = lazy(() => import('./pages/dashboard/TutorPayouts'))
 const Messages = lazy(() => import('./pages/dashboard/Messages'))
 const AdminLayout = lazy(() => import('./components/layout/AdminLayout'))
 const AdminOverview = lazy(() => import('./pages/admin/Overview'))
@@ -36,6 +37,7 @@ const AdminSettings = lazy(() => import('./pages/admin/Settings'))
 const AdminPlans = lazy(() => import('./pages/admin/Plans'))
 const AdminSubscriptions = lazy(() => import('./pages/admin/Subscriptions'))
 const AdminQualifications = lazy(() => import('./pages/admin/Qualifications'))
+const AdminPayouts = lazy(() => import('./pages/admin/Payouts'))
 
 // Admins use the separate admin panel; send them there before the learner dashboard mounts.
 function DashboardGate() {
@@ -75,6 +77,7 @@ function AnimatedRoutes() {
           <Route path="settings" element={<Settings />} />
           <Route path="listing" element={<RequireAuth roles={['tutor']}><TutorListing /></RequireAuth>} />
           <Route path="subscription" element={<RequireAuth roles={['tutor']}><TutorSubscription /></RequireAuth>} />
+          <Route path="payouts" element={<RequireAuth roles={['tutor']}><TutorPayouts /></RequireAuth>} />
           <Route path="messages" element={<Messages />} />
           <Route path="messages/:userId" element={<Messages />} />
         </Route>
@@ -87,6 +90,7 @@ function AnimatedRoutes() {
           <Route path="plans" element={<AdminPlans />} />
           <Route path="subscriptions" element={<AdminSubscriptions />} />
           <Route path="qualifications" element={<AdminQualifications />} />
+          <Route path="payouts" element={<AdminPayouts />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
         <Route path="/login" element={<Navigate to="/signin" replace />} />

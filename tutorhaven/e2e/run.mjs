@@ -178,6 +178,11 @@ await flow('student: book → Paystack → server-verified booking → notificat
   await see(page, 'Mathematics with Tobi Tutor')
   const [b] = await stack.sql(`select status, amount_paid from bookings where student_id = $1`, [F.student.id])
   if (b.status !== 'confirmed' || Number(b.amount_paid) !== 8000) throw new Error('db booking ' + JSON.stringify(b))
+  // Paystack split: 15% to TutorHaven, the rest to the tutor's subaccount.
+  const tx = [...stack.paystack.tx.values()].at(-1)
+  if (!tx.subaccount?.startsWith('ACCT_fixture_') || tx.transaction_charge !== 120000 || tx.bearer !== 'account') throw new Error('split ' + JSON.stringify(tx))
+  const [p] = await stack.sql(`select tutor_share, platform_fee from payments where tutor_id = $1`, [F.tutor.id])
+  if (Number(p.tutor_share) !== 6800 || Number(p.platform_fee) !== 1200) throw new Error('payment split ' + JSON.stringify(p))
 })
 
 await flow('student: declined card shows failure, retry succeeds', {}, async (page) => {
@@ -252,8 +257,20 @@ await flow('parent: pays for a linked child’s session', {}, async (page) => {
 // ---------------------------------------------------------------------------
 // Tutors
 // ---------------------------------------------------------------------------
-await flow('tutor: unlisted until subscribed; subscription lists them', {}, async (page) => {
+await flow('tutor: connect bank + subscribe → listed and bookable', {}, async (page) => {
   await signIn(page, F.newTutor.email)
+  await see(page, 'Add the bank account your earnings should be paid into')
+  await page.getByRole('link', { name: 'Add bank account' }).click()
+  await see(page, 'Connect your bank account')
+  await page.getByLabel('Bank').selectOption('044')
+  await page.getByLabel('Account number').fill('9999999999')
+  await see(page, 'couldn’t verify')
+  await page.getByLabel('Account number').fill('0123456789')
+  await see(page, 'TEST ACCOUNT HOLDER')
+  await page.getByRole('button', { name: 'Save payout account' }).click()
+  await see(page, 'Payouts will go to Access Bank ••••6789')
+  await see(page, 'Connected')
+  await page.goto(url('/dashboard'))
   await see(page, 'Subscribe to appear in search')
   await page.getByRole('link', { name: 'Subscribe' }).first().click()
   await see(page, 'You’re not listed yet')
@@ -346,11 +363,18 @@ await flow('admin: change a plan price, waive tutor subscriptions', {}, async (p
   await see(page, 'Plan saved')
   await see(page, '₦6,500')
   await page.goto(url('/admin/settings'))
-  await page.getByRole('switch').click()
+  await page.getByRole('switch').first().click()
+  await page.getByRole('switch', { name: 'Require a payout account' }).click()
+  await page.getByLabel('TutorHaven commission (%)').fill('20')
   await page.getByRole('button', { name: 'Save settings' }).click()
   await see(page, 'Settings saved')
   await page.goto(url('/tutors'))
   await see(page, '3 tutors found')
+  const [{ commission_rate }] = await stack.sql(`select commission_rate from platform_settings`)
+  if (Number(commission_rate) !== 0.2) throw new Error('commission ' + commission_rate)
+  await page.goto(url('/admin/payouts'))
+  await see(page, 'Uche Unlisted')
+  await see(page, 'Not connected')
   const [{ price }] = await stack.sql(`select price from subscription_plans where code = 'tutor_pro'`)
   if (Number(price) !== 6500) throw new Error('price ' + price)
 })
@@ -489,8 +513,8 @@ if (!ONLY || ONLY === 'crawl') {
     [null, ['/', '/tutors', `/tutors/${F.tutor.id}`, '/pricing', '/signin', '/signup']],
     [F.student.email, ['/dashboard', '/dashboard/sessions', '/dashboard/messages', '/dashboard/billing', '/dashboard/settings', `/book/${F.tutor.id}`, '/pricing']],
     [F.parent.email, ['/dashboard', '/dashboard/billing']],
-    [F.tutor.email, ['/dashboard', '/dashboard/sessions', '/dashboard/listing', '/dashboard/subscription']],
-    [F.admin.email, ['/admin', '/admin/tutors', '/admin/users', '/admin/bookings', '/admin/qualifications', '/admin/payments', '/admin/payments?view=attempts', '/admin/payments?view=events', '/admin/subscriptions', '/admin/plans', '/admin/settings']],
+    [F.tutor.email, ['/dashboard', '/dashboard/sessions', '/dashboard/listing', '/dashboard/subscription', '/dashboard/payouts']],
+    [F.admin.email, ['/admin', '/admin/tutors', '/admin/users', '/admin/bookings', '/admin/qualifications', '/admin/payments', '/admin/payments?view=attempts', '/admin/payments?view=events', '/admin/payouts', '/admin/subscriptions', '/admin/plans', '/admin/settings']],
   ]
   for (const [who, routes] of CRAWL) {
     for (const viewport of [DESKTOP, MOBILE]) {
@@ -553,7 +577,7 @@ if (SHOTS) {
   const shots = [
     [null, '/', 'landing'], [null, '/tutors', 'tutors'], [null, `/tutors/${F.tutor.id}`, 'profile'], [null, '/pricing', 'pricing'],
     [F.student.email, '/dashboard', 'student'], [F.student.email, `/book/${F.tutor.id}`, 'book'], [F.student.email, '/dashboard/billing', 'billing'], [F.student.email, '/dashboard/messages', 'messages'],
-    [F.tutor.email, '/dashboard', 'tutor'], [F.tutor.email, '/dashboard/subscription', 'tutor-subscription'], [F.newTutor.email, '/dashboard/subscription', 'tutor-unlisted'],
+    [F.tutor.email, '/dashboard', 'tutor'], [F.tutor.email, '/dashboard/subscription', 'tutor-subscription'], [F.tutor.email, '/dashboard/payouts', 'tutor-payouts'], [F.newTutor.email, '/dashboard/payouts', 'tutor-connect-bank'],
     [F.admin.email, '/admin', 'admin'], [F.admin.email, '/admin/plans', 'admin-plans'], [F.admin.email, '/admin/payments', 'admin-payments'], [F.admin.email, '/admin/settings', 'admin-settings'],
   ]
   for (const [vpName, viewport] of [['mobile', MOBILE], ['tablet', { width: 820, height: 1180 }], ['desktop', { width: 1440, height: 900 }]]) {

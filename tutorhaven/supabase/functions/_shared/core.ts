@@ -20,6 +20,10 @@ export type PaystackApi = {
   initialize(body: Record<string, unknown>): Promise<{ authorization_url: string; access_code: string; reference: string }>
   verify(reference: string): Promise<VerifyData>
   refund(reference: string, amountKobo?: number): Promise<{ status: string }>
+  listBanks(): Promise<{ name: string; code: string }[]>
+  resolveAccount(accountNumber: string, bankCode: string): Promise<{ account_number: string; account_name: string }>
+  createSubaccount(body: Record<string, unknown>): Promise<{ subaccount_code: string }>
+  updateSubaccount(code: string, body: Record<string, unknown>): Promise<{ subaccount_code: string }>
 }
 
 export type Deps = {
@@ -123,6 +127,12 @@ export async function handleInit(req: Request, deps: Deps): Promise<Response> {
 
   const callback = new URL(`${deps.functionsUrl}/paystack-callback`)
   callback.searchParams.set('redirect', redirect_url)
+  // Session payments are split: the tutor's share settles to the tutor's bank
+  // (their Paystack subaccount); TutorHaven keeps its commission and pays Paystack's fees.
+  const { data: split } = await deps.service<any>('payment_split', { p_reference: intent.reference })
+  const splitParams = kind === 'session' && split?.subaccount_code
+    ? { subaccount: split.subaccount_code, transaction_charge: Math.round(Number(split.platform_fee) * 100), bearer: 'account' }
+    : {}
   try {
     const init = await deps.paystack.initialize({
       email: intent.email,
@@ -130,6 +140,7 @@ export async function handleInit(req: Request, deps: Deps): Promise<Response> {
       currency: 'NGN',
       reference: intent.reference,
       callback_url: callback.toString(),
+      ...splitParams,
       metadata: { kind, booking_id, plan_id, cancel_action: withParams(redirect_url, { reference: intent.reference, status: 'abandoned' }) },
     })
     await logEvent(deps, intent.reference, 'checkout.initialized', 'checkout', 'pending')
@@ -285,4 +296,66 @@ export async function handleReconcile(req: Request, deps: Deps): Promise<Respons
     }
   }
   return json({ checked: Object.keys(results).length, results })
+}
+
+// ---------------------------------------------------------------------------
+// paystack-payout-account: POST { action: 'banks' | 'resolve' | 'save', bank_code?, account_number? }
+// Tutors connect the bank account their session earnings are paid into.
+// ---------------------------------------------------------------------------
+let bankCache: { at: number; banks: { name: string; code: string }[] } | null = null
+
+export async function handlePayoutAccount(req: Request, deps: Deps): Promise<Response> {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method !== 'POST') return fail('Method not allowed', 405)
+  let body: any
+  try { body = await req.json() } catch { return fail('Invalid request') }
+  const { data: me, error } = await deps.asUser(req)<any>('payout_account_context')
+  if (error) return fail(error.message)
+  if (!me) return fail('Please sign in first', 401)
+  if (me.role !== 'tutor') return fail('Only tutors can add a payout account', 403)
+  if (me.suspended) return fail('Your account is suspended. Please contact support.', 403)
+
+  const banks = async () => {
+    if (!bankCache || Date.now() - bankCache.at > 6 * 3600_000) bankCache = { at: Date.now(), banks: await deps.paystack.listBanks() }
+    return bankCache.banks
+  }
+
+  try {
+    if (body?.action === 'banks') return json({ banks: await banks() })
+
+    const accountNumber = String(body?.account_number ?? '').replace(/\s/g, '')
+    const bankCode = String(body?.bank_code ?? '')
+    if (!/^\d{10}$/.test(accountNumber)) return fail('Enter your 10-digit account number')
+    const bank = (await banks()).find((b) => b.code === bankCode)
+    if (!bank) return fail('Choose your bank from the list')
+
+    let resolved: { account_name: string }
+    try {
+      resolved = await deps.paystack.resolveAccount(accountNumber, bankCode)
+    } catch {
+      return fail('We couldn’t verify that account. Check the bank and account number.')
+    }
+    if (body?.action === 'resolve') return json({ account_name: resolved.account_name, bank_name: bank.name })
+    if (body?.action !== 'save') return fail('Unknown action')
+
+    const details = { business_name: `${me.full_name || 'Tutor'} (TutorHaven tutor)`, settlement_bank: bankCode, account_number: accountNumber }
+    const sub = me.subaccount_code
+      ? await deps.paystack.updateSubaccount(me.subaccount_code, details)
+      : await deps.paystack.createSubaccount({
+          ...details,
+          // TutorHaven's share is set per payment (transaction_charge), so the default is 0.
+          percentage_charge: 0,
+          description: `TutorHaven tutor ${me.user_id}`,
+          primary_contact_email: me.email ?? undefined,
+        })
+    const code = sub?.subaccount_code || me.subaccount_code
+    const { data: saved, error: saveErr } = await deps.service('save_payout_account', {
+      p_tutor: me.user_id, p_bank_code: bankCode, p_bank_name: bank.name, p_account_last4: accountNumber.slice(-4),
+      p_account_name: resolved.account_name, p_subaccount_code: code,
+    })
+    if (saveErr) return fail(saveErr.message, 500)
+    return json(saved)
+  } catch (e) {
+    return fail('Paystack couldn’t complete this right now: ' + (e as Error).message, 502)
+  }
 }

@@ -74,9 +74,17 @@ async function payInPopup(page, trigger, action = 'Pay with test card') {
   await popup.waitForEvent('close', { timeout: 15000 }).catch(() => { console.log('popup still open at', popup.url()) })
 }
 
-async function bookFirstSlot(page, tutorName) {
+/** Find tutors tab → a tutor's profile, once the results have settled. */
+async function openTutor(page, tutorName) {
   await tapText(page, 'Find tutors')
+  await page.getByText(/\d+ tutors? found/).first().waitFor()
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(1000)
   await page.getByRole('button', { name: new RegExp(tutorName) }).click()
+}
+
+async function bookFirstSlot(page, tutorName) {
+  await openTutor(page, tutorName)
   await see(page, 'This week’s availability')
   await page.getByRole('button', { name: 'Book a session' }).click()
   // Earlier screens stay mounted (hidden) in the stack, so match exact visible text.
@@ -98,7 +106,7 @@ async function flow(name, fn, { empty = false } = {}) {
     if (page.errors.length) throw new Error(page.errors.join(' | '))
     results.push(`PASS  ${name}`)
   } catch (e) {
-    results.push(`FAIL  ${name}: ${e.message.split('\n')[0]}${page.errors.length ? ' | ' + page.errors.join(' | ') : ''}`)
+    results.push(`FAIL  ${name}: ${e.message.split('\n').slice(0, 3).join(' ')}${page.errors.length ? ' | ' + page.errors.join(' | ') : ''}`)
     await shot(page, 'fail-' + name.replace(/\W+/g, '-')).catch(() => {})
   }
   await ctx.close()
@@ -182,8 +190,20 @@ await flow('student: Plus membership via Paystack, history and notifications', a
   await see(page, 'Plus is active')
 })
 
-await flow('tutor: unlisted → subscribe → listed', async (page) => {
+await flow('tutor: connect bank → subscribe → listed', async (page) => {
   await signIn(page, F.newTutor.email)
+  await see(page, 'Add the bank account your earnings should be paid into')
+  await page.getByRole('button', { name: 'Add bank account' }).click()
+  await see(page, 'Connect your bank account')
+  await page.getByRole('button', { name: 'Choose your bank' }).click()
+  await page.getByLabel('Search banks').fill('access')
+  await page.getByRole('button', { name: 'Access Bank' }).click()
+  await page.getByLabel('Account number').fill('0123456789')
+  await see(page, 'TEST ACCOUNT HOLDER')
+  await shot(page, '07a-payouts')
+  await page.getByRole('button', { name: 'Save payout account' }).click()
+  await see(page, 'Payouts will go to Access Bank')
+  await page.goBack()
   await see(page, 'Subscribe to appear in search')
   await shot(page, '07-tutor-unlisted')
   await page.getByRole('button', { name: 'Subscribe' }).click()
@@ -198,8 +218,7 @@ await flow('tutor: unlisted → subscribe → listed', async (page) => {
 await flow('messages: learner asks, tutor replies', async (page) => {
   await signIn(page, F.student.email)
   await see(page, 'Hi, Sola')
-  await tapText(page, 'Find tutors')
-  await page.getByRole('button', { name: /Tobi Tutor/ }).click()
+  await openTutor(page, 'Tobi Tutor')
   await page.getByRole('button', { name: 'Message Tobi Tutor' }).click()
   await see(page, 'Say hello to Tobi')
   await page.getByLabel('Message', { exact: true }).fill('Hello! Can we focus on WAEC past questions?')

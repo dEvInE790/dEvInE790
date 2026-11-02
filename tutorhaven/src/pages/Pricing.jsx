@@ -34,7 +34,7 @@ export default function Pricing() {
   const [choice, setChoice] = useState(null)
   const [busy, setBusy] = useState(false)
   const [openFaq, setOpenFaq] = useState(0)
-  const { plans: PLANS, tutorPlans, plansLoaded } = useSettings()
+  const { plans: PLANS, tutorPlans, plansLoaded, settings } = useSettings()
 
   const current = isSubscriptionLive(sub.data) ? sub.data : null
   const featuredId = PLANS.find((p) => p.id !== 'free')?.id
@@ -130,7 +130,7 @@ export default function Pricing() {
                 <div className="flex-1">
                   <h2 className="text-xl font-semibold">Are you a tutor?</h2>
                   <p className="mt-1.5 text-sm text-navy-500">
-                    {tutorPlans.map((t) => `${t.name}: ${money(t.price)} / ${per(t)}`).join(' · ')}. Your profile appears in search and takes paid bookings while your subscription is active.
+                    {tutorPlans.map((t) => `${t.name}: ${money(t.price)} / ${per(t)}`).join(' · ')}. Your profile appears in search and takes paid bookings while your subscription is active, and you keep {100 - Math.round(Number(settings.commission_rate ?? 0.15) * 100)}% of every session, paid straight to your bank.
                   </p>
                 </div>
                 <Button variant="secondary" to={profile?.role === 'tutor' ? '/dashboard/subscription' : '/signup?role=tutor'}>

@@ -8,7 +8,7 @@ import Skeleton from '../../components/ui/Skeleton'
 import EmptyState, { ErrorState } from '../../components/ui/EmptyState'
 import { Stagger, StaggerItem } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
-import { cancelSubscription, getOwnTutor, getSubscription, isSubscriptionLive, listPayments, paymentReturnUrl, startPaystackCheckout } from '../../lib/api'
+import { cancelSubscription, getMyPayoutAccount, getOwnTutor, getSubscription, isSubscriptionLive, isTutorListed, listPayments, paymentReturnUrl, startPaystackCheckout } from '../../lib/api'
 import { dateLong, dateShort, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -30,12 +30,15 @@ export default function TutorSubscription() {
   const sub = useAsync(() => getSubscription(profile.id, 'tutor'), [profile.id])
   const tutor = useAsync(() => getOwnTutor(profile.id), [profile.id])
   const payments = useAsync(() => listPayments(profile.id), [profile.id])
+  const listedNow = useAsync(() => isTutorListed(profile.id), [profile.id])
+  const payout = useAsync(() => getMyPayoutAccount(profile.id), [profile.id])
   const [busy, setBusy] = useState(null)
 
   const live = isSubscriptionLive(sub.data)
   const approved = tutor.data?.tutor?.status === 'approved'
   const required = settings.tutor_subscription_required !== false
-  const listed = approved && (!required || live)
+  const listed = listedNow.data ?? (approved && (!required || live))
+  const needsPayout = settings.payout_account_required !== false && payout.data === null
   const [tone, label] = STATUS[sub.data?.status] ?? ['neutral', 'No subscription']
   const daysLeft = live ? Math.ceil((new Date(sub.data.current_period_end) - Date.now()) / 864e5) : 0
 
@@ -91,6 +94,9 @@ export default function TutorSubscription() {
                         ? `Your subscription ended on ${dateLong(sub.data.current_period_end)}. Learners can’t find or book you until you renew.`
                         : 'Subscribe to appear in search and accept paid bookings.'}
               </p>
+              {needsPayout && approved && (
+                <p className="mt-3 text-sm text-mint-200">You also need to <a href="/dashboard/payouts" className="font-semibold underline">add your bank account</a> before learners can book you.</p>
+              )}
               {live && daysLeft <= 3 && <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-300"><CalendarClock className="h-3.5 w-3.5" />Renew soon to stay listed</p>}
               {sub.data?.status === 'active' && live && (
                 <div className="mt-6"><Button variant="light" loading={busy === 'cancel'} onClick={cancel}>Cancel subscription</Button></div>
@@ -102,7 +108,7 @@ export default function TutorSubscription() {
         <StaggerItem className="card p-6 sm:p-8">
           <h3 className="font-semibold">What you get</h3>
           <ul className="mt-4 space-y-3 text-sm text-navy-700">
-            {['Appear in tutor search and on the home page', 'Accept bookings paid securely through Paystack', 'Message learners and parents', 'Earnings and sessions dashboard'].map((f) => (
+            {['Appear in tutor search and on the home page', `Get paid straight to your bank: you keep ${100 - Math.round(Number(settings.commission_rate ?? 0.15) * 100)}% of every session`, 'Message learners and parents', 'Earnings and sessions dashboard'].map((f) => (
               <li key={f} className="flex gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-mint-600" />{f}</li>
             ))}
           </ul>

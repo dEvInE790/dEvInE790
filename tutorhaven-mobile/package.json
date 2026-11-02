@@ -37,7 +37,8 @@
     "web": "expo start --web",
     "export:ios": "expo export --platform ios",
     "export:web": "expo export --platform web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "export:android": "expo export --platform android"
   },
   "private": true,
   "devDependencies": {

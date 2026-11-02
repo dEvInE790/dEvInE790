@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
-import { BadgeCheck, Bell, ChevronRight, Crown, LogOut, Receipt } from 'lucide-react-native'
+import { BadgeCheck, Bell, ChevronRight, Crown, Landmark, LogOut, Receipt } from 'lucide-react-native'
 import Screen from '../../components/Screen'
 import { Avatar, Badge, Button, Card, Field, Tappable, Text } from '../../components/ui'
 import useAsync from '../../lib/useAsync'
@@ -79,6 +79,7 @@ export default function Account() {
       <Card delay={80} style={{ padding: 0, overflow: 'hidden' }}>
         {[
           [Bell, 'Notifications', '/notifications', notifications],
+          ...(learner ? [] : [[Landmark, 'Payout account', '/payouts', 0]]),
           [Receipt, 'Payment history', '/payments', 0],
         ].map(([Icon, label, href, count], i) => (
           <Tappable key={href} onPress={() => router.push(href)} accessibilityRole="button" accessibilityLabel={label}

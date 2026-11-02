@@ -11,6 +11,7 @@ import { getSubscription, isSubscriptionLive } from '../lib/api'
 import { payPlan } from '../lib/pay'
 import { per } from '../lib/constants'
 import PaymentResult from '../components/PaymentResult'
+import { PLAN_PURCHASES_IN_APP } from '../lib/storeRules'
 import { dateLong, money } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../context/SettingsContext'
@@ -70,7 +71,8 @@ export default function Membership() {
                 </View>
               ))}
             </View>
-            {p.id !== 'free' && (
+            {p.id !== 'free' && current && !PLAN_PURCHASES_IN_APP && <Text variant="label" style={{ marginTop: 16, color: featured ? colors.mint300 : colors.mint700 }}>Your current plan</Text>}
+            {p.id !== 'free' && PLAN_PURCHASES_IN_APP && (
               <Button title={current ? `Renew · ${money(p.price)}` : `Choose ${p.name}`} variant={featured ? 'mint' : 'primary'} loading={busy === p.id} disabled={!!busy && busy !== p.id} style={{ marginTop: 18 }} onPress={() => buy(p)} full />
             )}
             {p.id === 'free' && current && <Text variant="label" style={{ marginTop: 16, color: colors.mint700 }}>Your current plan</Text>}
@@ -86,7 +88,7 @@ export default function Membership() {
           </Animated.View>
         )
       })}
-      <Text variant="small" style={{ textAlign: 'center' }}>Payments are processed securely by Paystack in naira. Your plan starts once Paystack confirms the payment.</Text>
+      {PLAN_PURCHASES_IN_APP && <Text variant="small" style={{ textAlign: 'center' }}>Payments are processed securely by Paystack in naira. Your plan starts once Paystack confirms the payment.</Text>}
       <Button title="Done" variant="ghost" onPress={() => router.back()} />
     </Screen>
   )

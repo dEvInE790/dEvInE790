@@ -39,6 +39,9 @@ In the Supabase **SQL editor**, run these files in order (each one is safe to ru
 1. `supabase/migrations/20261030000000_init.sql`
 2. `supabase/migrations/20261101000000_naira_paystack_admin.sql`
 3. `supabase/migrations/20261102000000_production_payments.sql` adds subscription plans, tutor subscriptions, the payment event log, messaging, qualification review, suspension and scheduled maintenance. It also removes simulated "test mode" payments.
+4. `supabase/migrations/20261103000000_tutor_payouts.sql` adds tutor payout accounts and Paystack split payments (15% commission by default).
+
+If you ever re-run an older file, re-run every later file after it, in order.
 
 Then turn on scheduled maintenance. It expires subscriptions, sends renewal reminders and abandons stale checkouts.
 
@@ -148,11 +151,22 @@ supabase functions deploy paystack-init
 supabase functions deploy paystack-verify
 supabase functions deploy paystack-refund
 supabase functions deploy paystack-reconcile
+supabase functions deploy paystack-payout-account
 supabase functions deploy paystack-callback --no-verify-jwt
 supabase functions deploy paystack-webhook --no-verify-jwt
 ```
 
 Then, in Paystack Dashboard → Settings → API Keys & Webhooks, set the webhook URL to `https://<your-project-ref>.supabase.co/functions/v1/paystack-webhook`. Set it for test mode now, and for live mode when you go live.
+
+### Tutor payouts (split payments)
+
+- Each tutor connects a bank account in **Dashboard → Payouts**. Paystack checks the account name, and TutorHaven creates a Paystack **subaccount** for the tutor.
+- Every session payment is **split by Paystack**:
+  - The tutor receives their listed price minus the commission. With the default 15%, that's 85%. It settles to their bank, usually the next working day.
+  - TutorHaven keeps the rest and **pays Paystack's fees** from it.
+- Membership discounts come out of TutorHaven's commission, not the tutor's share. TutorHaven always keeps at least Paystack's fee, so a discount larger than the commission can reduce the tutor's share slightly.
+- Admins change the commission and choose whether a bank account is required to be listed in **Admin → Settings**. **Admin → Tutor payouts** shows each tutor's account and earnings, plus any amounts to pay by hand (payments made before a tutor connected a bank).
+- Refunds are taken from TutorHaven's Paystack balance. If the tutor's share had already settled, recover it from the tutor separately.
 
 ### Subscriptions
 

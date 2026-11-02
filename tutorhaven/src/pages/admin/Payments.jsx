@@ -219,7 +219,15 @@ function PaymentsView() {
                   <tr key={p.id} className="align-top transition-colors hover:bg-cream-50">
                     <td className="px-5 py-3 whitespace-nowrap text-navy-600">{dateShort(p.created_at)}<br /><span className="text-xs text-navy-400">{time(p.created_at)}</span></td>
                     <td className="px-3 py-3"><p className="font-medium">{p.full_name}</p><p className="text-xs text-navy-400">{p.email}</p></td>
-                    <td className="px-3 py-3"><p>{p.description}</p>{p.note && <p className="mt-0.5 text-xs text-navy-400">{p.note}</p>}</td>
+                    <td className="px-3 py-3">
+                      <p>{p.description}</p>
+                      {p.kind === 'session' && p.tutor_share != null && (
+                        <p className="mt-0.5 text-xs text-navy-500">
+                          Tutor {money(Number(p.tutor_share))} · TutorHaven {money(Number(p.platform_fee))} · {p.split_subaccount ? 'paid by Paystack split' : <span className="font-semibold text-[#8a5a00]">pay tutor manually</span>}
+                        </p>
+                      )}
+                      {p.note && <p className="mt-0.5 text-xs text-navy-400">{p.note}</p>}
+                    </td>
                     <td className="px-3 py-3"><a href={`?view=events&ref=${p.provider_ref}`} className="font-mono text-xs text-mint-700 hover:underline">{p.provider_ref ?? '—'}</a></td>
                     <td className={`px-3 py-3 font-semibold tabular-nums ${p.status === 'refunded' ? 'text-navy-400 line-through' : ''}`}>{money(p.amount)}</td>
                     <td className="px-3 py-3"><Badge tone={tone}>{label}</Badge></td>

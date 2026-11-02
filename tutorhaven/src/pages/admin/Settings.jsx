@@ -10,7 +10,10 @@ import { useSettings } from '../../context/SettingsContext'
 import { useToast } from '../../context/ToastContext'
 import { spring } from '../../motion/variants'
 
-const toForm = (s) => ({ hold_minutes: String(s.hold_minutes), tutor_subscription_required: s.tutor_subscription_required !== false })
+const toForm = (s) => ({
+  hold_minutes: String(s.hold_minutes), tutor_subscription_required: s.tutor_subscription_required !== false,
+  commission: String(Math.round(Number(s.commission_rate ?? 0.15) * 100)), payout_account_required: s.payout_account_required !== false,
+})
 
 export default function Settings() {
   const { settings, setSettings } = useSettings()
@@ -30,9 +33,14 @@ export default function Settings() {
     e.preventDefault()
     const hold = Number(form.hold_minutes)
     if (!(hold >= 10 && hold <= 120)) return toast.error('Hold time must be 10–120 minutes.')
+    const commission = Number(form.commission)
+    if (!(commission >= 0 && commission <= 50)) return toast.error('Commission must be between 0% and 50%.')
     setSaving(true)
     try {
-      setSettings(await adminUpdateSettings({ hold_minutes: hold, tutor_subscription_required: form.tutor_subscription_required }))
+      setSettings(await adminUpdateSettings({
+        hold_minutes: hold, tutor_subscription_required: form.tutor_subscription_required,
+        commission_rate: commission / 100, payout_account_required: form.payout_account_required,
+      }))
       toast.success('Settings saved. Changes apply immediately.')
     } catch (err) {
       toast.error(err.message)
@@ -76,6 +84,27 @@ export default function Settings() {
                 <span className="text-sm">
                   <span className="flex items-center gap-1.5 font-semibold"><BadgeCheck className="h-4 w-4" />{required ? 'Required to be listed' : 'Optional (all approved tutors listed)'}</span>
                   <span className="block text-xs text-navy-500">When required, approved tutors appear in search only while their subscription is active.</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </Reveal>
+        <Reveal className="card p-6 sm:p-8">
+          <h2 className="text-lg font-semibold">Tutor payouts</h2>
+          <p className="mt-1 text-sm text-navy-500">Session payments are split by Paystack: the tutor’s share settles to their bank, TutorHaven keeps the commission and pays Paystack’s fees.</p>
+          <div className="mt-5 grid gap-6 md:grid-cols-2">
+            <Input label="TutorHaven commission (%)" type="number" min={0} max={50} value={form.commission} onChange={(e) => setForm((f) => ({ ...f, commission: e.target.value }))}
+              hint={`Tutors earn ${100 - (Number(form.commission) || 0)}% of their listed price. Applies to new checkouts.`} />
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-navy-800">Bank account before listing</p>
+              <button type="button" role="switch" aria-checked={form.payout_account_required} aria-label="Require a payout account" onClick={() => setForm((f) => ({ ...f, payout_account_required: !f.payout_account_required }))}
+                className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors ${form.payout_account_required ? 'border-mint-500/40 bg-mint-50/60' : 'border-navy-900/10 bg-white'}`}>
+                <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${form.payout_account_required ? 'bg-mint-500' : 'bg-navy-200'}`}>
+                  <motion.span layout transition={spring} className="absolute top-1 h-4 w-4 rounded-full bg-white shadow" style={{ left: form.payout_account_required ? 24 : 4 }} />
+                </span>
+                <span className="text-sm">
+                  <span className="block font-semibold">{form.payout_account_required ? 'Required to be listed' : 'Optional'}</span>
+                  <span className="block text-xs text-navy-500">When optional, earnings of tutors without a bank account must be paid manually.</span>
                 </span>
               </button>
             </div>

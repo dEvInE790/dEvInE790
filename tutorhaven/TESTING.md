@@ -80,6 +80,8 @@ Tick each item. For every payment, open **Admin → Payments → Event log** and
   The tutor gets a reminder, then an "expired" notification, and disappears from Find tutors. Renewing brings them back.
 - [ ] **Booking confirmation in the iOS app.** In Expo Go, book and pay. Paystack opens in the in-app browser. When it closes, the app shows the server's result.
 - [ ] **Admin price change.** In Admin → Plans & prices, change Tutor Pro's price. The next checkout charges the new amount, and the amount on Paystack's page matches.
+- [ ] **Tutor payout account.** As a tutor, open **Payouts**, choose your bank and type a 10-digit account number. The account name appears; save it. Paystack → **Subaccounts** lists the new subaccount, and **Admin → Tutor payouts** shows it.
+- [ ] **Split payment.** Pay for a session with a tutor who has a payout account. In Paystack, open the transaction: it shows the split to the tutor's subaccount (85% of the listed price) with the rest to TutorHaven. **Admin → Payments** shows "Tutor ₦… · TutorHaven ₦…".
 - [ ] **Scheduled job.** Database → Cron Jobs (pg_cron) lists `tutorhaven-maintenance` running every 15 minutes.
 
 When everything above passes, follow "Going live" in the README.

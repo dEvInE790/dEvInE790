@@ -1,4 +1,5 @@
 import { Redirect, Tabs } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CalendarDays, House, MessageCircle, Search, User, UserRoundPen } from 'lucide-react-native'
 import { useUnread } from '../../context/UnreadContext'
 import { useAuth } from '../../context/AuthContext'
@@ -7,6 +8,7 @@ import { colors, fonts } from '../../theme'
 export default function TabsLayout() {
   const { user, profile } = useAuth()
   const { messages } = useUnread()
+  const insets = useSafeAreaInsets()
   if (!user || !profile || profile.suspended_at) return <Redirect href="/" />
   const isTutor = profile.role === 'tutor'
   return (
@@ -15,7 +17,8 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.navy950,
         tabBarInactiveTintColor: colors.navy400,
-        tabBarStyle: { backgroundColor: colors.white, borderTopColor: colors.line, height: 84, paddingTop: 8 },
+        // Room for the iPhone home indicator or Android's navigation bar.
+        tabBarStyle: { backgroundColor: colors.white, borderTopColor: colors.line, height: 60 + Math.max(insets.bottom, 8), paddingTop: 8, paddingBottom: Math.max(insets.bottom, 8) },
         tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11 },
         sceneStyle: { backgroundColor: colors.cream100 },
       }}

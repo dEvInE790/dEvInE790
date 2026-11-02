@@ -181,6 +181,24 @@ export async function startStack({ port = 54321, databaseUrl = 'postgres://postg
       if (!t) throw new Error('Transaction reference not found')
       return { id: t.id, status: t.status, reference, amount: t.amount, currency: t.currency, paid_at: t.paid_at, channel: t.channel, gateway_response: t.gateway_response }
     },
+    subaccounts: new Map(),
+    async listBanks() {
+      return [{ name: 'Access Bank', code: '044' }, { name: 'Guaranty Trust Bank', code: '058' }, { name: 'Opay', code: '999992' }]
+    },
+    async resolveAccount(accountNumber) {
+      // Simulator: any 10-digit number resolves, except 9999999999.
+      if (accountNumber === '9999999999') throw new Error('Could not resolve account name')
+      return { account_number: accountNumber, account_name: 'TEST ACCOUNT HOLDER' }
+    },
+    async createSubaccount(body) {
+      const code = 'ACCT_local' + (paystack.subaccounts.size + 1)
+      paystack.subaccounts.set(code, body)
+      return { subaccount_code: code }
+    },
+    async updateSubaccount(code, body) {
+      paystack.subaccounts.set(code, { ...paystack.subaccounts.get(code), ...body })
+      return { subaccount_code: code }
+    },
     async refund(reference, amount) {
       const t = tx.get(reference)
       if (!t || t.status !== 'success') throw new Error('Transaction has not been paid')
@@ -226,6 +244,7 @@ export async function startStack({ port = 54321, databaseUrl = 'postgres://postg
   const FUNCTIONS = {
     'paystack-init': core.handleInit, 'paystack-verify': core.handleVerify, 'paystack-callback': core.handleCallback,
     'paystack-webhook': core.handleWebhook, 'paystack-refund': core.handleRefund, 'paystack-reconcile': core.handleReconcile,
+    'paystack-payout-account': core.handlePayoutAccount,
   }
 
   // -------------------------------------------------------------------------

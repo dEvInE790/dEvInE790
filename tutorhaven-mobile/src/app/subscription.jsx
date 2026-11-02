@@ -7,7 +7,9 @@ import Screen from '../components/Screen'
 import PaymentResult from '../components/PaymentResult'
 import { Badge, Button, Card, EmptyState, Skeleton, Text } from '../components/ui'
 import useAsync from '../lib/useAsync'
-import { cancelSubscription, getOwnTutor, getSubscription, isSubscriptionLive } from '../lib/api'
+import { cancelSubscription, getMyPayoutAccount, getOwnTutor, getSubscription, isSubscriptionLive, isTutorListed } from '../lib/api'
+import { PLAN_PURCHASES_IN_APP } from '../lib/storeRules'
+import { router } from 'expo-router'
 import { payPlan } from '../lib/pay'
 import { per } from '../lib/constants'
 import { dateLong, money } from '../lib/format'
@@ -25,12 +27,15 @@ export default function TutorSubscription() {
   const { tutorPlans, settings, plansLoaded } = useSettings()
   const sub = useAsync(() => getSubscription(profile.id, 'tutor'), [profile.id])
   const own = useAsync(() => getOwnTutor(profile.id), [profile.id])
+  const listedNow = useAsync(() => isTutorListed(profile.id), [profile.id])
+  const payout = useAsync(() => getMyPayoutAccount(profile.id), [profile.id])
   const [busy, setBusy] = useState('')
   const [result, setResult] = useState(null)
 
   const live = isSubscriptionLive(sub.data)
   const approved = own.data?.tutor?.status === 'approved'
-  const listed = approved && (settings.tutor_subscription_required === false || live)
+  const listed = listedNow.data ?? (approved && (settings.tutor_subscription_required === false || live))
+  const needsPayout = settings.payout_account_required !== false && payout.data === null
   const [tone, label] = STATUS[sub.data?.status] ?? ['neutral', 'No subscription']
 
   const pay = async (plan) => {
@@ -84,13 +89,14 @@ export default function TutorSubscription() {
                       ? `Expired on ${dateLong(sub.data.current_period_end)}. Learners can’t find or book you until you renew.`
                       : 'Subscribe to appear in search and accept paid bookings.'}
             </Text>
+            {needsPayout && approved && <Button title="Add your bank account" variant="mint" size="sm" style={{ alignSelf: 'flex-start', marginTop: 6 }} onPress={() => router.push('/payouts')} />}
             {live && sub.data.status === 'active' && <Button title="Cancel subscription" variant="light" size="sm" loading={busy === 'cancel'} onPress={cancel} style={{ alignSelf: 'flex-start', marginTop: 6 }} />}
           </LinearGradient>
         </Animated.View>
       )}
 
-      <Text variant="h2">{live ? 'Renew' : 'Choose a plan'}</Text>
-      {!plansLoaded ? <Skeleton style={{ height: 140, borderRadius: 20 }} /> : !tutorPlans.length ? (
+      {PLAN_PURCHASES_IN_APP && <Text variant="h2">{live ? 'Renew' : 'Choose a plan'}</Text>}
+      {!PLAN_PURCHASES_IN_APP ? null : !plansLoaded ? <Skeleton style={{ height: 140, borderRadius: 20 }} /> : !tutorPlans.length ? (
         <EmptyState icon={BadgeCheck} title="No tutor plans available" body="An admin hasn’t published a tutor plan yet. Please check back soon." />
       ) : tutorPlans.map((p, i) => (
         <Card key={p.id} delay={i * 80} style={{ gap: 8 }}>
@@ -103,7 +109,7 @@ export default function TutorSubscription() {
           <Button title={live ? `Renew for ${money(p.price)}` : `Pay ${money(p.price)} with Paystack`} loading={busy === p.id} disabled={!!busy && busy !== p.id} onPress={() => pay(p)} full style={{ marginTop: 6 }} />
         </Card>
       ))}
-      <Text variant="small" style={{ textAlign: 'center' }}>Payments are processed by Paystack. You’re listed once Paystack confirms the payment to us.</Text>
+      {PLAN_PURCHASES_IN_APP && <Text variant="small" style={{ textAlign: 'center' }}>Payments are processed by Paystack. You’re listed once Paystack confirms the payment to us.</Text>}
     </Screen>
   )
 }

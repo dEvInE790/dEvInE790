@@ -107,6 +107,31 @@ npx expo export --platform ios        # Hermes bundle, as shipped to devices
 
 `e2e/run.mjs` drives the app's web build at iPhone size against the local test stack in `tutorhaven/e2e/stack`. That stack is a real Postgres with the migrations, the real Paystack function code and a simulated Paystack checkout. Run it with `node --experimental-strip-types e2e/run.mjs`; see the comment at the top of that file.
 
-## Shipping to the App Store
+## Android and iOS
 
-When you're ready, build with EAS instead of Expo Go: `npx eas-cli@latest build -p ios`, then `npx eas-cli@latest submit -p ios`. The bundle identifier is set to `ng.tutorhaven.app` in `app.json`; change it to your own.
+The same code runs on both platforms. Package name and bundle identifier: `ng.tutorhaven.app`.
+
+**Testing on a phone:** install **Expo Go** (App Store or Google Play), run `npx expo start -c --tunnel`, and scan the QR code. On Android, scan from inside Expo Go.
+
+**Plans in the store apps:** Apple and Google require their own in-app purchase for digital subscriptions. So the iOS and Android apps show memberships and tutor subscriptions, and apply their benefits, but don't sell them; people buy plans on the website. Booking and paying for tutoring sessions through Paystack is allowed in both stores. To show the buy buttons while testing, add `EXPO_PUBLIC_ALLOW_PLAN_PURCHASES=true` to `.env`.
+
+### Building and publishing
+
+You need:
+- a free **Expo** account
+- an **Apple Developer** account ($99 a year) for the App Store
+- a **Google Play Console** account ($25 once) for Google Play
+
+Run everything from `tutorhaven-mobile`.
+
+```bash
+npx eas-cli@latest login
+npx eas-cli@latest init                                   # links the project to your Expo account (once)
+npx eas-cli@latest build -p android --profile preview      # an .apk you can install on any Android phone
+npx eas-cli@latest build -p all --profile production       # store builds for Android (.aab) and iOS
+npx eas-cli@latest submit -p ios                           # upload to App Store Connect / TestFlight
+npx eas-cli@latest submit -p android                       # upload to Google Play (first upload can be done by hand)
+```
+
+Before building, put your Supabase URL and anon key in the build's environment. Use `npx eas-cli@latest env:create` for `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`, so they don't depend on your laptop's `.env`.
+

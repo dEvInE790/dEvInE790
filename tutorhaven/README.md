@@ -185,6 +185,20 @@ Then, in Paystack Dashboard → Settings → API Keys & Webhooks, set the webhoo
 
 See **TESTING.md** for the automated tests and the manual Paystack test checklist.
 
+### Hosting on Vercel
+
+`vercel.json` sends every page address (such as `/refunds` or `/admin`) to the app, so refreshing any page works. From this folder:
+
+```bash
+npx vercel login
+npx vercel                      # first time: creates the project
+npx vercel env add VITE_SUPABASE_URL production
+npx vercel env add VITE_SUPABASE_ANON_KEY production
+npx vercel --prod
+```
+
+Then add the Vercel address to the `APP_URLS` secret and to Supabase Auth → URL Configuration → Redirect URLs.
+
 ### Going live
 
 Do these only after every item in TESTING.md passes with test keys.

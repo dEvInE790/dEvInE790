@@ -47,6 +47,12 @@
     "experiments": {
       "typedRoutes": false
     },
-    "description": "Find verified tutors in Nigeria, book sessions and pay securely in naira."
+    "description": "Find verified tutors in Nigeria, book sessions and pay securely in naira.",
+    "owner": "divineisfly",
+    "extra": {
+      "eas": {
+        "projectId": "7daf3301-43d4-436d-b440-1a3ea5c71a48"
+      }
+    }
   }
 }

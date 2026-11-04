@@ -149,5 +149,10 @@ npx eas-cli@latest submit -p ios                           # upload to App Store
 npx eas-cli@latest submit -p android                       # upload to Google Play (first upload can be done by hand)
 ```
 
-Before building, put your Supabase URL and anon key in the build's environment. Use `npx eas-cli@latest env:create` for `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`, so they don't depend on your laptop's `.env`.
+Before building, put your Supabase URL and anon key in the build's environment. They aren't secret, but the build reads them from EAS, not from your laptop's `.env`. Add each one to both the `preview` and `production` environments, with visibility **Plain text**:
+
+```bash
+npx eas-cli@latest env:create --name EXPO_PUBLIC_SUPABASE_URL --value https://<ref>.supabase.co --environment preview --environment production --visibility plaintext
+npx eas-cli@latest env:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon key> --environment preview --environment production --visibility plaintext
+```
 

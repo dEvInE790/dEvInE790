@@ -109,6 +109,20 @@ npx expo export --platform ios        # Hermes bundle, as shipped to devices
 
 `e2e/run.mjs` drives the app's web build at iPhone size against the local test stack in `tutorhaven/e2e/stack`. That stack is a real Postgres with the migrations, the real Paystack function code and a simulated Paystack checkout. Run it with `node --experimental-strip-types e2e/run.mjs`; see the comment at the top of that file.
 
+## Web version on Vercel
+
+The same app also runs in a phone or computer browser. `vercel.json` builds it with `npx expo export --platform web` and serves `dist/`. From this folder:
+
+```bash
+npx vercel login
+npx vercel                      # first time: creates the project
+npx vercel env add EXPO_PUBLIC_SUPABASE_URL production
+npx vercel env add EXPO_PUBLIC_SUPABASE_ANON_KEY production
+npx vercel --prod
+```
+
+Add the Vercel address to the `APP_URLS` secret (so Paystack can return to it) and to Supabase Auth → URL Configuration → Redirect URLs. The installable iOS and Android apps are built with EAS, as described below.
+
 ## Android and iOS
 
 The same code runs on both platforms. Package name and bundle identifier: `ng.tutorhaven.app`.

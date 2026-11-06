@@ -9,7 +9,8 @@ import TutorCard, { TutorCardSkeleton } from '../TutorCard'
 import { BarChart, StatCard } from '../Stats'
 import { Button, Card, Skeleton, Text } from '../ui'
 import useAsync from '../../lib/useAsync'
-import { getRecommendedTutors, listBookings } from '../../lib/api'
+import { getPersonalRecommendations, getTutorSections, listBookings } from '../../lib/api'
+import { useMembership } from '../../context/MembershipContext'
 import { hours, hoursFmt, isUpcoming, weeklySeries } from '../../lib/stats'
 import { firstName, greeting } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
@@ -19,7 +20,13 @@ const reviewOf = (b) => (Array.isArray(b.review) ? b.review[0] : b.review)
 export default function StudentHome() {
   const { profile } = useAuth()
   const bookings = useAsync(() => listBookings({ limit: 500 }), [])
-  const recommended = useAsync(() => getRecommendedTutors(profile.subjects ?? [], 3), [profile.subjects?.join()])
+  const { isPlus } = useMembership()
+  // Plus: personal matches. Standard: the best-rated tutors, or the newest when none are reviewed yet.
+  const recommended = useAsync(async () => {
+    if (isPlus) return getPersonalRecommendations(null, 3)
+    const s = await getTutorSections(3)
+    return s.top_rated?.length ? s.top_rated : s.recommended ?? []
+  }, [isPlus, profile.subjects?.join()])
 
   const s = useMemo(() => {
     const all = (bookings.data ?? []).filter((b) => b.student_id === profile.id)

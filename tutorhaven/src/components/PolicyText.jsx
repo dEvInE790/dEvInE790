@@ -32,11 +32,15 @@ export function parsePolicy(text = '') {
   for (const raw of text.replace(/\r\n/g, '\n').split('\n')) {
     const line = raw.trim()
     if (!line) { flush(); continue }
-    if (line.startsWith('## ')) { flush(); blocks.push({ type: 'h', text: line.slice(3).trim() }); continue }
-    if (/^[-*] /.test(line)) {
+    const heading = line.match(/^#{1,4}\s+(.*)$/)
+    if (heading) { flush(); blocks.push({ type: 'h', text: heading[1].trim() }); continue }
+    const item = line.match(/^(?:([-*•])|(\d+)[.)])\s+(.*)$/)
+    if (item) {
+      const type = item[2] ? 'ol' : 'ul'
       if (para.length) { blocks.push({ type: 'p', text: para.join(' ') }); para = [] }
-      list ??= { type: 'ul', items: [] }
-      list.items.push(line.slice(2).trim())
+      if (list && list.type !== type) { blocks.push(list); list = null }
+      list ??= { type, items: [], start: item[2] ? Number(item[2]) : 1 }
+      list.items.push(item[3].trim())
       continue
     }
     if (list) { blocks.push(list); list = null }
@@ -55,6 +59,12 @@ export default function PolicyText({ text, className = '' }) {
       {blocks.map((b, i) =>
         b.type === 'h' ? (
           <h2 key={i} id={slug(b.text)} className="scroll-mt-28 pt-4 text-xl font-semibold text-navy-950">{b.text}</h2>
+        ) : b.type === 'ol' ? (
+          <ol key={i} className="space-y-2.5" start={b.start}>
+            {b.items.map((it, j) => (
+              <li key={j} className="flex gap-3"><span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-mint-100 text-[0.7rem] font-bold text-mint-800" aria-hidden>{b.start + j}</span><span>{inline(it, `${i}.${j}`)}</span></li>
+            ))}
+          </ol>
         ) : b.type === 'ul' ? (
           <ul key={i} className="space-y-2.5">
             {b.items.map((it, j) => (

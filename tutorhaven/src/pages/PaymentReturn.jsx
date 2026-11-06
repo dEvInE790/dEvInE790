@@ -10,6 +10,7 @@ import { SuccessMark } from './Checkout'
 import { getBooking, verifyPaystack } from '../lib/api'
 import { dateLong, money, time } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
+import { useMembership } from '../context/MembershipContext'
 import { ease } from '../motion/variants'
 import SupportCard from '../components/SupportCard'
 
@@ -28,6 +29,7 @@ export default function PaymentReturn() {
   const [error, setError] = useState(null)
   const [booking, setBooking] = useState(null)
   const polls = useRef(0)
+  const { reload: reloadMembership } = useMembership()
 
   useEffect(() => {
     if (!reference) return
@@ -39,6 +41,7 @@ export default function PaymentReturn() {
         if (cancelled) return
         setResult(r)
         setError(null)
+        if (r.status === 'succeeded' && r.kind === 'subscription') reloadMembership()
         if (r.booking_id) getBooking(r.booking_id).then((b) => !cancelled && setBooking(b)).catch(() => {})
         if (r.status === 'pending' && ++polls.current < MAX_POLLS) timer = setTimeout(check, POLL_MS)
       } catch (e) {

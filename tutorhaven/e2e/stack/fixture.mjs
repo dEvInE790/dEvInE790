@@ -10,6 +10,8 @@ export async function resetData(stack) {
     whatsapp_number = '+2348028139086', business_city = 'Lagos', business_state = 'Lagos State', business_country = 'Nigeria',
     terms_text = null, privacy_text = null, refund_text = null where id = 1`)
   await stack.sql(`update subscription_plans set price = case code when 'plus' then 7500 when 'family' then 15000 when 'tutor_pro' then 5000 else price end`)
+  await stack.sql(`update subscription_plans set price = null, is_active = false where code = 'plus_annual'`)
+  await stack.sql(`update subscription_plans set ai_monthly_limit = 100 where audience = 'learner'`)
   stack.paystack.tx.clear()
   stack.paystack.refunds.length = 0
 }
@@ -61,4 +63,21 @@ export async function seedFixture(stack) {
   const tutor2 = await createTutor(stack, { email: 'tutor2@example.test', name: 'Bisi Bello', rate: 6000, subjects: ['English', 'Literature'] })
   const newTutor = await createTutor(stack, { email: 'newtutor@example.test', name: 'Uche Unlisted', subscribed: false, payout: false })
   return { admin, student, parent, child, tutor, tutor2, newTutor }
+}
+
+/** A learner subscription that was paid "earlier" (the payment flow itself is tested separately). */
+export async function givePlus(stack, userId, code = 'plus') {
+  await stack.sql(`insert into subscriptions (user_id, audience, plan_id, status, current_period_start, current_period_end)
+    select $1, 'learner', id, 'active', now(), now() + interval '1 month' from subscription_plans where code = $2
+    on conflict (user_id, audience) do update set plan_id = excluded.plan_id, status = 'active', current_period_end = excluded.current_period_end`, [userId, code])
+}
+
+/** A completed lesson paid through Paystack some days ago. */
+export async function pastPaidSession(stack, { tutorId, studentId, bookedBy = studentId, subject = 'Mathematics', daysAgo = 2 }) {
+  const [b] = await stack.sql(`insert into bookings (tutor_id, student_id, booked_by, subject, starts_at, ends_at, duration_minutes, price, amount_paid, status, completed_at)
+    values ($1, $2, $3, $4, now() - make_interval(days => $5), now() - make_interval(days => $5) + interval '1 hour', 60, 8000, 8000, 'completed', now() - make_interval(days => $5))
+    returning *`, [tutorId, studentId, bookedBy, subject, daysAgo])
+  await stack.sql(`insert into payments (user_id, booking_id, kind, amount, currency, status, description, provider, provider_ref)
+    values ($1, $2::uuid, 'session', 8000, 'NGN', 'succeeded', $3, 'paystack', 'TH-FIXTURE-' || substr(md5($2::uuid::text), 1, 12))`, [bookedBy, b.id, subject + ' session'])
+  return b
 }

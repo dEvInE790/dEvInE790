@@ -7,7 +7,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { BadgeCheck, ChevronLeft, FileCheck2, Globe, Heart, MapPin, MessageCircle, MessageSquareQuote } from 'lucide-react-native'
 import { Avatar, Button, Card, EmptyState, Skeleton, Stars, Tappable, Text } from '../../components/ui'
 import useAsync from '../../lib/useAsync'
-import { getBusySlots, getPublicQualifications, getTutor, getTutorReviews } from '../../lib/api'
+import { getBusySlots, getPublicQualifications, getTutor, getTutorReviews, getTutorReviewSummary } from '../../lib/api'
 import { generateSlots, groupByLocalDay } from '../../lib/time'
 import { dayShort, money, monthShort } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
@@ -20,6 +20,7 @@ export default function TutorProfile() {
   const { isFavourite, toggle } = useFavourites()
   const tutor = useAsync(() => getTutor(id), [id])
   const reviews = useAsync(() => getTutorReviews(id), [id])
+  const summary = useAsync(() => getTutorReviewSummary(id), [id])
   const quals = useAsync(() => getPublicQualifications(id), [id])
   const busy = useAsync(() => getBusySlots(id, new Date(), new Date(Date.now() + 8 * 864e5)), [id])
   const t = tutor.data
@@ -122,7 +123,21 @@ export default function TutorProfile() {
                   <Text variant="h3">Reviews</Text>
                   {t.review_count > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Stars value={Number(t.rating)} /><Text variant="small">{t.review_count}</Text></View>}
                 </View>
-                {reviews.loading ? <Skeleton style={{ height: 60, marginTop: 10 }} /> : !reviews.data?.length ? <EmptyState icon={MessageSquareQuote} title="No reviews yet" body="Reviews appear after completed sessions." /> : (
+                {summary.data?.count > 0 && (
+                  <View style={{ marginTop: 10, backgroundColor: colors.cream100, borderRadius: 16, padding: 12, gap: 6 }}>
+                    <Text variant="small">{summary.data.count} verified review{summary.data.count === 1 ? '' : 's'} from paid, completed lessons</Text>
+                    {[['teaching', 'Teaching quality'], ['communication', 'Communication'], ['punctuality', 'Punctuality'], ['knowledge', 'Subject knowledge']].map(([k, label]) => (
+                      <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text variant="small" style={{ width: 118 }}>{label}</Text>
+                        <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: 'rgba(15,28,54,0.08)', overflow: 'hidden' }}>
+                          <View style={{ width: `${((Number(summary.data[k]) || 0) / 5) * 100}%`, height: 6, backgroundColor: colors.amber }} />
+                        </View>
+                        <Text variant="label" style={{ width: 28, textAlign: 'right', fontSize: 12 }}>{summary.data[k] ? Number(summary.data[k]).toFixed(1) : '–'}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {reviews.loading ? <Skeleton style={{ height: 60, marginTop: 10 }} /> : !reviews.data?.length ? <EmptyState icon={MessageSquareQuote} title="No reviews yet" body="Only learners who completed a paid lesson can review." /> : (
                   reviews.data.slice(0, 10).map((r) => (
                     <View key={r.id} style={{ paddingVertical: 12, borderTopWidth: 1, borderColor: colors.line, marginTop: 10, gap: 6 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -130,7 +145,15 @@ export default function TutorProfile() {
                         <View style={{ flex: 1 }}><Text variant="label">{r.author_name}</Text><Text variant="small">{r.subject} · {monthShort(r.created_at)} {new Date(r.created_at).getDate()}</Text></View>
                         <Stars value={r.rating} size={12} />
                       </View>
+                      {r.verified && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BadgeCheck size={13} color={colors.mint600} /><Text variant="small" style={{ color: colors.mint700 }}>Verified lesson</Text></View>}
                       {!!r.comment && <Text variant="body" style={{ fontSize: 14 }}>{r.comment}</Text>}
+                      {r.teaching != null && <Text variant="small">Teaching {r.teaching} · Communication {r.communication} · Punctuality {r.punctuality} · Knowledge {r.knowledge}</Text>}
+                      {!!r.response && (
+                        <View style={{ borderLeftWidth: 3, borderColor: colors.mint400, backgroundColor: colors.mint50, padding: 10, borderRadius: 10 }}>
+                          <Text variant="label" style={{ fontSize: 12, color: colors.mint700 }}>Response from {t.full_name.split(' ')[0]}</Text>
+                          <Text variant="muted" style={{ fontSize: 13 }}>{r.response}</Text>
+                        </View>
+                      )}
                     </View>
                   ))
                 )}

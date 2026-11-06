@@ -69,6 +69,7 @@ export default function Pricing() {
             <Reveal><span className="eyebrow">Pricing</span></Reveal>
             <Reveal delay={0.05} as="h1" className="mx-auto mt-5 max-w-3xl text-4xl font-extrabold sm:text-6xl">Invest in learning, not in fees</Reveal>
             <Reveal delay={0.1} as="p" className="mx-auto mt-5 max-w-xl text-lg text-navy-500">Start free and pay per session. Upgrade when you’re booking regularly, and save on every lesson.</Reveal>
+            <Reveal delay={0.15} className="mt-6"><Link to="/plus" className="inline-flex items-center gap-2 rounded-full bg-navy-950 px-4 py-2 text-sm font-semibold text-white"><Crown className="h-4 w-4 text-amber-300" />Compare Standard and TutorHaven Plus</Link></Reveal>
           </div>
         </section>
 

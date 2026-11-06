@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, existsSync, statSync } from 'fs'
 import { fileURLToPath } from 'url'
 import path from 'path'
 import { startStack } from '../../tutorhaven/e2e/stack/server.mjs'
-import { PASSWORD, createUser, resetData, seedFixture } from '../../tutorhaven/e2e/stack/fixture.mjs'
+import { PASSWORD, createUser, givePlus, pastPaidSession, resetData, seedFixture } from '../../tutorhaven/e2e/stack/fixture.mjs'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
@@ -236,6 +236,34 @@ await flow('messages: learner asks, tutor replies', async (page) => {
   await ctx.close()
   await page.reload()
   await see(page, 'See you soon!')
+})
+
+await flow('reviews and Plus: category review, tutor reply, AI assistant', async (page) => {
+  await pastPaidSession(stack, { tutorId: F.tutor.id, studentId: F.student.id })
+  await signIn(page, F.student.email)
+  await page.goto(ORIGIN + '/assistant')
+  await see(page, 'Part of TutorHaven Plus')
+  await page.goto(ORIGIN + '/')
+  await see(page, 'Hi, Sola')
+  await tapText(page, 'Sessions')
+  await page.getByText(/^Past/).first().click()
+  await page.getByRole('button', { name: 'Leave a review' }).first().click()
+  await page.getByLabel('Overall: 5 stars').click()
+  for (const label of ['Teaching quality', 'Communication', 'Punctuality', 'Subject knowledge']) await page.getByLabel(`${label}: 4 stars`).click()
+  await page.getByLabel('Written feedback').fill('Clear and patient explanations.')
+  await page.getByRole('button', { name: 'Submit review' }).click()
+  await see(page, 'Thanks! Your review helps other learners.')
+  await givePlus(stack, F.student.id)
+  await page.goto(ORIGIN + '/')
+  await page.goto(ORIGIN + '/assistant')
+  await page.getByLabel('Your question').fill('What is a prime number?')
+  await page.getByRole('button', { name: 'Ask' }).click()
+  await see(page, 'You asked: What is a prime number?')
+  await see(page, '1 of 100 questions this month')
+  await page.goto(ORIGIN + `/tutor/${F.tutor.id}`)
+  await see(page, 'Verified lesson')
+  await see(page, 'Clear and patient explanations.')
+  await see(page, '1 verified review from paid, completed lessons')
 })
 
 await flow('suspended account sees an explanation', async (page) => {

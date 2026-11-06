@@ -20,7 +20,7 @@ export function toPlan(row) {
   const discount = Number(row.session_discount ?? 0)
   return {
     ...row,
-    price: Number(row.price),
+    price: row.price == null ? null : Number(row.price),
     discount,
     tagline: row.description,
     features: row.features?.length ? row.features : discount ? [`${Math.round(discount * 100)}% off every session`] : [],

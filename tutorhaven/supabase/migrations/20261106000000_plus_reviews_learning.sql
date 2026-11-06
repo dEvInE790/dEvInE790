@@ -295,7 +295,8 @@ $$;
 drop policy if exists "reviews: public read" on public.reviews;
 drop policy if exists "reviews: author, tutor or admin" on public.reviews;
 create policy "reviews: author, tutor or admin" on public.reviews for select
-using (author_id = auth.uid() or tutor_id = auth.uid() or public.is_admin());
+using (author_id = auth.uid() or tutor_id = auth.uid() or public.is_admin()
+       or exists (select 1 from bookings b where b.id = booking_id and (b.student_id = auth.uid() or b.booked_by = auth.uid())));
 revoke insert, update, delete on public.reviews from anon, authenticated;
 
 -- Ratings: every reviewer counts once (the average of their own reviews), so

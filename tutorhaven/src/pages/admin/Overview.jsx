@@ -13,7 +13,7 @@ import { CardHeader } from '../../components/ui/Card'
 import EmptyState, { ErrorState } from '../../components/ui/EmptyState'
 import { Reveal, Stagger } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
-import { adminRecentBookings, adminSetTutorStatus, getAdminOverview, listPendingTutors } from '../../lib/api'
+import { adminPlusOverview, adminRecentBookings, adminSetTutorStatus, getAdminOverview, listPendingTutors } from '../../lib/api'
 import { dateShort, money, time } from '../../lib/format'
 import { useToast } from '../../context/ToastContext'
 
@@ -25,6 +25,7 @@ export default function Overview() {
   const overview = useAsync(getAdminOverview, [])
   const pending = useAsync(listPendingTutors, [])
   const recent = useAsync(() => adminRecentBookings(8), [])
+  const plus = useAsync(adminPlusOverview, [])
   const [acting, setActing] = useState(null)
 
   const o = overview.data
@@ -54,6 +55,20 @@ export default function Overview() {
   return (
     <>
       <PageHeader eyebrow="Admin" title="Platform overview" subtitle="Health of the TutorHaven marketplace." action={<Button to="/admin/users" variant="secondary" icon={Users}>Manage users</Button>} />
+      {plus.data && (
+        <Reveal className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5" data-testid="plus-overview">
+          {[
+            ['Plus members', plus.data.plus_members, '/admin/subscriptions'],
+            ['AI questions this month', plus.data.ai_questions_month, null],
+            ['Open review reports', plus.data.reports_open, '/admin/reviews'],
+            ['Hidden reviews', plus.data.reviews_hidden, '/admin/reviews'],
+            [`Support open (${plus.data.support_priority_open} priority)`, plus.data.support_open, '/admin/support'],
+          ].map(([label, value, to]) => {
+            const body = <><p className="font-display text-2xl font-bold">{value}</p><p className="text-xs text-navy-500">{label}</p></>
+            return to ? <Link key={label} to={to} className="card p-4 transition-shadow hover:shadow-lift">{body}</Link> : <div key={label} className="card p-4">{body}</div>
+          })}
+        </Reveal>
+      )}
       {o?.refunds_pending > 0 && (
         <Link to="/admin/payments?status=refund_pending" className="mb-6 flex items-center gap-3 rounded-2xl bg-amber-400/15 p-4 text-sm text-[#6b4700] transition-colors hover:bg-amber-400/25">
           <RotateCcw className="h-5 w-5 shrink-0" />

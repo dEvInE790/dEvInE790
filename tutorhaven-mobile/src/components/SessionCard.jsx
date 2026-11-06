@@ -2,25 +2,45 @@ import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated'
 import { router } from 'expo-router'
-import { CheckCheck, Clock, CreditCard, Star, X } from 'lucide-react-native'
+import { CheckCheck, ClipboardPen, Clock, CreditCard, NotebookText, Star, X } from 'lucide-react-native'
 import { Avatar, Badge, Button, Field, StatusBadge, Tappable, Text } from './ui'
 import Sheet from './Sheet'
 import { colors, fonts, radius, shadow } from '../theme'
 import { dayShort, money, monthShort, relativeFromNow, time } from '../lib/format'
-import { setBookingStatus, submitReview } from '../lib/api'
+import { saveLessonFeedback, setBookingStatus, submitReview } from '../lib/api'
 import { useToast } from '../context/ToastContext'
 import { useSettings } from '../context/SettingsContext'
 import useNow from '../lib/useNow'
 
 const reviewOf = (b) => (Array.isArray(b.review) ? b.review[0] : b.review)
+const feedbackOf = (b) => (Array.isArray(b.feedback) ? b.feedback[0] : b.feedback)
+const CATEGORIES = [['teaching', 'Teaching quality'], ['communication', 'Communication'], ['punctuality', 'Punctuality'], ['knowledge', 'Subject knowledge']]
+const EMPTY = { rating: 0, teaching: 0, communication: 0, punctuality: 0, knowledge: 0 }
+
+function StarRow({ label, value, onChange, size = 24 }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Text variant="label" style={{ fontSize: 13 }}>{label}</Text>
+      <View style={{ flexDirection: 'row', gap: 2 }} accessibilityRole="radiogroup" accessibilityLabel={label}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Tappable key={i} onPress={() => onChange(i)} accessibilityRole="radio" accessibilityState={{ checked: value === i }} accessibilityLabel={`${label}: ${i} star${i > 1 ? 's' : ''}`} scaleTo={0.85} style={{ padding: 2 }}>
+            <Star size={size} color={i <= value ? colors.amber : colors.navy200} fill={i <= value ? colors.amber : colors.navy200} strokeWidth={0} />
+          </Tappable>
+        ))}
+      </View>
+    </View>
+  )
+}
 
 export default function SessionCard({ booking: b, me, onChange, compact, index = 0 }) {
   const toast = useToast()
   const { settings } = useSettings()
   const [confirm, setConfirm] = useState(null)
   const [reviewOpen, setReviewOpen] = useState(false)
-  const [rating, setRating] = useState(5)
+  const [stars, setStars] = useState(EMPTY)
   const [comment, setComment] = useState('')
+  const [fb, setFb] = useState(null)
+  const [showFeedback, setShowFeedback] = useState(false)
   const [busy, setBusy] = useState(false)
   const now = useNow()
 
@@ -31,6 +51,8 @@ export default function SessionCard({ booking: b, me, onChange, compact, index =
   const studentName = b.student?.full_name ?? 'Student'
   const holdExpired = b.status === 'pending_payment' && new Date(b.created_at).getTime() + settings.hold_minutes * 60000 < now
   const review = reviewOf(b)
+  const feedback = feedbackOf(b)
+  const canFeedback = isTutor && b.status === 'completed'
   const canPay = b.status === 'pending_payment' && b.booked_by === me.id && !holdExpired
   const canCancel = (b.status === 'confirmed' || b.status === 'pending_payment') && future && !holdExpired
   const canComplete = isTutor && b.status === 'confirmed' && !future
@@ -54,10 +76,25 @@ export default function SessionCard({ booking: b, me, onChange, compact, index =
   const sendReview = async () => {
     setBusy(true)
     try {
-      const r = await submitReview(b.id, rating, comment)
+      if (Object.values(stars).some((v) => !v)) throw new Error('Please rate every category from 1 to 5 stars.')
+      const r = await submitReview(b.id, { ...stars, comment })
       onChange?.({ ...b, review: { id: r.id, rating: r.rating } })
       toast.success('Thanks! Your review helps other learners.')
       setReviewOpen(false)
+    } catch (e) {
+      toast.error(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const sendFeedback = async () => {
+    setBusy(true)
+    try {
+      const f = await saveLessonFeedback(b.id, fb)
+      onChange?.({ ...b, feedback: f })
+      toast.success('Feedback shared with the learner and their parents')
+      setFb(null)
     } catch (e) {
       toast.error(e.message)
     } finally {
@@ -94,11 +131,24 @@ export default function SessionCard({ booking: b, me, onChange, compact, index =
       </View>
       {!compact && !!b.notes && <Text variant="muted" style={styles.notes} numberOfLines={2}>“{b.notes}”</Text>}
 
-      {(canPay || canCancel || canComplete || canReview) && (
+      {!isTutor && feedback && showFeedback && (
+        <View style={{ marginTop: 12, backgroundColor: colors.mint50, borderRadius: 14, padding: 12, gap: 4 }}>
+          <Text variant="label" style={{ color: colors.mint700 }}>Feedback from {tutorName.split(' ')[0]}</Text>
+          <Text variant="muted">{feedback.summary}</Text>
+          {!!feedback.strengths && <Text variant="muted"><Text variant="label" style={{ fontSize: 13 }}>Strengths: </Text>{feedback.strengths}</Text>}
+          {!!feedback.improvements && <Text variant="muted"><Text variant="label" style={{ fontSize: 13 }}>To work on: </Text>{feedback.improvements}</Text>}
+          {!!feedback.next_steps && <Text variant="muted"><Text variant="label" style={{ fontSize: 13 }}>Next steps: </Text>{feedback.next_steps}</Text>}
+        </View>
+      )}
+
+      {(canPay || canCancel || canComplete || canReview || canFeedback || feedback) && (
         <View style={styles.actions}>
           {canPay && <Button size="sm" title="Pay now" icon={CreditCard} onPress={() => router.push(`/checkout/${b.id}`)} />}
           {canComplete && <Button size="sm" variant="mint" title="Mark complete" icon={CheckCheck} onPress={() => setConfirm('completed')} />}
           {canReview && (review ? <Badge tone="amber" icon={Star}>You rated {review.rating}/5</Badge> : <Button size="sm" variant="mint" title="Leave a review" icon={Star} onPress={() => setReviewOpen(true)} />)}
+          {canFeedback && <Button size="sm" variant={feedback ? 'secondary' : 'mint'} title={feedback ? 'Edit feedback' : 'Add feedback'} icon={ClipboardPen}
+            onPress={() => setFb({ summary: feedback?.summary ?? '', strengths: feedback?.strengths ?? '', improvements: feedback?.improvements ?? '', nextSteps: feedback?.next_steps ?? '', progress: feedback?.progress ?? 3 })} />}
+          {!isTutor && feedback && <Button size="sm" variant="secondary" title={showFeedback ? 'Hide feedback' : 'Tutor feedback'} icon={NotebookText} onPress={() => setShowFeedback((v) => !v)} />}
           <View style={{ flex: 1 }} />
           {canCancel && <Button size="sm" variant="ghost" title="Cancel" icon={X} onPress={() => setConfirm('cancelled')} />}
         </View>
@@ -113,16 +163,25 @@ export default function SessionCard({ booking: b, me, onChange, compact, index =
         </View>
       </Sheet>
 
-      <Sheet visible={reviewOpen} onClose={() => setReviewOpen(false)} title={`How was ${b.subject}?`} subtitle={`Rate your session with ${tutorName.split(' ')[0]}`}>
-        <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'center' }}>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Tappable key={i} onPress={() => setRating(i)} accessibilityRole="button" accessibilityLabel={`${i} star${i > 1 ? 's' : ''}`} scaleTo={0.85}>
-              <Star size={38} color={i <= rating ? colors.amber : colors.navy200} fill={i <= rating ? colors.amber : colors.navy200} strokeWidth={0} />
-            </Tappable>
-          ))}
+      <Sheet visible={reviewOpen} onClose={() => setReviewOpen(false)} title={`How was ${b.subject}?`} subtitle={`Rate your lesson with ${tutorName.split(' ')[0]}. Reviews are published with your first name and can’t be changed later.`}>
+        <View style={{ gap: 10 }}>
+          <StarRow label="Overall" value={stars.rating} onChange={(v) => setStars({ ...stars, rating: v })} size={30} />
+          {CATEGORIES.map(([k, label]) => <StarRow key={k} label={label} value={stars[k]} onChange={(v) => setStars({ ...stars, [k]: v })} />)}
         </View>
-        <Field multiline value={comment} onChangeText={setComment} placeholder="What went well? What could be better?" maxLength={2000} />
+        <Field multiline value={comment} onChangeText={setComment} placeholder="What went well? What could be better?" maxLength={2000} accessibilityLabel="Written feedback" />
         <Button title="Submit review" loading={busy} onPress={sendReview} full />
+      </Sheet>
+
+      <Sheet visible={!!fb} onClose={() => setFb(null)} title={`Feedback for ${studentName.split(' ')[0]}`} subtitle="Shared with the learner and their parents.">
+        {fb && (
+          <View style={{ gap: 10 }}>
+            <Field label="What did you cover?" multiline value={fb.summary} onChangeText={(v) => setFb({ ...fb, summary: v })} maxLength={2000} />
+            <Field label="Strengths" value={fb.strengths} onChangeText={(v) => setFb({ ...fb, strengths: v })} maxLength={1000} />
+            <Field label="Areas to work on" value={fb.improvements} onChangeText={(v) => setFb({ ...fb, improvements: v })} maxLength={1000} />
+            <Field label="Next steps" value={fb.nextSteps} onChangeText={(v) => setFb({ ...fb, nextSteps: v })} maxLength={1000} />
+            <Button title="Save feedback" loading={busy} onPress={sendFeedback} full />
+          </View>
+        )}
       </Sheet>
     </Animated.View>
   )

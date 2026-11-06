@@ -6,6 +6,7 @@ import PublicLayout from '../components/layout/PublicLayout'
 import PageTransition from '../motion/PageTransition'
 import TutorCard, { TutorCardSkeleton } from '../components/TutorCard'
 import NoTutorsYet from '../components/NoTutorsYet'
+import TutorSections from '../components/TutorSections'
 import Dropdown from '../components/ui/Dropdown'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
@@ -173,6 +174,7 @@ export default function Tutors() {
           </aside>
 
           <div className="min-w-0">
+            {!activeCount && !q && results.data?.length > 0 && <TutorSections className="mb-12" title="Discover tutors" />}
             <p className="mb-5 h-5 text-sm text-navy-500" aria-live="polite">
               {!results.loading && !results.error && results.data && pluralize(results.data.length, 'tutor') + ' found'}
             </p>

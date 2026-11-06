@@ -13,9 +13,9 @@ import { money } from '../../lib/format'
 import { useSettings } from '../../context/SettingsContext'
 import { useToast } from '../../context/ToastContext'
 
-const NEW = { code: '', audience: 'learner', name: '', description: '', price: '', interval_months: '1', session_discount: '0', features: '', is_active: true, sort_order: '0' }
+const NEW = { code: '', audience: 'learner', name: '', description: '', price: '', interval_months: '1', session_discount: '0', ai_monthly_limit: '100', features: '', is_active: false, sort_order: '0' }
 const toForm = (p) => ({
-  ...p, price: String(p.price), interval_months: String(p.interval_months), session_discount: String(Math.round(Number(p.session_discount) * 100)),
+  ...p, price: p.price == null ? '' : String(p.price), ai_monthly_limit: String(p.ai_monthly_limit ?? 0), interval_months: String(p.interval_months), session_discount: String(Math.round(Number(p.session_discount) * 100)),
   features: (p.features ?? []).join('\n'), sort_order: String(p.sort_order),
 })
 
@@ -29,9 +29,12 @@ export default function Plans() {
 
   const save = async (e) => {
     e.preventDefault()
-    const price = Number(form.price)
+    const price = form.price === '' ? null : Number(form.price)
     const discount = Number(form.session_discount)
-    if (!(price >= 100)) return toast.error('Price must be at least ₦100.')
+    const ai = Number(form.ai_monthly_limit)
+    if (price !== null && !(price >= 100)) return toast.error('Price must be at least ₦100.')
+    if (price === null && form.is_active) return toast.error('Set a price before putting this plan on sale.')
+    if (form.audience === 'learner' && !(ai >= 0 && ai <= 10000)) return toast.error('AI questions must be between 0 and 10,000 a month.')
     if (form.audience === 'learner' && !(discount >= 0 && discount <= 50)) return toast.error('Discount must be between 0% and 50%.')
     if (!form.id && !/^[a-z0-9_]{2,40}$/.test(form.code)) return toast.error('Code: 2–40 lowercase letters, numbers or underscores.')
     setSaving(true)
@@ -39,7 +42,7 @@ export default function Plans() {
       await adminUpsertPlan({
         ...(form.id ? { id: form.id } : { code: form.code, audience: form.audience }),
         name: form.name.trim(), description: form.description.trim(), price, interval_months: Number(form.interval_months),
-        session_discount: discount / 100, features: form.features.split('\n').map((f) => f.trim()).filter(Boolean),
+        session_discount: discount / 100, ai_monthly_limit: ai, features: form.features.split('\n').map((f) => f.trim()).filter(Boolean),
         is_active: form.is_active, sort_order: Number(form.sort_order) || 0,
       })
       reload()
@@ -51,11 +54,11 @@ export default function Plans() {
     setSaving(false)
   }
 
-  const groups = [['learner', 'Learner memberships', 'Students and parents pay these for a discount on every session.'], ['tutor', 'Tutor subscriptions', 'Tutors pay these to be listed and take paid bookings.']]
+  const groups = [['learner', 'TutorHaven Plus (learners)', 'Students and parents pay these for Plus: the AI assistant, analytics, reports, family dashboard, matching, priority support and the session discount.'], ['tutor', 'Tutor subscriptions', 'Tutors pay these to be listed and take paid bookings.']]
 
   return (
     <>
-      <PageHeader title="Plans & prices" subtitle="Monthly plans for learners and tutors. Prices are in naira." action={<Button icon={Plus} onClick={() => setForm(NEW)}>New plan</Button>} />
+      <PageHeader title="Plans & prices" subtitle="Learner plans are TutorHaven Plus memberships; tutor plans list tutors in search. Prices are in naira and only you set them." action={<Button icon={Plus} onClick={() => setForm(NEW)}>New plan</Button>} />
       {!plansLoaded ? <Skeleton className="h-64 rounded-3xl" /> : groups.map(([aud, title, sub]) => {
         const plans = allPlans.filter((p) => p.audience === aud)
         return (
@@ -73,8 +76,10 @@ export default function Plans() {
                       </div>
                       <Badge tone={p.is_active ? 'mint' : 'neutral'}>{p.is_active ? 'On sale' : 'Hidden'}</Badge>
                     </div>
-                    <p className="mt-4 font-display text-3xl font-bold">{money(p.price)}<span className="text-sm font-medium text-navy-400"> / {p.interval_months > 1 ? `${p.interval_months} months` : 'month'}</span></p>
-                    {aud === 'learner' && <p className="mt-1 text-sm text-mint-700">{Math.round(p.discount * 100)}% off every session</p>}
+                    {p.price == null
+                      ? <p className="mt-4 rounded-xl bg-amber-400/15 px-3 py-2 text-sm font-semibold text-[#8a5a00]">No price set yet. Edit to set one, then put it on sale.</p>
+                      : <p className="mt-4 font-display text-3xl font-bold">{money(p.price)}<span className="text-sm font-medium text-navy-400"> / {p.interval_months === 12 ? 'year' : p.interval_months > 1 ? `${p.interval_months} months` : 'month'}</span></p>}
+                    {aud === 'learner' && <p className="mt-1 text-sm text-mint-700">TutorHaven Plus · {Math.round(p.discount * 100)}% off every session · {p.ai_monthly_limit ?? 0} AI questions a month</p>}
                     {p.description && <p className="mt-2 text-sm text-navy-500">{p.description}</p>}
                     <Button size="sm" variant="secondary" icon={Pencil} className="mt-4" onClick={() => setForm(toForm(p))}>Edit</Button>
                   </motion.div>
@@ -100,11 +105,12 @@ export default function Plans() {
             <Input label="Name" value={form.name} onChange={set('name')} required maxLength={60} />
             <Textarea label="Short description" rows={2} value={form.description} onChange={set('description')} maxLength={200} />
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <Input label="Price (₦)" type="number" min={100} value={form.price} onChange={set('price')} required />
+              <Input label="Price (₦)" type="number" min={100} value={form.price} onChange={set('price')} placeholder="Not set" hint="Leave empty to keep it off sale" />
               <Select label="Billing period" value={form.interval_months} onChange={set('interval_months')}>
                 {[1, 3, 6, 12].map((m) => <option key={m} value={m}>{m === 1 ? '1 month' : `${m} months`}</option>)}
               </Select>
               {form.audience === 'learner' && <Input label="Session discount (%)" type="number" min={0} max={50} value={form.session_discount} onChange={set('session_discount')} />}
+              {form.audience === 'learner' && <Input label="AI questions / month" type="number" min={0} max={10000} value={form.ai_monthly_limit} onChange={set('ai_monthly_limit')} />}
             </div>
             <Textarea label="Features (one per line)" rows={3} value={form.features} onChange={set('features')} />
             <div className="grid grid-cols-2 items-end gap-4">

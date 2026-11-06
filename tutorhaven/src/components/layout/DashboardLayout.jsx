@@ -2,7 +2,10 @@ import { Suspense } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import FrozenOutlet from './FrozenOutlet'
 import { AnimatePresence, motion } from 'motion/react'
-import { BadgeCheck, CalendarDays, CreditCard, Landmark, LayoutDashboard, LogOut, MessageCircle, Search, Settings, ShieldCheck, UserRoundPen } from 'lucide-react'
+import { useState } from 'react'
+import { BadgeCheck, BarChart3, Bot, CalendarDays, CreditCard, Crown, Landmark, LayoutDashboard, LifeBuoy, LogOut, MessageCircle, MessageSquareQuote, Search, Settings, ShieldCheck, UserRoundPen, Users } from 'lucide-react'
+import { PlusBadge } from '../Plus'
+import { useMembership } from '../../context/MembershipContext'
 import { LogoMark, Wordmark } from '../../motion/AnimatedLogo'
 import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
@@ -19,19 +22,34 @@ const LEARNER_NAV = [
   { to: '/dashboard/sessions', label: 'Sessions', icon: CalendarDays },
   { to: '/dashboard/messages', label: 'Messages', icon: MessageCircle, badge: 'messages' },
   { to: '/dashboard/billing', label: 'Billing', icon: CreditCard },
+]
+const PLUS_NAV = {
+  student: [
+    { to: '/dashboard/assistant', label: 'AI assistant', icon: Bot, mobile: false, plus: true },
+    { to: '/dashboard/progress', label: 'Progress', icon: BarChart3, mobile: false, plus: true },
+  ],
+  parent: [
+    { to: '/dashboard/family', label: 'Family', icon: Users, mobile: false, plus: true },
+    { to: '/dashboard/progress', label: 'Progress', icon: BarChart3, mobile: false, plus: true },
+    { to: '/dashboard/assistant', label: 'AI assistant', icon: Bot, mobile: false, plus: true },
+  ],
+}
+const TAIL = [
+  { to: '/dashboard/support', label: 'Support', icon: LifeBuoy, mobile: false },
   { to: '/dashboard/settings', label: 'Settings', icon: Settings, mobile: false },
 ]
 const NAV = {
-  student: LEARNER_NAV,
-  parent: LEARNER_NAV,
+  student: [...LEARNER_NAV, ...PLUS_NAV.student, ...TAIL],
+  parent: [...LEARNER_NAV, ...PLUS_NAV.parent, ...TAIL],
   tutor: [
     { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
     { to: '/dashboard/sessions', label: 'Sessions', icon: CalendarDays },
     { to: '/dashboard/messages', label: 'Messages', icon: MessageCircle, badge: 'messages' },
     { to: '/dashboard/listing', label: 'My listing', icon: UserRoundPen },
     { to: '/dashboard/subscription', label: 'Subscription', icon: BadgeCheck },
+    { to: '/dashboard/reviews', label: 'Reviews', icon: MessageSquareQuote, mobile: false },
     { to: '/dashboard/payouts', label: 'Payouts', icon: Landmark, mobile: false },
-    { to: '/dashboard/settings', label: 'Settings', icon: Settings, mobile: false },
+    ...TAIL,
   ],
   admin: [
     { to: '/admin', label: 'Admin panel', icon: ShieldCheck },
@@ -55,6 +73,8 @@ function CountBadge({ n, className = '' }) {
 function DashboardShell() {
   const { profile, user, signOut } = useAuth()
   const unread = useUnread()
+  const { isPlus } = useMembership()
+  const [moreOpen, setMoreOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const items = NAV[profile?.role] ?? NAV.student
@@ -79,6 +99,7 @@ function DashboardShell() {
                 {active && <motion.span layoutId="side-active" className="absolute inset-0 rounded-xl bg-navy-900 shadow-[0_8px_20px_-10px_rgb(15_28_54/0.6)]" transition={spring} />}
                 <it.icon className={`relative h-[18px] w-[18px] ${active ? 'text-mint-300' : ''}`} aria-hidden />
                 <span className="relative flex-1">{it.label}</span>
+                {it.plus && !isPlus && <Crown className={`relative h-3.5 w-3.5 ${active ? 'text-amber-300' : 'text-amber-500'}`} aria-label="Plus feature" />}
                 {it.badge && <CountBadge n={unread[it.badge]} className="relative" />}
               </NavLink>
             )
@@ -91,7 +112,7 @@ function DashboardShell() {
           <Avatar name={profile?.full_name} seed={user?.id} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{profile?.full_name}</p>
-            <p className="text-xs text-navy-400">{ROLE_LABEL[profile?.role]}</p>
+            <p className="flex items-center gap-1.5 text-xs text-navy-400">{ROLE_LABEL[profile?.role]}{isPlus && <PlusBadge />}</p>
           </div>
           <button type="button" onClick={async () => { await signOut(); navigate('/') }} className="rounded-lg p-2 text-navy-400 transition-colors hover:bg-coral-50 hover:text-coral-600" aria-label="Sign out">
             <LogOut className="h-4 w-4" />
@@ -108,8 +129,27 @@ function DashboardShell() {
           </Link>
           <div className="flex items-center gap-1">
             <NotificationBell />
-            <Link to="/dashboard/settings" aria-label="Settings"><Avatar name={profile?.full_name} seed={user?.id} size="sm" /></Link>
+            <button type="button" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen} aria-label="More" className="relative rounded-full">
+              <Avatar name={profile?.full_name} seed={user?.id} size="sm" />
+              {isPlus && <Crown className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-400 p-0.5 text-navy-950" aria-hidden />}
+            </button>
           </div>
+          <AnimatePresence>
+            {moreOpen && (
+              <motion.nav initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}
+                className="absolute top-14 right-3 left-3 rounded-3xl border border-navy-900/[0.06] bg-white p-2 shadow-lift" aria-label="More">
+                {!isPlus && (profile?.role === 'student' || profile?.role === 'parent') && (
+                  <Link to="/plus" onClick={() => setMoreOpen(false)} className="mb-1 flex items-center gap-3 rounded-2xl bg-navy-950 px-4 py-3 text-sm font-semibold text-white"><Crown className="h-4 w-4 text-amber-300" />Upgrade to Plus</Link>
+                )}
+                {items.filter((it) => it.mobile === false).map((it) => (
+                  <NavLink key={it.to} to={it.to} onClick={() => setMoreOpen(false)} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-navy-700 hover:bg-navy-900/[0.04]">
+                    <it.icon className="h-[18px] w-[18px]" />{it.label}{it.plus && !isPlus && <Crown className="ml-auto h-3.5 w-3.5 text-amber-500" />}
+                  </NavLink>
+                ))}
+                <button type="button" onClick={async () => { await signOut(); navigate('/') }} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-coral-600 hover:bg-coral-50"><LogOut className="h-[18px] w-[18px]" />Sign out</button>
+              </motion.nav>
+            )}
+          </AnimatePresence>
         </header>
 
         <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pt-10 lg:pb-12">

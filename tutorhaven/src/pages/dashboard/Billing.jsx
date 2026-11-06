@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import SupportCard from '../../components/SupportCard'
+import { PlusBadge } from '../../components/Plus'
+import { useMembership } from '../../context/MembershipContext'
 import { Crown, Receipt, Sparkles } from 'lucide-react'
 import Tabs from '../../components/ui/Tabs'
 import { PageHeader } from '../../components/layout/DashboardLayout'
@@ -57,6 +59,7 @@ export default function Billing() {
     setCancelling(false)
   }
 
+  const { membership, isPlus } = useMembership()
   const spent = (payments.data ?? []).filter((p) => p.status === 'succeeded').reduce((s, p) => s + Number(p.amount), 0)
 
   return (
@@ -73,7 +76,9 @@ export default function Billing() {
                 {!active && sub.data?.status === 'expired' && <Badge tone="neutral">Expired</Badge>}
               </div>
               <p className="mt-6 text-sm text-navy-300">Current plan</p>
-              <h2 className="text-3xl font-bold text-white">{plan.name}</h2>
+              <h2 className="flex items-center gap-3 text-3xl font-bold text-white">{isPlus && !active ? membership.plan_name : plan.name}{isPlus && <PlusBadge size="lg" />}</h2>
+              {isPlus && membership?.source === 'parent' && <p className="mt-1 text-sm text-mint-200">Plus through {membership.paid_by}</p>}
+              {isPlus && <p className="mt-1 text-sm text-navy-300">AI questions this month: {membership.ai_used} of {membership.ai_limit}</p>}
               <p className="mt-2 text-navy-200">
                 {active
                   ? active.status === 'cancelled'
@@ -82,7 +87,7 @@ export default function Billing() {
                   : sub.data?.status === 'expired' ? `Your ${sub.data.plan?.name ?? ''} plan ended on ${dateLong(sub.data.current_period_end)}. Renew to get your discount back.` : 'Pay per session. Upgrade to save on every lesson.'}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button to="/pricing" variant="mint">{active ? 'Renew or change plan' : 'Upgrade'}</Button>
+                <Button to="/plus" variant="mint">{active ? 'Renew or change plan' : 'Upgrade to Plus'}</Button>
                 {active?.status === 'active' && <Button variant="ghost" className="text-navy-200 hover:bg-white/10 hover:text-white" loading={cancelling} onClick={onCancel}>Cancel plan</Button>}
               </div>
             </div>

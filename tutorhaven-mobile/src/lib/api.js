@@ -22,7 +22,8 @@ const BOOKING_SELECT = `
   *,
   tutor:tutors!bookings_tutor_id_fkey ( id, hourly_rate, timezone, profile:profiles!tutors_id_fkey ( full_name, avatar_url ) ),
   student:profiles!bookings_student_id_fkey ( id, full_name, avatar_url ),
-  review:reviews ( id, rating )
+  review:reviews ( id, rating ),
+  feedback:lesson_feedback ( summary, strengths, improvements, next_steps, progress, updated_at )
 `
 
 async function invoke(name, body) {
@@ -193,9 +194,79 @@ export async function setBookingStatus(id, status) {
   return check(await supabase.rpc('set_booking_status', { p_booking: id, p_status: status }))
 }
 
-export async function submitReview(bookingId, rating, comment) {
+/** One verified review per completed, paid session: overall stars plus four categories. */
+export async function submitReview(bookingId, { rating, teaching, communication, punctuality, knowledge, comment = '' }) {
   ensureConfigured()
-  return check(await supabase.rpc('submit_review', { p_booking: bookingId, p_rating: rating, p_comment: comment }))
+  return check(await supabase.rpc('submit_review', {
+    p_booking: bookingId, p_rating: rating, p_teaching: teaching, p_communication: communication,
+    p_punctuality: punctuality, p_knowledge: knowledge, p_comment: comment,
+  }))
+}
+
+export async function getTutorReviewSummary(tutorId) {
+  ensureConfigured()
+  return check(await supabase.rpc('tutor_review_summary', { p_tutor: tutorId }))
+}
+
+export async function getMyTutorReviews() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_tutor_reviews'))
+}
+
+export async function respondToReview(reviewId, body) {
+  ensureConfigured()
+  return check(await supabase.rpc('respond_to_review', { p_review: reviewId, p_body: body }))
+}
+
+export async function reportReview(reviewId, reason, details = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('report_review', { p_review: reviewId, p_reason: reason, p_details: details }))
+}
+
+export async function saveLessonFeedback(bookingId, { summary, strengths = '', improvements = '', nextSteps = '', progress = null }) {
+  ensureConfigured()
+  return check(await supabase.rpc('save_lesson_feedback', {
+    p_booking: bookingId, p_summary: summary, p_strengths: strengths, p_improvements: improvements, p_next_steps: nextSteps, p_progress: progress,
+  }))
+}
+
+// TutorHaven Plus
+export async function getMembership() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_membership'))
+}
+
+export const askAssistant = ({ question, mode, subject, conversationId }) =>
+  invoke('ai-assistant', { question, mode, subject, conversation_id: conversationId ?? null })
+
+export async function getLearningAnalytics(studentId = null) {
+  ensureConfigured()
+  return check(await supabase.rpc('learning_analytics', { p_student: studentId }))
+}
+
+export async function saveGoal(goal) {
+  ensureConfigured()
+  return check(await supabase.rpc('save_learning_goal', { p: goal }))
+}
+
+export async function listReports(studentId) {
+  ensureConfigured()
+  return check(await supabase.rpc('list_learning_reports', { p_student: studentId }))
+}
+
+export async function requestReport(studentId, month = null) {
+  ensureConfigured()
+  return check(await supabase.rpc('request_learning_report', { p_student: studentId, p_month: month }))
+}
+
+export async function getTutorSections(limit = 6) {
+  ensureConfigured()
+  return check(await supabase.rpc('tutor_sections', { p_limit: limit }))
+}
+
+export async function getPersonalRecommendations(studentId = null, limit = 6) {
+  ensureConfigured()
+  return check(await supabase.rpc('recommend_tutors', { p_student: studentId, p_limit: limit }))
 }
 
 // ---------------------------------------------------------------------------

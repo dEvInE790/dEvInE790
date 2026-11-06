@@ -13,7 +13,8 @@ import { CardHeader } from '../../components/ui/Card'
 import { ErrorState } from '../../components/ui/EmptyState'
 import { Reveal, Stagger } from '../../motion/Reveal'
 import useAsync from '../../lib/useAsync'
-import { getRecommendedTutors, listBookings, searchTutors } from '../../lib/api'
+import { listBookings, searchTutors } from '../../lib/api'
+import TutorSections from '../../components/TutorSections'
 import { hours, hoursFmt, isUpcoming, weeklySeries } from '../../lib/stats'
 import { firstName, greeting } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
@@ -26,7 +27,6 @@ export default function StudentHome() {
   const { profile } = useAuth()
   const { ids: favIds } = useFavourites()
   const bookings = useAsync(() => listBookings({ limit: 500 }), [])
-  const recommended = useAsync(() => getRecommendedTutors(profile.subjects ?? [], 3), [profile.subjects?.join()])
   const favourites = useAsync(() => searchTutors({ ids: favIds, limit: 6 }), [favIds.join()], { enabled: favIds.length > 0 })
 
   const s = useMemo(() => {
@@ -102,18 +102,7 @@ export default function StudentHome() {
         </section>
       )}
 
-      <section className="mt-10">
-        <div className="mb-5 flex items-end justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">Recommended for you</h2>
-            <p className="text-sm text-navy-500">{profile.subjects?.length ? `Based on your interest in ${profile.subjects.slice(0, 3).join(', ')}` : 'Top-rated tutors on TutorHaven'}</p>
-          </div>
-          <Button to="/tutors" variant="ghost" size="sm" iconRight={ArrowRight}>Browse</Button>
-        </div>
-        <Stagger className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {recommended.loading ? [0, 1, 2].map((i) => <TutorCardSkeleton key={i} />) : (recommended.data ?? []).map((t) => <TutorCard key={t.id} tutor={t} />)}
-        </Stagger>
-      </section>
+      <TutorSections className="mt-10" title="Tutors for you" limit={3} />
     </>
   )
 }

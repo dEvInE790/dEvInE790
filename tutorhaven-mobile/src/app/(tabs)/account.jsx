@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View } from 'react-native'
 import { router } from 'expo-router'
-import { BadgeCheck, Bell, ChevronRight, Crown, ExternalLink, FileText, Landmark, Lock, LogOut, Mail, MessageCircle, Phone, Receipt, RotateCcw } from 'lucide-react-native'
+import { BadgeCheck, BarChart3, Bell, Bot, ChevronRight, Crown, MessageSquareQuote, ExternalLink, FileText, Landmark, Lock, LogOut, Mail, MessageCircle, Phone, Receipt, RotateCcw } from 'lucide-react-native'
 import Screen from '../../components/Screen'
 import { Avatar, Badge, Button, Card, Field, Tappable, Text } from '../../components/ui'
 import useAsync from '../../lib/useAsync'
@@ -15,6 +15,8 @@ import { useToast } from '../../context/ToastContext'
 import { colors } from '../../theme'
 import { useSettings } from '../../context/SettingsContext'
 import { businessInfo, openEmail, openPhone, openPolicy, openWhatsApp } from '../../lib/business'
+import { useMembership } from '../../context/MembershipContext'
+import { PlusBadge } from '../../components/PlusGate'
 
 
 export default function Account() {
@@ -23,6 +25,7 @@ export default function Account() {
   const { notifications } = useUnread()
   const { settings } = useSettings()
   const info = businessInfo(settings)
+  const { isPlus, membership } = useMembership()
   const learner = profile.role !== 'tutor'
   const sub = useAsync(() => getSubscription(profile.id, learner ? 'learner' : 'tutor'), [profile.id])
   const [name, setName] = useState(profile.full_name)
@@ -30,7 +33,7 @@ export default function Account() {
   const [busy, setBusy] = useState('')
 
   const active = isSubscriptionLive(sub.data) ? sub.data : null
-  const planName = active?.plan?.name ?? (learner ? 'Pay as you go' : 'Not subscribed')
+  const planName = active?.plan?.name ?? (learner && isPlus ? membership?.plan_name : learner ? 'Standard' : 'Not subscribed')
 
   const saveName = async () => {
     if (name.trim().length < 2) return toast.error('Please enter your name.')
@@ -61,6 +64,7 @@ export default function Account() {
         <View style={{ flex: 1 }}>
           <Text variant="h3">{profile.full_name}</Text>
           <Text variant="small">{user.email} · {ROLE_LABEL[profile.role]}</Text>
+          {isPlus && <View style={{ marginTop: 4 }}><PlusBadge /></View>}
         </View>
       </Card>
 
@@ -83,7 +87,7 @@ export default function Account() {
       <Card delay={80} style={{ padding: 0, overflow: 'hidden' }}>
         {[
           [Bell, 'Notifications', '/notifications', notifications],
-          ...(learner ? [] : [[Landmark, 'Payout account', '/payouts', 0]]),
+          ...(learner ? [[Bot, 'AI assistant', '/assistant', 0], [BarChart3, 'Progress & reports', '/progress', 0]] : [[MessageSquareQuote, 'Reviews', '/reviews', 0], [Landmark, 'Payout account', '/payouts', 0]]),
           [Receipt, 'Payment history', '/payments', 0],
         ].map(([Icon, label, href, count], i) => (
           <Tappable key={href} onPress={() => router.push(href)} accessibilityRole="button" accessibilityLabel={label}

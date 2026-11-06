@@ -12,6 +12,7 @@ const links = [
   { to: '/tutors', label: 'Find tutors' },
   { to: '/#how-it-works', label: 'How it works' },
   { to: '/pricing', label: 'Pricing' },
+  { to: '/plus', label: 'Plus' },
   { to: '/signup?role=tutor', label: 'Become a tutor' },
 ]
 

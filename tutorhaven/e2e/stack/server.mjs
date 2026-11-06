@@ -11,6 +11,7 @@ import { createServer } from 'node:http'
 import { createHash, createHmac, randomUUID } from 'node:crypto'
 import pg from 'pg'
 import * as core from '../../supabase/functions/_shared/core.ts'
+import * as aiCore from '../../supabase/functions/_shared/ai.ts'
 import { handleRest, httpError } from './postgrest.mjs'
 
 export const ANON_KEY = 'local-stack-anon-key-not-a-secret-0123456789'
@@ -241,7 +242,27 @@ export async function startStack({ port = 54321, databaseUrl = 'postgres://postg
     },
     getPayment: async (id) => (await as('service', (q) => q('select * from payments where id = $1', [id])))[0] ?? null,
   }
+  // Test-only stand-in for the Claude API (the real one needs ANTHROPIC_API_KEY).
+  const ai = {
+    calls: [],
+    down: false,
+    async ask(input) {
+      this.calls.push(input)
+      if (this.down) throw new Error('simulated AI outage')
+      const q = input.messages.at(-1).content
+      return { text: `## Simulated answer\nYou asked: ${q}\n1. First step\n2. Second step\n\n**Key idea:** test responses only.`, inputTokens: 50, outputTokens: 40, stopReason: 'end_turn' }
+    },
+  }
+  const aiDeps = {
+    service: deps.service,
+    ai,
+    userId: async (req) => {
+      const parts = (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '').split('.')
+      try { return parts.length === 3 ? fromB64u(parts[1]).sub ?? null : null } catch { return null }
+    },
+  }
   const FUNCTIONS = {
+    'ai-assistant': (req) => aiCore.handleAiAssistant(req, aiDeps),
     'paystack-init': core.handleInit, 'paystack-verify': core.handleVerify, 'paystack-callback': core.handleCallback,
     'paystack-webhook': core.handleWebhook, 'paystack-refund': core.handleRefund, 'paystack-reconcile': core.handleReconcile,
     'paystack-payout-account': core.handlePayoutAccount,
@@ -325,7 +346,7 @@ export async function startStack({ port = 54321, databaseUrl = 'postgres://postg
   })
   await new Promise((r) => server.listen(port, r))
   return {
-    url: base, anonKey: ANON_KEY, pool, paystack, rpc, as,
+    url: base, anonKey: ANON_KEY, pool, paystack, ai, rpc, as,
     sql: (text, params) => pool.query(text, params).then((r) => r.rows),
     close: async () => { server.closeAllConnections?.(); await new Promise((r) => server.close(r)); await pool.end() },
   }

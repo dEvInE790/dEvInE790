@@ -18,6 +18,7 @@ import useAsync from '../../lib/useAsync'
 import { getSubscription, isSubscriptionLive, linkChild, listBookings, listChildren, listPayments, unlinkChild } from '../../lib/api'
 import { hours, hoursFmt, isThisMonth, isUpcoming, monthlySeries } from '../../lib/stats'
 import { PAY_AS_YOU_GO } from '../../lib/constants'
+import TutorSections from '../../components/TutorSections'
 import { firstName, greeting, money } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -183,6 +184,8 @@ export default function ParentHome() {
           )}
         </Reveal>
       </div>
+
+      <TutorSections className="mt-10" title="Tutors for your family" studentId={children.data?.[0]?.id ?? null} limit={3} />
 
       <Modal open={linkOpen} onClose={() => setLinkOpen(false)} title="Link a child" description="Enter the email your child used to create their TutorHaven student account.">
         <form onSubmit={onLink} className="space-y-4">

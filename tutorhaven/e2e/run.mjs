@@ -13,7 +13,7 @@ import { mkdirSync } from 'fs'
 import { fileURLToPath } from 'url'
 import path from 'path'
 import { startStack } from './stack/server.mjs'
-import { PASSWORD, resetData, seedFixture } from './stack/fixture.mjs'
+import { PASSWORD, resetData, seedFixture, givePlus, pastPaidSession } from './stack/fixture.mjs'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
@@ -53,6 +53,7 @@ async function newPage({ viewport = DESKTOP, intro = false, reducedMotion = 'no-
     if (m.type() !== 'error') return
     const t = m.text()
     if (/status of (400|401|403|404|406|409|422)/.test(t)) return // expected validation responses
+    if (/status of (502|503)/.test(t) && m.location()?.url?.includes('/functions/v1/ai-assistant')) return // simulated AI outage
     page.errors.push('console: ' + (process.env.E2E_DEBUG ? t + ' @ ' + JSON.stringify(m.location()) : t.slice(0, 200)))
   })
   return { ctx, page }
@@ -493,8 +494,8 @@ await flow('new student: sign up → onboarding → recommendations', { viewport
   await page.getByRole('button', { name: 'Get ahead' }).click()
   await page.getByRole('button', { name: 'Finish' }).click()
   await page.getByRole('button', { name: 'Go to my dashboard' }).click()
-  await see(page, 'Based on your interest in English')
-  await see(page, 'Bisi Bello')
+  await page.getByTestId('tutor-sections').getByText('Bisi Bello').waitFor()
+  await page.getByTestId('tutor-sections').getByRole('tab', { name: /Recommended for you/ }).waitFor()
 })
 
 await flow('motion: intro plays once; reduced motion skips it', { intro: true }, async (page) => {
@@ -575,6 +576,171 @@ await flow('admin: edit business details and the refund policy without code', {}
   if (after !== null) throw new Error('reset failed')
 })
 
+
+// ---------------------------------------------------------------------------
+// TutorHaven Plus, reviews and recommendations
+// ---------------------------------------------------------------------------
+await flow('plus: Standard is gated, upgrade through Paystack unlocks the AI assistant', {}, async (page) => {
+  await signIn(page, F.student.email)
+  await page.goto(url('/dashboard/assistant'))
+  await page.getByTestId('plus-gate').waitFor()
+  await page.goto(url('/plus'))
+  await see(page, 'Standard and Plus compared')
+  await see(page, 'Monthly allowance')
+  if (await page.getByRole('tab', { name: 'Annual' }).count()) throw new Error('unpriced annual plan shown')
+  await page.getByRole('button', { name: 'Upgrade to Plus' }).click()
+  await page.getByRole('dialog').getByText('Non-refundable once paid').waitFor()
+  await page.getByRole('dialog').getByRole('button', { name: /Pay ₦7,500/ }).click()
+  await paystack(page)
+  await see(page, 'Your plan is active')
+  await page.goto(url('/dashboard/assistant'))
+  await see(page, '0 of 100')
+  await page.getByRole('radio', { name: 'Step by step' }).click()
+  await page.getByLabel('Your question').fill('How do I solve 3x + 2 = 11?')
+  await page.getByRole('button', { name: 'Ask' }).click()
+  await page.getByTestId('ai-answer').getByText('You asked: How do I solve 3x + 2 = 11?').waitFor()
+  await see(page, '1 of 100')
+  const last = stack.ai.calls.at(-1)
+  if (!last.system.includes('step-by-step')) throw new Error('mode not sent to the AI')
+  await page.getByTestId('plus-badge').first().waitFor()
+  // An outage is reported honestly and not counted.
+  stack.ai.down = true
+  await page.getByLabel('Your question').fill('Will this fail?')
+  await page.getByRole('button', { name: 'Ask' }).click()
+  await see(page, 'Your question wasn’t counted')
+  stack.ai.down = false
+  await see(page, '1 of 100')
+  // Priority support.
+  await page.goto(url('/dashboard/support'))
+  await see(page, 'Priority support is on')
+  await page.getByLabel('Subject').fill('Question about my plan')
+  await page.getByLabel('Details').fill('When does my Plus plan renew?')
+  await page.getByRole('button', { name: 'Send request' }).click()
+  await see(page, 'priority queue')
+})
+
+await flow('reviews: verified learner rates four categories; tutor replies; profile shows it', {}, async (page, ctx) => {
+  await pastPaidSession(stack, { tutorId: F.tutor.id, studentId: F.student.id })
+  await signIn(page, F.student.email)
+  await page.goto(url('/dashboard/sessions'))
+  await page.getByRole('tab', { name: /Past/ }).click().catch(() => {})
+  await page.getByRole('button', { name: 'Leave a review' }).first().click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('radio', { name: '5 stars', exact: true }).click()
+  for (const [label, n] of [['Teaching quality', 5], ['Communication', 4], ['Punctuality', 5], ['Subject knowledge', 5]]) {
+    await dialog.getByRole('radio', { name: `${label}: ${n} stars` }).click()
+  }
+  await dialog.getByLabel('Written feedback').fill('Tobi explained simultaneous equations step by step. Very patient.')
+  await dialog.getByRole('button', { name: 'Submit review' }).click()
+  await see(page, 'Thanks! Your review helps other learners.')
+  await see(page, 'You rated 5/5')
+  const tutorCtx = await newPage()
+  await signIn(tutorCtx.page, F.tutor.email)
+  await tutorCtx.page.goto(url('/dashboard/reviews'))
+  await tutorCtx.page.getByRole('button', { name: 'Reply' }).click()
+  await tutorCtx.page.getByLabel('Your reply').fill('Thank you, Sola! Keep practising.')
+  await tutorCtx.page.getByRole('button', { name: 'Publish reply' }).click()
+  await see(tutorCtx.page, 'Reply published')
+  const visitor = await newPage({ viewport: MOBILE })
+  await visitor.page.goto(url(`/tutors/${F.tutor.id}`))
+  await visitor.page.getByTestId('review-summary').waitFor()
+  const card = visitor.page.getByTestId('review-card').first()
+  await card.getByText('Verified lesson').waitFor()
+  await card.getByText('Thank you, Sola! Keep practising.').waitFor()
+  await card.getByText('Communication').waitFor()
+})
+
+await flow('admin: investigate a reported review, hide it with a reason, restore, audit log', {}, async (page) => {
+  const b = await pastPaidSession(stack, { tutorId: F.tutor2.id, studentId: F.student.id, subject: 'English' })
+  const r = await stack.rpc(F.student.id, 'submit_review', { p_booking: b.id, p_rating: 1, p_teaching: 5, p_communication: 5, p_punctuality: 5, p_knowledge: 5, p_comment: 'Call me on 0803 000 0000 for lessons' })
+  await stack.rpc(F.tutor2.id, 'report_review', { p_review: r.id, p_reason: 'personal_info', p_details: 'Phone number' })
+  await signIn(page, F.admin.email)
+  await page.goto(url('/admin/reviews'))
+  const item = page.getByTestId('admin-review').filter({ hasText: 'Call me on' })
+  await item.getByText('Report: personal info: Phone number').waitFor()
+  await item.getByText(/Signal: inconsistent/).waitFor()
+  await item.getByRole('button', { name: 'Hide' }).click()
+  await page.getByRole('dialog').getByLabel(/Reason/).fill('Contains a phone number')
+  await page.getByRole('dialog').getByRole('button', { name: 'Hide review' }).click()
+  await see(page, 'recorded in the moderation log')
+  const visitor = await newPage()
+  await visitor.page.goto(url(`/tutors/${F.tutor2.id}`))
+  await see(visitor.page, 'No reviews yet')
+  await page.getByRole('tab', { name: 'Hidden' }).click()
+  await page.getByTestId('admin-review').filter({ hasText: 'Call me on' }).getByRole('button', { name: 'Restore' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Restore review' }).click()
+  await see(page, 'recorded in the moderation log')
+  await page.getByRole('tab', { name: 'Moderation log' }).click()
+  await see(page, 'Contains a phone number')
+  await see(page, 'restore')
+})
+
+await flow('family: Plus parent sees each child, edits a profile, sets a goal and opens a report', { viewport: MOBILE }, async (page) => {
+  await givePlus(stack, F.parent.id, 'family')
+  const b = await pastPaidSession(stack, { tutorId: F.tutor.id, studentId: F.child.id, bookedBy: F.parent.id, subject: 'Physics', daysAgo: 1 })
+  await stack.rpc(F.tutor.id, 'save_lesson_feedback', { p_booking: b.id, p_summary: 'Worked through Newton’s second law.', p_strengths: 'Confident with formulas', p_improvements: 'Show units', p_next_steps: 'Five motion questions', p_progress: 4 })
+  await signIn(page, F.parent.email)
+  await page.goto(url('/dashboard/family'))
+  const card = page.getByTestId('family-child').first()
+  await card.getByText('Kemi Child').waitFor()
+  await card.getByText('Worked through Newton’s second law.').waitFor()
+  await card.getByRole('button', { name: /learning profile/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'SSS', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Save profile' }).click()
+  await see(page, 'learning profile saved')
+  await card.getByText('SSS').first().waitFor()
+  await card.getByRole('link', { name: /Progress & reports/ }).click()
+  await page.getByTestId('analytics').waitFor()
+  await see(page, 'Five motion questions')
+  await page.getByRole('button', { name: 'Add goal' }).click()
+  await page.getByRole('dialog').getByLabel('Goal').fill('Score A1 in WAEC Physics')
+  await page.getByRole('dialog').getByRole('button', { name: 'Add goal' }).click()
+  await see(page, 'Score A1 in WAEC Physics')
+  await page.getByRole('button', { name: 'This month so far' }).click()
+  await page.getByTestId('report').getByText('Confident with formulas').waitFor()
+  await page.getByTestId('report').getByText('Show units').waitFor()
+  // The child sees their own progress too; a stranger parent can't.
+  const kid = await newPage()
+  await signIn(kid.page, F.child.email)
+  await kid.page.goto(url('/dashboard/progress'))
+  await see(kid.page, 'Score A1 in WAEC Physics')
+})
+
+await flow('recommendations: real sections for everyone, personal matches for Plus', {}, async (page) => {
+  await pastPaidSession(stack, { tutorId: F.tutor.id, studentId: F.student.id })
+  await signIn(page, F.student.email)
+  await page.goto(url('/tutors'))
+  const sections = page.getByTestId('tutor-sections')
+  await sections.waitFor()
+  await sections.getByRole('tab', { name: 'Newly verified' }).click()
+  await sections.getByText('Bisi Bello').waitFor()
+  await sections.getByRole('tab', { name: /Recommended for you/ }).click()
+  await sections.getByText('See Plus').waitFor()
+  await givePlus(stack, F.student.id)
+  await stack.sql(`update profiles set subjects = '{English}' where id = $1`, [F.student.id])
+  await page.reload()
+  await page.getByTestId('tutor-sections').getByRole('tab', { name: /Recommended for you/ }).click()
+  await page.getByTestId('tutor-sections').getByText('Teaches English').waitFor()
+})
+
+await flow('admin: Plus Annual stays off sale until the admin sets its price', {}, async (page) => {
+  await signIn(page, F.admin.email)
+  await page.goto(url('/admin/plans'))
+  const annual = page.locator('div.card').filter({ hasText: 'Plus Annual' })
+  await annual.getByText('No price set yet').waitFor()
+  await annual.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('dialog').getByLabel('Price (₦)').fill('75000')
+  await page.getByRole('dialog').getByLabel('AI questions / month').fill('250')
+  await page.getByRole('dialog').getByLabel('On sale').check()
+  await page.getByRole('dialog').getByRole('button', { name: 'Save plan' }).click()
+  await see(page, 'Plan saved')
+  const visitor = await newPage()
+  await visitor.page.goto(url('/plus'))
+  await visitor.page.getByRole('tab', { name: 'Annual' }).click()
+  await see(visitor.page, '₦75,000')
+  await see(visitor.page, '250 AI assistant questions a month')
+})
+
 await flow('misc: 404 page', {}, async (page) => {
   await page.goto(url('/does-not-exist'))
   await see(page, 'This page took a different path')
@@ -589,12 +755,13 @@ const SKIP = /^(Sign out|Suspend|Reinstate|Cancel plan|Cancel subscription|Verif
 let clicks = 0
 if (!ONLY || ONLY === 'crawl') {
   F = await seedFixture(stack)
+  await givePlus(stack, F.parent.id, 'family')
   const CRAWL = [
     [null, ['/', '/tutors', `/tutors/${F.tutor.id}`, '/pricing', '/signin', '/signup', '/contact', '/refunds', '/terms', '/privacy']],
-    [F.student.email, ['/dashboard', '/dashboard/sessions', '/dashboard/messages', '/dashboard/billing', '/dashboard/settings', `/book/${F.tutor.id}`, '/pricing']],
-    [F.parent.email, ['/dashboard', '/dashboard/billing']],
-    [F.tutor.email, ['/dashboard', '/dashboard/sessions', '/dashboard/listing', '/dashboard/subscription', '/dashboard/payouts']],
-    [F.admin.email, ['/admin', '/admin/tutors', '/admin/users', '/admin/bookings', '/admin/qualifications', '/admin/payments', '/admin/payments?view=attempts', '/admin/payments?view=events', '/admin/payouts', '/admin/subscriptions', '/admin/plans', '/admin/business', '/admin/settings']],
+    [F.student.email, ['/dashboard', '/dashboard/sessions', '/dashboard/messages', '/dashboard/billing', '/dashboard/settings', `/book/${F.tutor.id}`, '/pricing', '/plus', '/dashboard/assistant', '/dashboard/progress', '/dashboard/support']],
+    [F.parent.email, ['/dashboard', '/dashboard/billing', '/dashboard/family', '/dashboard/progress', '/dashboard/assistant']],
+    [F.tutor.email, ['/dashboard', '/dashboard/sessions', '/dashboard/listing', '/dashboard/subscription', '/dashboard/payouts', '/dashboard/reviews']],
+    [F.admin.email, ['/admin', '/admin/tutors', '/admin/users', '/admin/bookings', '/admin/qualifications', '/admin/payments', '/admin/payments?view=attempts', '/admin/payments?view=events', '/admin/payouts', '/admin/subscriptions', '/admin/plans', '/admin/business', '/admin/reviews', '/admin/support', '/admin/settings']],
   ]
   for (const [who, routes] of CRAWL) {
     for (const viewport of [DESKTOP, MOBILE]) {

@@ -22,7 +22,8 @@ const BOOKING_SELECT = `
   *,
   tutor:tutors!bookings_tutor_id_fkey ( id, hourly_rate, timezone, profile:profiles!tutors_id_fkey ( full_name, avatar_url ) ),
   student:profiles!bookings_student_id_fkey ( id, full_name, avatar_url ),
-  review:reviews ( id, rating )
+  review:reviews ( id, rating ),
+  feedback:lesson_feedback ( summary, strengths, improvements, next_steps, progress, updated_at )
 `
 
 async function invoke(name, body) {
@@ -199,9 +200,131 @@ export async function setBookingStatus(id, status) {
   return check(await supabase.rpc('set_booking_status', { p_booking: id, p_status: status }))
 }
 
-export async function submitReview(bookingId, rating, comment) {
+/** One verified review per completed, paid session: overall stars plus four categories. */
+export async function submitReview(bookingId, { rating, teaching, communication, punctuality, knowledge, comment = '' }) {
   ensureConfigured()
-  return check(await supabase.rpc('submit_review', { p_booking: bookingId, p_rating: rating, p_comment: comment }))
+  return check(await supabase.rpc('submit_review', {
+    p_booking: bookingId, p_rating: rating, p_teaching: teaching, p_communication: communication,
+    p_punctuality: punctuality, p_knowledge: knowledge, p_comment: comment,
+  }))
+}
+
+export async function getTutorReviewSummary(tutorId) {
+  ensureConfigured()
+  return check(await supabase.rpc('tutor_review_summary', { p_tutor: tutorId }))
+}
+
+export async function getMyTutorReviews() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_tutor_reviews'))
+}
+
+export async function respondToReview(reviewId, body) {
+  ensureConfigured()
+  return check(await supabase.rpc('respond_to_review', { p_review: reviewId, p_body: body }))
+}
+
+export async function deleteReviewResponse(reviewId) {
+  ensureConfigured()
+  return check(await supabase.rpc('delete_review_response', { p_review: reviewId }))
+}
+
+export async function reportReview(reviewId, reason, details = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('report_review', { p_review: reviewId, p_reason: reason, p_details: details }))
+}
+
+export async function saveLessonFeedback(bookingId, { summary, strengths = '', improvements = '', nextSteps = '', progress = null }) {
+  ensureConfigured()
+  return check(await supabase.rpc('save_lesson_feedback', {
+    p_booking: bookingId, p_summary: summary, p_strengths: strengths, p_improvements: improvements, p_next_steps: nextSteps, p_progress: progress,
+  }))
+}
+
+// ---------------------------------------------------------------------------
+// TutorHaven Plus: membership, AI assistant, analytics, reports, family
+// ---------------------------------------------------------------------------
+export async function getMembership() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_membership'))
+}
+
+export const askAssistant = ({ question, mode, subject, conversationId }) =>
+  invoke('ai-assistant', { question, mode, subject, conversation_id: conversationId ?? null })
+
+export async function listAiConversations() {
+  ensureConfigured()
+  return check(await supabase.from('ai_conversations').select('id, title, updated_at').order('updated_at', { ascending: false }).limit(50))
+}
+
+export async function getAiMessages(conversationId) {
+  ensureConfigured()
+  return check(await supabase.from('ai_messages').select('id, role, mode, subject, content, created_at').eq('conversation_id', conversationId).order('created_at'))
+}
+
+export async function deleteAiConversation(id) {
+  ensureConfigured()
+  return check(await supabase.rpc('delete_ai_conversation', { p_id: id }))
+}
+
+export async function getLearningAnalytics(studentId = null) {
+  ensureConfigured()
+  return check(await supabase.rpc('learning_analytics', { p_student: studentId }))
+}
+
+export async function saveGoal(goal) {
+  ensureConfigured()
+  return check(await supabase.rpc('save_learning_goal', { p: goal }))
+}
+
+export async function deleteGoal(id) {
+  ensureConfigured()
+  return check(await supabase.rpc('delete_learning_goal', { p_id: id }))
+}
+
+export async function listGoals(studentId) {
+  ensureConfigured()
+  return check(await supabase.from('learning_goals').select('*').eq('student_id', studentId).order('status').order('created_at', { ascending: false }))
+}
+
+export async function listReports(studentId) {
+  ensureConfigured()
+  return check(await supabase.rpc('list_learning_reports', { p_student: studentId }))
+}
+
+export async function requestReport(studentId, month = null) {
+  ensureConfigured()
+  return check(await supabase.rpc('request_learning_report', { p_student: studentId, p_month: month }))
+}
+
+export async function getFamilyOverview() {
+  ensureConfigured()
+  return check(await supabase.rpc('family_overview'))
+}
+
+export async function updateChildProfile(childId, patch) {
+  ensureConfigured()
+  return check(await supabase.rpc('update_child_profile', { p_child: childId, p: patch }))
+}
+
+export async function getTutorSections(limit = 6) {
+  ensureConfigured()
+  return check(await supabase.rpc('tutor_sections', { p_limit: limit }))
+}
+
+export async function getPersonalRecommendations(studentId = null, limit = 6) {
+  ensureConfigured()
+  return check(await supabase.rpc('recommend_tutors', { p_student: studentId, p_limit: limit }))
+}
+
+export async function createSupportRequest({ category, subject, message }) {
+  ensureConfigured()
+  return check(await supabase.rpc('create_support_request', { p_category: category, p_subject: subject, p_message: message }))
+}
+
+export async function listMySupportRequests() {
+  ensureConfigured()
+  return check(await supabase.from('support_requests').select('*').order('created_at', { ascending: false }))
 }
 
 // ---------------------------------------------------------------------------
@@ -508,4 +631,34 @@ export async function adminRunMaintenance() {
 export async function adminPayoutAccounts() {
   ensureConfigured()
   return check(await supabase.rpc('admin_payout_accounts'))
+}
+
+export async function adminListReviews(filter = 'all', search = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_list_reviews', { p_filter: filter, p_search: search }))
+}
+
+export async function adminModerateReview(id, action, reason = '') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_moderate_review', { p_review: id, p_action: action, p_reason: reason }))
+}
+
+export async function adminReviewLog(reviewId = null) {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_review_log', { p_review: reviewId }))
+}
+
+export async function adminListSupport(status = 'open') {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_list_support', { p_status: status }))
+}
+
+export async function adminUpdateSupport(id, status, reply = null) {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_update_support', { p_id: id, p_status: status, p_reply: reply }))
+}
+
+export async function adminPlusOverview() {
+  ensureConfigured()
+  return check(await supabase.rpc('admin_plus_overview'))
 }

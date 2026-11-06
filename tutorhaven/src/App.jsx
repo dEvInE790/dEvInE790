@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import { FavouritesProvider } from './context/FavouritesContext'
 import { SettingsProvider } from './context/SettingsContext'
+import { MembershipProvider } from './context/MembershipContext'
 import RequireAuth from './components/layout/RequireAuth'
 import DashboardLayout from './components/layout/DashboardLayout'
 import FullPageLoader from './components/layout/FullPageLoader'
@@ -21,6 +22,12 @@ const PaymentReturn = lazy(() => import('./pages/PaymentReturn'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Policy = lazy(() => import('./pages/Policy'))
 const Contact = lazy(() => import('./pages/Contact'))
+const PlusPage = lazy(() => import('./pages/Plus'))
+const Assistant = lazy(() => import('./pages/dashboard/Assistant'))
+const Progress = lazy(() => import('./pages/dashboard/Progress'))
+const Family = lazy(() => import('./pages/dashboard/Family'))
+const Support = lazy(() => import('./pages/dashboard/Support'))
+const TutorReviews = lazy(() => import('./pages/dashboard/TutorReviews'))
 const DashboardHome = lazy(() => import('./pages/dashboard/DashboardHome'))
 const Sessions = lazy(() => import('./pages/dashboard/Sessions'))
 const Billing = lazy(() => import('./pages/dashboard/Billing'))
@@ -41,6 +48,8 @@ const AdminSubscriptions = lazy(() => import('./pages/admin/Subscriptions'))
 const AdminQualifications = lazy(() => import('./pages/admin/Qualifications'))
 const AdminPayouts = lazy(() => import('./pages/admin/Payouts'))
 const AdminBusiness = lazy(() => import('./pages/admin/Business'))
+const AdminReviews = lazy(() => import('./pages/admin/Reviews'))
+const AdminSupport = lazy(() => import('./pages/admin/Support'))
 
 // Admins use the separate admin panel; send them there before the learner dashboard mounts.
 function DashboardGate() {
@@ -68,6 +77,7 @@ function AnimatedRoutes() {
         <Route path="/tutors/:id" element={<TutorProfile />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/plus" element={<PlusPage />} />
         <Route path="/terms" element={<Policy kind="terms" />} />
         <Route path="/privacy" element={<Policy kind="privacy" />} />
         <Route path="/refunds" element={<Policy kind="refund" />} />
@@ -86,6 +96,11 @@ function AnimatedRoutes() {
           <Route path="listing" element={<RequireAuth roles={['tutor']}><TutorListing /></RequireAuth>} />
           <Route path="subscription" element={<RequireAuth roles={['tutor']}><TutorSubscription /></RequireAuth>} />
           <Route path="payouts" element={<RequireAuth roles={['tutor']}><TutorPayouts /></RequireAuth>} />
+          <Route path="assistant" element={<RequireAuth roles={['student', 'parent']}><Assistant /></RequireAuth>} />
+          <Route path="progress" element={<RequireAuth roles={['student', 'parent']}><Progress /></RequireAuth>} />
+          <Route path="family" element={<RequireAuth roles={['parent']}><Family /></RequireAuth>} />
+          <Route path="support" element={<Support />} />
+          <Route path="reviews" element={<RequireAuth roles={['tutor']}><TutorReviews /></RequireAuth>} />
           <Route path="messages" element={<Messages />} />
           <Route path="messages/:userId" element={<Messages />} />
         </Route>
@@ -100,6 +115,8 @@ function AnimatedRoutes() {
           <Route path="qualifications" element={<AdminQualifications />} />
           <Route path="payouts" element={<AdminPayouts />} />
           <Route path="business" element={<AdminBusiness />} />
+          <Route path="reviews" element={<AdminReviews />} />
+          <Route path="support" element={<AdminSupport />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
         <Route path="/login" element={<Navigate to="/signin" replace />} />
@@ -116,9 +133,11 @@ export default function App() {
       <ToastProvider>
         <SettingsProvider>
         <AuthProvider>
+          <MembershipProvider>
           <FavouritesProvider>
             <AnimatedRoutes />
           </FavouritesProvider>
+          </MembershipProvider>
         </AuthProvider>
         </SettingsProvider>
       </ToastProvider>

@@ -14,7 +14,8 @@ import { Stars } from '../components/ui/StarRating'
 import EmptyState, { ErrorState } from '../components/ui/EmptyState'
 import FavouriteButton from '../components/FavouriteButton'
 import useAsync from '../lib/useAsync'
-import { getBusySlots, getPublicQualifications, getTutor, getTutorReviews } from '../lib/api'
+import { getBusySlots, getPublicQualifications, getTutor, getTutorReviews, getTutorReviewSummary } from '../lib/api'
+import { ReviewCard, ReviewSummary } from '../components/Reviews'
 import { useSettings } from '../context/SettingsContext'
 import { generateSlots, groupByLocalDay } from '../lib/time'
 import { money, monthDay, pluralize } from '../lib/format'
@@ -26,6 +27,7 @@ export default function TutorProfile() {
   const { profile } = useAuth()
   const tutor = useAsync(() => getTutor(id), [id])
   const reviews = useAsync(() => getTutorReviews(id), [id])
+  const summary = useAsync(() => getTutorReviewSummary(id), [id])
   const quals = useAsync(() => getPublicQualifications(id), [id])
   const { learnerPlans } = useSettings()
   const bestDiscount = Math.max(0, ...learnerPlans.map((p) => p.discount))
@@ -224,25 +226,14 @@ export default function TutorProfile() {
               {reviews.loading ? (
                 <div className="mt-6 space-y-6">{[0, 1].map((i) => <SkeletonText key={i} lines={3} />)}</div>
               ) : !reviews.data?.length ? (
-                <EmptyState icon={MessageSquareQuote} title="No reviews yet">Reviews appear here after completed sessions.</EmptyState>
+                <EmptyState icon={MessageSquareQuote} title="No reviews yet">Only learners who completed a paid lesson with this tutor can leave a review.</EmptyState>
               ) : (
-                <Stagger className="mt-6 divide-y divide-navy-900/[0.06]" gap={0.06}>
-                  {reviews.data.map((r) => (
-                    <StaggerItem key={r.id} className="py-5 first:pt-0 last:pb-0">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar name={r.author_name} seed={r.id} size="sm" />
-                          <div>
-                            <p className="text-sm font-semibold">{r.author_name}</p>
-                            <p className="text-xs text-navy-400">{r.subject} · {monthDay(r.created_at)}</p>
-                          </div>
-                        </div>
-                        <Stars value={r.rating} size={13} />
-                      </div>
-                      {r.comment && <p className="mt-3 leading-relaxed text-navy-700">{r.comment}</p>}
-                    </StaggerItem>
-                  ))}
-                </Stagger>
+                <>
+                  <div className="mt-6"><ReviewSummary summary={summary.data} /></div>
+                  <Stagger as="ul" className="mt-6 space-y-4" gap={0.06}>
+                    {reviews.data.map((r) => <ReviewCard key={r.id} review={r} tutorName={t?.full_name?.split(' ')[0]} canReport={!!profile && profile.id !== id} />)}
+                  </Stagger>
+                </>
               )}
             </Reveal>
           </div>

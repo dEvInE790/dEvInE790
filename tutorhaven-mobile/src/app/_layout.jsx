@@ -11,6 +11,7 @@ import { SettingsProvider } from '../context/SettingsContext'
 import { ToastProvider } from '../context/ToastContext'
 import { FavouritesProvider } from '../context/FavouritesContext'
 import { UnreadProvider } from '../context/UnreadContext'
+import { MembershipProvider } from '../context/MembershipContext'
 import { colors } from '../theme'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
@@ -30,6 +31,7 @@ export default function RootLayout() {
       <ToastProvider>
         <SettingsProvider>
           <AuthProvider>
+            <MembershipProvider>
             <FavouritesProvider>
               <UnreadProvider>
               <StatusBar style="dark" />
@@ -41,6 +43,7 @@ export default function RootLayout() {
               </Stack>
               </UnreadProvider>
             </FavouritesProvider>
+            </MembershipProvider>
           </AuthProvider>
         </SettingsProvider>
       </ToastProvider>

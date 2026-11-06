@@ -751,7 +751,8 @@ await flow('misc: 404 page', {}, async (page) => {
 // ---------------------------------------------------------------------------
 const SEL = 'a[href], button, [role="tab"], [role="option"]'
 // Covered by flows; these change account state or leave the session.
-const SKIP = /^(Sign out|Suspend|Reinstate|Cancel plan|Cancel subscription|Verify|Reject|Send|Save to favourites|Remove from favourites)$/
+const SKIP = /^(Sign out|Suspend|Reinstate|Cancel plan|Cancel subscription|Verify|Reject|Send|Save to favourites|Remove from favourites|Ask|Delete .+)$|^(Explain|Explain simply|Step by step|Practice questions|Revision notes) · /
+// (The AI assistant's send, starter and delete controls change the page; the flows test them.)
 let clicks = 0
 if (!ONLY || ONLY === 'crawl') {
   F = await seedFixture(stack)

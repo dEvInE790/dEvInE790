@@ -14,6 +14,7 @@ import { createHmac } from 'node:crypto'
 import { createServer } from 'node:http'
 import * as core from '../functions/_shared/core.ts'
 import { paystackApi } from '../functions/_shared/paystack.ts'
+import * as aiCore from '../functions/_shared/ai.ts'
 
 const DB = process.env.DATABASE_URL ?? 'postgres://postgres@localhost:5499/tutorhaven'
 const pool = new pg.Pool({ connectionString: DB, max: 8 })
@@ -762,11 +763,309 @@ await test('Paystack HTTP client sends the right requests', async () => {
 
 await test('migration can be re-run safely', async () => {
   const { readFileSync } = await import('node:fs')
-  for (const f of ['20261102000000_production_payments.sql', '20261103000000_tutor_payouts.sql', '20261104000000_business_info.sql']) {
+  for (const f of ['20261102000000_production_payments.sql', '20261103000000_tutor_payouts.sql', '20261104000000_business_info.sql', '20261106000000_plus_reviews_learning.sql']) {
     await sql('postgres', readFileSync(new URL('../migrations/' + f, import.meta.url), 'utf8'))
   }
   eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'data intact after re-run')
   eq((await one(`select count(*)::int c from subscriptions where status = 'active'`)).c, 2, 'subscriptions intact')
+})
+
+
+// ===========================================================================
+// TutorHaven Plus, reviews, recommendations and learning data
+// ===========================================================================
+async function listTutor(t) {
+  await sql('postgres', `insert into subscriptions (user_id, audience, plan_id, status, current_period_start, current_period_end)
+    values ($1, 'tutor', (select id from subscription_plans where code = 'tutor_pro'), 'active', now(), now() + interval '30 days')
+    on conflict (user_id, audience) do update set status = 'active', current_period_end = now() + interval '30 days'`, [t.id])
+  return t
+}
+let past = 0
+/** A session that was booked, paid through (simulated) Paystack, held and completed. */
+async function paidCompleted(learner, tutor, { student = learner, subject = 'Mathematics' } = {}) {
+  const r = await rpc(learner, 'create_booking', { p_tutor: tutor.id, p_student: student.id, p_subject: subject, p_starts_at: await nextSlot(), p_duration: 60 })
+  if (r.error) throw new Error('create_booking: ' + r.error.message)
+  const { reference } = await checkout(learner, { kind: 'session', booking_id: r.data.id })
+  paystack.complete(reference)
+  const v = await body(await core.handleVerify(post(learner, { reference }), deps))
+  if (v.status !== 'succeeded') throw new Error('verify: ' + JSON.stringify(v))
+  past++
+  await sql('postgres', `update bookings set starts_at = now() - make_interval(hours => 3 * $2), ends_at = now() - make_interval(hours => 3 * $2) + interval '1 hour' where id = $1`, [r.data.id, past])
+  const done = await rpc(tutor, 'set_booking_status', { p_booking: r.data.id, p_status: 'completed' })
+  if (done.error) throw new Error('complete: ' + done.error.message)
+  return r.data
+}
+const stars = (b, overall = 5, cats = [5, 5, 5, 5], comment = '') => ({
+  p_booking: b.id, p_rating: overall, p_teaching: cats[0], p_communication: cats[1], p_punctuality: cats[2], p_knowledge: cats[3], p_comment: comment,
+})
+const membership = async (u) => (await rpc(u, 'my_membership')).data
+
+await test('plans: no invented prices; unpriced plans cannot be sold; admins set prices and AI allowances', async () => {
+  const annual = await plan('plus_annual')
+  eq([annual.price, annual.is_active, annual.interval_months, annual.audience], [null, false, 12, 'learner'], 'annual plan starts unpriced and off sale')
+  const s1 = await user('student', 'Annie Annual')
+  const r = await body(await core.handleInit(post(s1, { kind: 'subscription', plan_id: annual.id, redirect_url: APP + '/x' }), deps))
+  eq([r.status, r.error], [400, 'This plan is not available'], 'cannot buy an unpriced plan')
+  denied(await rpc(admin, 'admin_upsert_plan', { p: { id: annual.id, is_active: true } }), /Set a price/, 'cannot sell without a price')
+  denied(await rpc(s1, 'admin_upsert_plan', { p: { id: annual.id, price: 1 } }), /Admins only/, 'learner cannot set prices')
+  const saved = await rpc(admin, 'admin_upsert_plan', { p: { id: annual.id, price: 70000, is_active: true, ai_monthly_limit: 300 } })
+  eq([Number(saved.data.price), saved.data.is_active, saved.data.ai_monthly_limit], [70000, true, 300], 'admin sets price and allowance')
+  const { res } = await subscribe(s1, 'plus_annual')
+  eq(res.status, 'succeeded', 'annual Plus bought')
+  const m = await membership(s1)
+  eq([m.tier, m.interval_months, m.ai_limit], ['plus', 12, 300], 'annual membership active')
+  const sub = await one(`select current_period_end - current_period_start as len from subscriptions where user_id = $1 and audience = 'learner'`, [s1.id])
+  ok(sub.len.days >= 365 || sub.len.months === 12 || sub.len.years === 1, 'one year paid: ' + JSON.stringify(sub.len))
+})
+
+await test('Plus: standard users are refused Plus features; upgrade, family cover, cancel and expiry', async () => {
+  const s = await user('student', 'Stella Standard')
+  eq((await membership(s)).tier, 'standard', 'starts on Standard')
+  denied(await rpc(s, 'learning_analytics', {}), /TutorHaven Plus feature/, 'analytics')
+  denied(await rpc(s, 'recommend_tutors', {}), /TutorHaven Plus feature/, 'personal recommendations')
+  denied(await rpc(s, 'save_learning_goal', { p: { title: 'Pass WAEC maths' } }), /TutorHaven Plus feature/, 'goals')
+  denied(await rpc(s, 'request_learning_report', { p_student: s.id }), /TutorHaven Plus feature/, 'reports')
+  // A failed payment activates nothing.
+  const { reference } = await checkout(s, { kind: 'subscription', plan_id: (await plan('plus')).id })
+  paystack.complete(reference, { status: 'failed' })
+  const failedPay = await body(await core.handleVerify(post(s, { reference }), deps))
+  eq([failedPay.status, (await membership(s)).tier], ['failed', 'standard'], 'failed payment keeps Standard')
+  // A forged activation is impossible.
+  await sql(s, `update subscriptions set status = 'active', current_period_end = now() + interval '1 year' where user_id = $1`, [s.id]).catch(() => {})
+  eq((await membership(s)).tier, 'standard', 'still Standard')
+  // Upgrade.
+  const { res } = await subscribe(s, 'plus')
+  eq(res.status, 'succeeded', 'paid')
+  const m = await membership(s)
+  eq([m.tier, m.source, m.ai_limit], ['plus', 'own', 100], 'Plus active')
+  eq((await rpc(s, 'learning_analytics', {})).error, null, 'analytics unlocked')
+  // Family cover: a Plus parent's linked children get Plus.
+  const mum = await user('parent', 'Mama Plus')
+  const kid = await user('student', 'Kiddo Plus')
+  await rpc(mum, 'link_child', { p_email: kid.email })
+  eq((await membership(kid)).tier, 'standard', 'child without a family plan')
+  await subscribe(mum, 'family')
+  const km = await membership(kid)
+  eq([km.tier, km.source, km.paid_by], ['plus', 'parent', 'Mama Plus'], 'child covered by parent')
+  // Cancel keeps access until the period ends; expiry removes it.
+  await rpc(s, 'cancel_subscription', { p_audience: 'learner' })
+  eq((await membership(s)).tier, 'plus', 'cancelled but paid period continues')
+  await sql('postgres', `update subscriptions set current_period_end = now() - interval '1 minute' where user_id = $1 and audience = 'learner'`, [s.id])
+  await rpc('service', 'run_maintenance')
+  eq((await membership(s)).tier, 'standard', 'expired → Standard')
+  denied(await rpc(s, 'learning_analytics', {}), /TutorHaven Plus feature/, 'Plus features locked after expiry')
+})
+
+await test('AI assistant: Plus only, server-side allowance, real answers stored privately, failures not counted', async () => {
+  const calls = []
+  let behaviour = 'ok'
+  const fakeAi = {
+    async ask(input) {
+      calls.push(input)
+      if (behaviour === 'down') throw new Error('upstream 529')
+      if (behaviour === 'refuse') return { text: '', inputTokens: 10, outputTokens: 0, stopReason: 'refusal' }
+      return { text: `Answer #${calls.length}`, inputTokens: 100, outputTokens: 50, stopReason: 'end_turn' }
+    },
+  }
+  const aiDeps = { service: deps.service, ai: fakeAi, userId: async (req) => (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '') || null }
+  const ask = async (u, payload, d = aiDeps) => body(await aiCore.handleAiAssistant(post(u, payload), d))
+  const free = await user('student', 'Freddie Free')
+  const plus = await user('student', 'Priya Plus')
+  await subscribe(plus, 'plus')
+
+  eq((await ask(null, { question: 'hi' })).status, 401, 'signed out')
+  const r0 = await ask(free, { question: 'What is photosynthesis?' })
+  eq([r0.status, r0.code, calls.length], [403, 'plus_required', 0], 'Standard user refused before any AI call')
+  eq((await ask(plus, { question: 'What is a noun?' }, { ...aiDeps, ai: null })).code, 'not_configured', 'no key → clear message, no fake answer')
+  denied(await rpc(plus, 'ai_begin', { p_user: plus.id, p_conversation: null, p_mode: 'explain', p_subject: '', p_question: 'sneaky' }), /permission denied/, 'apps cannot record questions directly')
+
+  const r1 = await ask(plus, { question: 'Explain fractions', mode: 'simplify', subject: 'Mathematics' })
+  eq([r1.status, r1.answer.content, r1.usage.used, r1.usage.limit], [200, 'Answer #1', 1, 100], 'answered by the AI')
+  ok(calls[0].system.includes('very simple language') && calls[0].system.includes('Mathematics'), 'mode and subject in the system prompt')
+  const r2 = await ask(plus, { question: 'Give me an example', conversation_id: r1.conversation_id, mode: 'steps' })
+  eq(calls[1].messages.map((m) => m.role + ':' + m.content), ['user:Explain fractions', 'assistant:Answer #1', 'user:Give me an example'], 'history sent with follow-ups')
+  eq(r2.usage.used, 2, 'counted')
+
+  behaviour = 'down'
+  const r3 = await ask(plus, { question: 'Will this fail?' })
+  eq([r3.status, r3.code], [502, 'ai_unavailable'], 'AI outage reported honestly')
+  behaviour = 'refuse'
+  eq((await ask(plus, { question: 'Something declined' })).code, 'declined', 'refusal reported, no made-up answer')
+  behaviour = 'ok'
+  eq((await membership(plus)).ai_used, 2, 'failed and declined questions are not counted')
+
+  await sql('postgres', `update subscription_plans set ai_monthly_limit = 3 where code = 'plus'`)
+  eq((await ask(plus, { question: 'Third question' })).status, 200, 'third within limit')
+  const over = await ask(plus, { question: 'Fourth question' })
+  eq([over.status, over.code], [403, 'limit_reached'], 'monthly allowance enforced')
+  await sql('postgres', `update subscription_plans set ai_monthly_limit = 100 where code = 'plus'`)
+
+  const other = await user('student', 'Nosy Neighbour')
+  await subscribe(other, 'plus')
+  eq((await sql(other, 'select * from ai_messages')).length, 0, 'others cannot read the conversation')
+  eq((await ask(other, { question: 'continue theirs', conversation_id: r1.conversation_id })).error, 'Conversation not found', 'cannot post into another user’s conversation')
+  eq((await sql(plus, 'select role from ai_messages where conversation_id = $1 order by created_at', [r1.conversation_id])).map((m) => m.role), ['user', 'assistant', 'user', 'assistant'], 'owner sees the conversation')
+  ok((await sql('postgres', `select count(*)::int c from learning_activity where student_id = $1 and kind = 'ai_question'`, [plus.id]))[0].c === 3, 'questions logged as learning activity')
+})
+
+await test('reviews: only verified, completed bookings; one per booking; no self or outsider reviews', async () => {
+  const t = await listTutor(await approvedTutor('Rita Reviewed'))
+  const learner = await user('student', 'Lola Learner')
+  const outsider = await user('student', 'Oscar Outsider')
+  const b = await paidCompleted(learner, t)
+  const unpaid = await book(learner, t)
+  denied(await rpc(learner, 'submit_review', stars(unpaid)), /completed/, 'unfinished session')
+  denied(await rpc(outsider, 'submit_review', stars(b)), /Only the learner/, 'never booked')
+  denied(await rpc(t, 'submit_review', stars(b)), /Only the learner/, 'tutor reviewing themselves')
+  denied(await rpc(learner, 'submit_review', stars(b, 5, [5, 5, null, 5])), /every rating/, 'all categories required')
+  denied(await rpc(learner, 'submit_review', stars(b, 6)), /every rating/, 'out of range')
+  const ok1 = await rpc(learner, 'submit_review', stars(b, 5, [5, 4, 5, 5], 'Explained algebra really clearly, very patient.'))
+  eq(ok1.error, null, 'verified learner reviews')
+  denied(await rpc(learner, 'submit_review', stars(b, 1)), /already been reviewed/, 'duplicate')
+  denied(await sql(learner, `update reviews set rating = 1 where id = $1`, [ok1.data.id]).then(() => ({ data: 1 }), (e) => ({ error: e })), /permission/, 'author cannot edit')
+  denied(await sql(t, `delete from reviews where id = $1`, [ok1.data.id]).then(() => ({ data: 1 }), (e) => ({ error: e })), /permission/, 'tutor cannot delete')
+  // Manually paid booking (no Paystack payment) is not verified.
+  const fake = await book(learner, t)
+  await sql('postgres', `update bookings set status = 'completed', amount_paid = 1, starts_at = now() - interval '400 hours', ends_at = now() - interval '399 hours' where id = $1`, [fake.id])
+  denied(await rpc(learner, 'submit_review', stars(fake)), /paid, completed/, 'no Paystack payment → not reviewable')
+  const list = (await rpc('anon', 'tutor_reviews', { p_tutor: t.id })).data
+  eq([list.length, list[0].verified, list[0].author_name, list[0].teaching], [1, true, 'Lola', 5], 'public list with verified badge and first name only')
+  eq((await sql('anon', 'select * from reviews')).length, 0, 'reviews table itself is not public')
+})
+
+await test('ratings: every reviewer counts once; categories and distribution are real averages', async () => {
+  const t = await listTutor(await approvedTutor('Avery Average'))
+  const fan = await user('student', 'Frankie Fan')
+  const critic = await user('student', 'Cleo Critic')
+  for (let i = 0; i < 3; i++) await rpc(fan, 'submit_review', stars(await paidCompleted(fan, t), 5, [5, 5, 5, 5]))
+  await rpc(critic, 'submit_review', stars(await paidCompleted(critic, t), 1, [1, 2, 1, 2]))
+  const tutor = await one('select rating, review_count from tutors where id = $1', [t.id])
+  eq([Number(tutor.rating), tutor.review_count], [3, 4], 'average of reviewers (5 and 1), 4 reviews')
+  const s = (await rpc('anon', 'tutor_review_summary', { p_tutor: t.id })).data
+  eq([s.count, s.reviewers, s.verified, Number(s.teaching), Number(s.communication), s.distribution['5'], s.distribution['1']], [4, 2, 4, 4, 4.3, 3, 1], 'summary')
+})
+
+await test('review responses, reports and admin moderation with an audit log', async () => {
+  const t = await listTutor(await approvedTutor('Tess Responds'))
+  const other = await listTutor(await approvedTutor('Otto Other'))
+  const l = await user('student', 'Remy Reviewer')
+  const r = (await rpc(l, 'submit_review', stars(await paidCompleted(l, t), 1, [5, 5, 5, 5], 'Rude and late, call me on 0803 000 0000'))).data
+  denied(await rpc(other, 'respond_to_review', { p_review: r.id, p_body: 'Not mine' }), /Only the reviewed tutor/, 'other tutor')
+  eq((await rpc(t, 'respond_to_review', { p_review: r.id, p_body: 'Sorry to hear this; I was on time per our messages.' })).error, null, 'tutor responds')
+  eq((await rpc(t, 'respond_to_review', { p_review: r.id, p_body: 'Updated reply.' })).data.body, 'Updated reply.', 'tutor edits own response')
+  eq((await rpc('anon', 'tutor_reviews', { p_tutor: t.id })).data[0].response, 'Updated reply.', 'response shown publicly')
+  denied(await rpc(l, 'report_review', { p_review: r.id, p_reason: 'fake' }), /own review/, 'author cannot report own review')
+  eq((await rpc(t, 'report_review', { p_review: r.id, p_reason: 'personal_info', p_details: 'Contains a phone number' })).error, null, 'tutor reports')
+  denied(await rpc(t, 'admin_list_reviews', { p_filter: 'reported' }), /Admins only/, 'tutor cannot moderate')
+  const reported = (await rpc(admin, 'admin_list_reviews', { p_filter: 'reported' })).data
+  const row = reported.find((x) => x.id === r.id)
+  ok(row && row.open_reports === 1 && row.signals.some((sg) => sg.startsWith('inconsistent')), 'reported and flagged as inconsistent: ' + JSON.stringify(row?.signals))
+  denied(await rpc(admin, 'admin_moderate_review', { p_review: r.id, p_action: 'hide', p_reason: '' }), /reason/, 'hiding needs a reason')
+  await rpc(admin, 'admin_moderate_review', { p_review: r.id, p_action: 'hide', p_reason: 'Contains personal contact details' })
+  eq((await rpc('anon', 'tutor_reviews', { p_tutor: t.id })).data.length, 0, 'hidden from the profile')
+  eq((await one('select review_count from tutors where id = $1', [t.id])).review_count, 0, 'excluded from ratings')
+  const mine = (await rpc(t, 'my_tutor_reviews')).data
+  eq([mine[0].status, mine[0].hidden_reason], ['hidden', 'Contains personal contact details'], 'tutor sees why')
+  eq((await one(`select status from review_reports where review_id = $1`, [r.id])).status, 'actioned', 'report closed')
+  await rpc(admin, 'admin_moderate_review', { p_review: r.id, p_action: 'restore', p_reason: 'Reviewer removed the number' })
+  eq((await rpc('anon', 'tutor_reviews', { p_tutor: t.id })).data.length, 1, 'restored')
+  const log = (await rpc(admin, 'admin_review_log', { p_review: r.id })).data
+  eq(log.map((x) => x.action), ['restore', 'hide'], 'audit log')
+  eq((await sql(t, 'select * from review_moderation_log')).length, 0, 'log is admin-only')
+})
+
+await test('lesson feedback, goals, activity, monthly reports and family dashboard permissions', async () => {
+  const t = await listTutor(await approvedTutor('Fiona Feedback'))
+  const t2 = await listTutor(await approvedTutor('Gus Guest'))
+  const mum = await user('parent', 'Mum Family')
+  const kid1 = await user('student', 'Ada Family')
+  const kid2 = await user('student', 'Bayo Family')
+  const stranger = await user('parent', 'Stranger Parent')
+  await rpc(mum, 'link_child', { p_email: kid1.email })
+  await rpc(mum, 'link_child', { p_email: kid2.email })
+  const b = await paidCompleted(mum, t, { student: kid1, subject: 'Physics' })
+  denied(await rpc(t2, 'save_lesson_feedback', { p_booking: b.id, p_summary: 'Not my lesson at all' }), /Only the session/, 'other tutor')
+  eq((await rpc(t, 'save_lesson_feedback', { p_booking: b.id, p_summary: 'Covered Newton’s laws with worked examples.', p_strengths: 'Quick with formulas',
+    p_improvements: 'Units in final answers', p_next_steps: 'Practise 5 motion questions', p_progress: 4 })).error, null, 'tutor writes feedback')
+  eq((await sql(kid1, 'select summary from lesson_feedback')).length, 1, 'learner reads feedback')
+  eq((await sql(mum, 'select summary from lesson_feedback')).length, 1, 'parent reads feedback')
+  eq((await sql(stranger, 'select summary from lesson_feedback')).length, 0, 'stranger cannot')
+  denied(await rpc(mum, 'family_overview'), /TutorHaven Plus feature/, 'family dashboard is Plus')
+  await subscribe(mum, 'family')
+  const fam = (await rpc(mum, 'family_overview')).data
+  eq(fam.map((c) => c.name), ['Ada Family', 'Bayo Family'], 'both children')
+  eq([fam[0].all_time.lessons_completed, fam[0].latest_feedback.subject, fam[1].all_time.lessons_completed], [1, 'Physics', 0], 'per-child progress')
+  denied(await rpc(stranger, 'learning_analytics', { p_student: kid1.id }), /yourself or your linked children/, 'stranger analytics')
+  denied(await rpc(kid2, 'learning_analytics', { p_student: kid1.id }), /yourself or your linked children/, 'sibling analytics')
+  eq((await rpc(mum, 'save_learning_goal', { p: { student_id: kid1.id, title: 'Score A1 in Physics', subject: 'Physics' } })).error, null, 'parent sets a goal')
+  const goal = (await sql(kid1, 'select * from learning_goals'))[0]
+  await rpc(kid1, 'save_learning_goal', { p: { id: goal.id, student_id: kid1.id, status: 'achieved' } })
+  denied(await rpc(stranger, 'save_learning_goal', { p: { student_id: kid1.id, title: 'Hack' } }), /linked children/, 'stranger goal')
+  eq((await rpc(mum, 'update_child_profile', { p_child: kid1.id, p: { grade_level: 'SSS 2', subjects: ['Physics', 'Chemistry'] } })).data.grade_level, 'SSS 2', 'parent edits child profile')
+  denied(await rpc(stranger, 'update_child_profile', { p_child: kid1.id, p: { grade_level: 'X' } }), /linked children/, 'stranger edits profile')
+  const a = (await rpc(kid1, 'learning_analytics', {})).data
+  eq([a.all_time.lessons_completed, a.all_time.minutes, a.recommendations[0].text, a.all_time.goals[0].status], [1, 60, 'Practise 5 motion questions', 'achieved'], 'analytics')
+  const kinds = (await sql(kid1, 'select kind from learning_activity order by id')).map((x) => x.kind)
+  eq(kinds, ['lesson_completed', 'feedback_received', 'goal_created', 'goal_achieved'], 'activity log')
+  eq((await sql(stranger, 'select * from learning_activity')).length, 0, 'activity private')
+  const month = (await one(`select date_trunc('month', starts_at at time zone 'Africa/Lagos')::date m from bookings where id = $1`, [b.id])).m
+  const rep = (await rpc(mum, 'request_learning_report', { p_student: kid1.id, p_month: month })).data
+  eq([rep.data.summary.lessons_completed, rep.data.strengths[0].text, rep.data.improvements[0].text], [1, 'Quick with formulas', 'Units in final answers'], 'monthly report from real feedback')
+  eq((await rpc(mum, 'list_learning_reports', { p_student: kid1.id })).data.length, 1, 'parent lists reports')
+  denied(await rpc(stranger, 'list_learning_reports', { p_student: kid1.id }), /linked children/, 'stranger reports')
+  eq((await sql(stranger, 'select * from learning_reports')).length, 0, 'reports private')
+})
+
+await test('recommendations: balanced scores, new tutors not buried, personal matches for Plus only', async () => {
+  // Isolate this test's tutors.
+  const earlier = (await sql('postgres', `select id from tutors where status = 'approved'`)).map((x) => x.id)
+  await sql('postgres', `update tutors set status = 'rejected' where id = any ($1)`, [earlier])
+  const veteran = await listTutor(await approvedTutor('Vera Veteran'))
+  const newbie = await listTutor(await approvedTutor('Nia Newbie'))
+  const weak = await listTutor(await approvedTutor('Wes Weak'))
+  const chem = await listTutor(await approvedTutor('Chidi Chemistry'))
+  await sql('postgres', `update tutors set subjects = '{Chemistry}' where id = $1`, [chem.id])
+  await sql('postgres', `update tutors set approved_at = now() - interval '200 days' where id = any ($1)`, [[veteran.id, weak.id, chem.id]])
+  await sql('postgres', `insert into tutor_qualifications (tutor_id, title, status) values ($1, 'B.Sc. Mathematics', 'verified')`, [veteran.id])
+  for (let i = 0; i < 4; i++) {
+    const l = await user('student', 'Happy ' + i)
+    await rpc(l, 'submit_review', stars(await paidCompleted(l, veteran), 5))
+    const m = await user('student', 'Unhappy ' + i)
+    await rpc(m, 'submit_review', stars(await paidCompleted(m, weak), 2, [2, 2, 2, 2]))
+  }
+  await rpc('service', 'refresh_tutor_scores', {})
+  const score = async (t) => Number((await one('select quality from tutor_scores where tutor_id = $1', [t.id])).quality)
+  const [v, n, w] = [await score(veteran), await score(newbie), await score(weak)]
+  ok(v > n && n > w, `veteran ${v} > newbie ${n} > weak ${w}`)
+  const sec = (await rpc('anon', 'tutor_sections', { p_limit: 6 })).data
+  eq(sec.top_rated.map((x) => x.full_name), ['Vera Veteran', 'Wes Weak'], 'top rated needs reviews, best first')
+  ok(sec.newly_verified.some((x) => x.full_name === 'Nia Newbie') && !sec.newly_verified.some((x) => x.full_name === 'Vera Veteran'), 'newly verified')
+  eq(sec.most_reviewed.length, 2, 'most reviewed only lists reviewed tutors')
+  ok(sec.popular[0].reasons[0].includes('learners'), 'popular explained')
+  const learner = await user('student', 'Chem Learner')
+  await sql('postgres', `update profiles set subjects = '{Chemistry}' where id = $1`, [learner.id])
+  denied(await rpc(learner, 'recommend_tutors', {}), /TutorHaven Plus feature/, 'personal matching is Plus')
+  await subscribe(learner, 'plus')
+  const recs = (await rpc(learner, 'recommend_tutors', { p_limit: 4 })).data
+  eq(recs[0].full_name, 'Chidi Chemistry', 'subject match first')
+  ok(recs[0].reasons.includes('Teaches Chemistry'), 'reasons: ' + JSON.stringify(recs[0].reasons))
+  ok(recs.some((x) => x.full_name === 'Nia Newbie'), 'new tutor still recommended')
+  await sql('postgres', `update tutors set status = 'approved' where id = any ($1)`, [earlier])
+})
+
+await test('priority support: Plus requests are marked priority and listed first', async () => {
+  const s = await user('student', 'Sam Support')
+  const p = await user('student', 'Pam Priority')
+  await subscribe(p, 'plus')
+  const a = (await rpc(s, 'create_support_request', { p_category: 'booking', p_subject: 'Need help', p_message: 'My tutor did not show up.' })).data
+  const b = (await rpc(p, 'create_support_request', { p_category: 'payment', p_subject: 'Refund question', p_message: 'When will my refund arrive?' })).data
+  eq([a.priority, b.priority], ['standard', 'priority'], 'priority from membership')
+  denied(await sql(s, `update support_requests set priority = 'priority' where id = $1`, [a.id]).then(() => ({ data: 1 }), (e) => ({ error: e })), /permission/, 'cannot upgrade own priority')
+  const queue = (await rpc(admin, 'admin_list_support', { p_status: 'open' })).data.filter((x) => [a.id, b.id].includes(x.id))
+  eq(queue.map((x) => x.id), [b.id, a.id], 'priority first')
+  await rpc(admin, 'admin_update_support', { p_id: b.id, p_status: 'resolved', p_reply: 'It is on its way.' })
+  eq((await sql(p, 'select status, admin_reply from support_requests'))[0].status, 'resolved', 'user sees the reply')
+  eq((await sql(s, 'select * from support_requests where id = $1', [b.id])).length, 0, 'others cannot see it')
 })
 
 await pool.end()

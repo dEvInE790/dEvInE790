@@ -15,7 +15,7 @@ You need Postgres 16 on the machine, Node 22 or newer, and the `playwright` pack
 # One-off local database: creates a throwaway cluster and applies all migrations
 sudo bash supabase/tests/db/setup.sh
 
-# Database + Edge Function tests (35 cases)
+# Database + Edge Function tests (44 cases)
 cd supabase/tests && npm install && npm test
 
 # Web app in a real browser (desktop, tablet and phone sizes), plus a click-every-button crawl
@@ -43,6 +43,14 @@ What the automated tests cover:
 | Subscriptions | Pending → active, discounts applied, cancel keeps access to period end, renewal extends from the current end, reminder 3 days before (once), expiry, tutor delisted on expiry and relisted on renewal |
 | Access rules | Unsubscribed or suspended tutors are hidden and can't be booked. Suspended users can't book, pay or message. Users can't change their own role or suspension |
 | Admin | Plan prices, subscription requirement toggle, reports, payment attempts, event log, qualification review with private documents |
+| Plus membership | Standard refused every Plus feature; failed payment and direct table writes activate nothing; upgrade, annual plan, family cover for linked children, cancel keeps access, expiry removes it |
+| Plan prices | New annual plan has no price and is off sale; it can't be bought or put on sale until an admin sets a price |
+| AI assistant | Plus only; monthly allowance enforced in the database; outages and declined questions are not counted and never get a made-up answer; history private to its owner |
+| Reviews | Only completed, Paystack-paid sessions; one per session; all four categories required; no self, outsider or edited reviews; every reviewer counts once in the average |
+| Moderation | Tutor replies and reports; admin hide (with reason) / restore; hidden reviews leave the rating; audit log admin-only |
+| Learning data | Lesson feedback by the session's tutor only; goals, analytics, reports and family dashboard visible only to the learner, their linked parents and admins |
+| Recommendations | Quality score ranks a well-reviewed tutor above a new one above a poorly reviewed one; new tutors still recommended; sections list only real data; personal matches Plus only |
+| Priority support | Plus requests marked priority and listed first; users can't change priority |
 | Business info & policies | Confirmed details shown in the footer, Contact, Terms, Privacy and Refund pages; WhatsApp link; refund terms visible before every payment; only admins can edit details and policies; invalid email or phone rejected; empty policy resets to the built-in text; no invented registration details |
 
 ## 2. Manual run with Paystack test keys
@@ -84,6 +92,12 @@ Tick each item. For every payment, open **Admin → Payments → Event log** and
 - [ ] **Tutor payout account.** As a tutor, open **Payouts**, choose your bank and type a 10-digit account number. The account name appears; save it. Paystack → **Subaccounts** lists the new subaccount, and **Admin → Tutor payouts** shows it.
 - [ ] **Split payment.** Pay for a session with a tutor who has a payout account. In Paystack, open the transaction: it shows the split to the tutor's subaccount (85% of the listed price) with the rest to TutorHaven. **Admin → Payments** shows "Tutor ₦… · TutorHaven ₦…".
 - [ ] **Business details and refund policy.** Open the site footer, **/contact** and **/refunds**: they show TutorHaven, Ojigbani Divine, tutorhaven737@gmail.com, 0802 813 9086 and Lagos, Lagos State, Nigeria. The WhatsApp link opens a chat with +2348028139086. On checkout, the refund terms appear above the Pay button. In **Admin → Business & policies**, preview a policy, save a small change, check it on the live page, then press **Reset to built-in text**.
+- [ ] **Plus prices.** In Admin → Plans & prices, set the price of Plus (monthly) and Plus Annual, and each plan's AI questions per month, then tick On sale. Check **/plus** shows the monthly/annual switch and your prices.
+- [ ] **Plus upgrade.** As a student with no plan, open AI assistant: you see the Plus card. Upgrade on /plus with the test card. Billing shows the Plus badge and the renewal date.
+- [ ] **AI assistant.** Set `ANTHROPIC_API_KEY` and deploy `ai-assistant`. Ask a question in each style. The usage counter goes up by one per answer.
+- [ ] **Review.** Complete a paid test session (tutor marks it complete), then review it with all four categories. The tutor replies from Dashboard → Reviews; the profile shows the verified review and the reply.
+- [ ] **Moderation.** Report the review as the tutor; hide and restore it in Admin → Reviews; the moderation log lists both.
+- [ ] **Family.** As a Plus parent with a linked child, open Family and Progress: generate this month's report.
 - [ ] **Scheduled job.** Database → Cron Jobs (pg_cron) lists `tutorhaven-maintenance` running every 15 minutes.
 
 When everything above passes, follow "Going live" in the README.

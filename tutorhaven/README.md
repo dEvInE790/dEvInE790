@@ -28,6 +28,8 @@ There is no demo mode: every tutor, booking and payment you see comes from your 
 | `tutorhaven-mobile/.env` (iOS) | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | the same two values |
 | Supabase secrets (Edge Functions) | `PAYSTACK_SECRET_KEY` | `sk_test_…` while testing; `sk_live_…` only when going live |
 | | `APP_URLS` | comma-separated web origins allowed after payment, e.g. `https://tutorhaven.ng,http://localhost:5173` |
+| | `ANTHROPIC_API_KEY` | Claude API key from console.anthropic.com. Switches on the AI Learning Assistant (Plus). Without it the assistant says it isn't switched on yet |
+| | `AI_MODEL` (optional) | defaults to `claude-opus-5-5`; set e.g. `claude-sonnet-5-5` or `claude-haiku-5-5` to lower the cost per question |
 | Provided by Supabase automatically | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | nothing to set |
 
 The anon key is designed to be public, because Row Level Security protects the data. **Never** put the `service_role` key or the Paystack secret key in either `.env` file: they belong only in Supabase secrets. The Paystack *public* key is not needed, because checkout runs on Paystack's hosted page.
@@ -41,6 +43,7 @@ In the Supabase **SQL editor**, run these files in order (each one is safe to ru
 3. `supabase/migrations/20261102000000_production_payments.sql` adds subscription plans, tutor subscriptions, the payment event log, messaging, qualification review, suspension and scheduled maintenance. It also removes simulated "test mode" payments.
 4. `supabase/migrations/20261103000000_tutor_payouts.sql` adds tutor payout accounts and Paystack split payments (15% commission by default).
 5. `supabase/migrations/20261104000000_business_info.sql` adds the business contact details and the editable Terms, Privacy and Refund Policy pages.
+6. `supabase/migrations/20261106000000_plus_reviews_learning.sql` adds TutorHaven Plus: AI assistant usage, verified category reviews with replies, reports and moderation, tutor recommendations, lesson feedback, goals, monthly reports, the family dashboard and priority support.
 
 After running a migration, run `notify pgrst, 'reload schema';` so the API sees the new columns straight away.
 
@@ -157,6 +160,7 @@ supabase functions deploy paystack-reconcile
 supabase functions deploy paystack-payout-account
 supabase functions deploy paystack-callback --no-verify-jwt
 supabase functions deploy paystack-webhook --no-verify-jwt
+supabase functions deploy ai-assistant
 ```
 
 Then, in Paystack Dashboard → Settings → API Keys & Webhooks, set the webhook URL to `https://<your-project-ref>.supabase.co/functions/v1/paystack-webhook`. Set it for test mode now, and for live mode when you go live.
@@ -184,6 +188,44 @@ Then, in Paystack Dashboard → Settings → API Keys & Webhooks, set the webhoo
 - Prices, discounts, billing period and plan names are edited in Admin → Plans & prices. New checkouts use the new price immediately.
 
 See **TESTING.md** for the automated tests and the manual Paystack test checklist.
+
+### TutorHaven Plus
+
+Plus is any active learner plan (`subscription_plans.audience = 'learner'`): the learner's own, or a linked parent's, so a parent's plan covers every linked child. Standard is free and keeps browsing, search, profiles, reviews, messages, booking, paying per lesson and reviewing.
+
+| Plus feature | Where | Enforced by |
+|---|---|---|
+| AI Learning Assistant | `/dashboard/assistant`, mobile Account → AI assistant | `ai-assistant` Edge Function → `ai_begin` (Plus, monthly allowance from the plan's `ai_monthly_limit`, suspension). Answers come only from the Claude API; failed or declined questions aren't counted |
+| Learning analytics and goals | `/dashboard/progress` | `learning_analytics`, `save_learning_goal` |
+| Monthly reports | Progress → Monthly reports | `generate_learning_report` (maintenance writes last month's on the 1st), `request_learning_report` |
+| Personal tutor matching | Tutors page, dashboards | `recommend_tutors` |
+| Family dashboard | `/dashboard/family` (parents) | `family_overview`, `update_child_profile` (linked children only) |
+| Priority support | `/dashboard/support` | `create_support_request` marks Plus requests `priority`; admins see them first |
+
+**Prices are yours to set.** The migration creates **Plus Annual** without a price and off sale. Existing plans keep their prices. In **Admin → Plans & prices**, set each plan's price, its AI questions per month and its session discount, then tick **On sale**. A plan without a price can't be put on sale or bought.
+
+Payments use the existing Paystack checkout (`start_checkout(kind => 'subscription')`), and Plus starts only when the server has verified the payment. Paying again extends the current period; switching plans takes effect immediately and adds the time on. Cancelling keeps Plus to the end of the paid period, and expiry (run by maintenance) switches the features off.
+
+### Reviews and recommendations
+
+- **Who can review:** only the learner, or the parent who booked, after a completed session that was paid through Paystack. One review per session, within 60 days. Tutors can't review themselves, and nobody can edit or delete a review through the API.
+- **What is collected:** overall stars plus teaching quality, communication, punctuality and subject knowledge (1–5 each), and optional written feedback.
+- **Ratings:** each reviewer counts once in a tutor's average, however many lessons they reviewed. Hidden reviews don't count.
+- **Tutor replies and reports:** tutors reply publicly (Dashboard → Reviews) and can report a review. Anyone signed in can report one from a profile.
+- **Moderation:** Admin → Reviews lists reported, flagged (bursts, repeat reviewers, brand-new accounts, overall stars far from the category scores) and hidden reviews. Admins can hide (with a reason the tutor sees), restore, dismiss reports or remove a reply. Every action goes to `review_moderation_log`.
+- **Recommendations:** `tutor_scores` gives every listed tutor a 0–100 quality score:
+
+  | Component | Points |
+  |---|---|
+  | Bayesian rating (few reviews sit near the platform average) | 35 |
+  | Recent rating | 10 |
+  | Review volume (log scale) | 10 |
+  | Completion rate | 15 |
+  | Verified qualifications | 10 |
+  | Weekly availability | 10 |
+  | Boost for new tutors, fading over 60 days | up to 10 |
+
+  Personal matches blend 55% relevance (subjects, goals, level, past lessons) with 45% quality. Sections: Recommended for you (Plus), Top rated, Most reviewed, Newly verified, Popular. They only show real tutors and real numbers.
 
 ### Hosting on Vercel
 
@@ -223,6 +265,8 @@ Do these only after every item in TESTING.md passes with test keys.
 | Payments | Confirmed payments and refunds (refund through Paystack, or mark refunded); every checkout attempt with its failure reason; the full payment event log |
 | Subscriptions | Every learner and tutor subscription with status, period and days left |
 | Plans & prices | Create and edit plans: price, billing period, session discount, features, on sale or hidden |
+| Reviews | Reported, flagged and hidden reviews; hide, restore, dismiss reports, remove replies; moderation log |
+| Support | Support requests, Plus (priority) first; reply and resolve |
 | Business & policies | Business name, operator, support email, phone, WhatsApp number and location; edit, preview or reset the Terms, Privacy Policy and Refund Policy (placeholders such as `{{support_email}}` stay in sync with the details) |
 | Settings | Checkout hold time, whether tutors need a subscription, commission, manual maintenance, and "Check with Paystack" for pending payments |
 

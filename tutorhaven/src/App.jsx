@@ -23,6 +23,7 @@ const NotFound = lazy(() => import('./pages/NotFound'))
 const Policy = lazy(() => import('./pages/Policy'))
 const Contact = lazy(() => import('./pages/Contact'))
 const PlusPage = lazy(() => import('./pages/Plus'))
+const DeleteAccountPage = lazy(() => import('./pages/DeleteAccount'))
 const Assistant = lazy(() => import('./pages/dashboard/Assistant'))
 const Progress = lazy(() => import('./pages/dashboard/Progress'))
 const Family = lazy(() => import('./pages/dashboard/Family'))
@@ -78,6 +79,7 @@ function AnimatedRoutes() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/plus" element={<PlusPage />} />
+        <Route path="/delete-account" element={<DeleteAccountPage />} />
         <Route path="/terms" element={<Policy kind="terms" />} />
         <Route path="/privacy" element={<Policy kind="privacy" />} />
         <Route path="/refunds" element={<Policy kind="refund" />} />

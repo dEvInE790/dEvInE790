@@ -5,7 +5,8 @@ import { BadgeCheck, BarChart3, Bell, Bot, ChevronRight, Crown, MessageSquareQuo
 import Screen from '../../components/Screen'
 import { Avatar, Badge, Button, Card, Field, Tappable, Text } from '../../components/ui'
 import useAsync from '../../lib/useAsync'
-import { getSubscription, isSubscriptionLive, updateProfile } from '../../lib/api'
+import { deleteMyAccount, getDeletionBlockers, getSubscription, isSubscriptionLive, updateProfile } from '../../lib/api'
+import Sheet from '../../components/Sheet'
 import { useUnread } from '../../context/UnreadContext'
 import { supabase } from '../../lib/supabase'
 import { ROLE_LABEL } from '../../lib/constants'
@@ -31,6 +32,8 @@ export default function Account() {
   const [name, setName] = useState(profile.full_name)
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState('')
+  const [deleting, setDeleting] = useState(null)
+  const [typed, setTyped] = useState('')
 
   const active = isSubscriptionLive(sub.data) ? sub.data : null
   const planName = active?.plan?.name ?? (learner && isPlus ? membership?.plan_name : learner ? 'Standard' : 'Not subscribed')
@@ -130,6 +133,34 @@ export default function Account() {
         <Button title="Update password" variant="secondary" size="sm" loading={busy === 'pw'} onPress={savePassword} style={{ alignSelf: 'flex-start' }} />
       </Card>
       <Button title="Sign out" variant="danger" icon={LogOut} onPress={async () => { await signOut(); router.replace('/welcome') }} full />
+      {profile.role !== 'admin' && (
+        <Button title="Delete account" variant="ghost" onPress={async () => { setTyped(''); setDeleting({}); setDeleting(await getDeletionBlockers().catch(() => ({}))) }} full />
+      )}
+      <Sheet visible={!!deleting} onClose={() => busy !== 'delete' && setDeleting(null)} title="Delete your account?" subtitle="This permanently deletes your account. It can’t be undone.">
+        <Text variant="muted" style={{ fontSize: 13 }}>Deleted: your profile, sessions, messages, reviews, goals, reports, AI conversations and uploaded documents (tutors: listing and payout details too). Kept: records of payments, without your name or email, for financial and tax rules. Any plan ends immediately and isn’t refunded.</Text>
+        {(deleting?.upcoming_sessions > 0 || deleting?.refunds_in_progress > 0) && (
+          <Text style={{ fontSize: 13, color: colors.amberInk, backgroundColor: colors.amberBg, padding: 10, borderRadius: 10 }}>
+            {deleting.upcoming_sessions > 0 ? `You have ${deleting.upcoming_sessions} upcoming session(s). Cancel them first in Sessions (paid sessions are refunded).` : 'A refund linked to your account is still being processed. Try again once it has finished.'}
+          </Text>
+        )}
+        <Field label="Type DELETE to confirm" value={typed} onChangeText={setTyped} autoCapitalize="characters" />
+        <Button title="Delete permanently" variant="danger" full loading={busy === 'delete'}
+          disabled={typed !== 'DELETE' || deleting?.upcoming_sessions > 0 || deleting?.refunds_in_progress > 0}
+          onPress={async () => {
+            setBusy('delete')
+            try {
+              await deleteMyAccount()
+              setDeleting(null)
+              toast.success('Your account has been deleted.')
+              await signOut()
+              router.replace('/welcome')
+            } catch (e) {
+              toast.error(e.message)
+            } finally {
+              setBusy('')
+            }
+          }} />
+      </Sheet>
     </Screen>
   )
 }

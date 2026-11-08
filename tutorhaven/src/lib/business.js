@@ -155,7 +155,7 @@ We do not sell your personal data.
 - **Authorities:** when the law requires it.
 
 ## How long we keep it
-We keep your data while your account is active, and payment records for as long as financial and tax rules require. You can ask us to delete your account.
+We keep your data while your account is active, and payment records for as long as financial and tax rules require. You can delete your account at any time in Settings (website) or Account (app); see the "Delete your account" page for what is removed and what is kept.
 
 ## Your rights
 You can ask to see, correct or delete your personal data, or object to how we use it. Contact us at {{support_email}}. You can also complain to the Nigeria Data Protection Commission.

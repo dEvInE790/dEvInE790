@@ -44,6 +44,7 @@ In the Supabase **SQL editor**, run these files in order (each one is safe to ru
 4. `supabase/migrations/20261103000000_tutor_payouts.sql` adds tutor payout accounts and Paystack split payments (15% commission by default).
 5. `supabase/migrations/20261104000000_business_info.sql` adds the business contact details and the editable Terms, Privacy and Refund Policy pages.
 6. `supabase/migrations/20261106000000_plus_reviews_learning.sql` adds TutorHaven Plus: AI assistant usage, verified category reviews with replies, reports and moderation, tutor recommendations, lesson feedback, goals, monthly reports, the family dashboard and priority support.
+7. `supabase/migrations/20261108000000_account_deletion.sql` adds account deletion (required by Google Play and the App Store): users delete their own account in Settings (web) or Account (app), and payment records are kept anonymously.
 
 After running a migration, run `notify pgrst, 'reload schema';` so the API sees the new columns straight away.
 
@@ -161,6 +162,7 @@ supabase functions deploy paystack-payout-account
 supabase functions deploy paystack-callback --no-verify-jwt
 supabase functions deploy paystack-webhook --no-verify-jwt
 supabase functions deploy ai-assistant
+supabase functions deploy delete-account
 ```
 
 Then, in Paystack Dashboard → Settings → API Keys & Webhooks, set the webhook URL to `https://<your-project-ref>.supabase.co/functions/v1/paystack-webhook`. Set it for test mode now, and for live mode when you go live.

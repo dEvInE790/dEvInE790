@@ -415,3 +415,11 @@ export async function isTutorListed(tutorId) {
   ensureConfigured()
   return check(await supabase.rpc('is_public_tutor', { p_id: tutorId }))
 }
+
+// Account deletion (Settings → Delete account). Payment records are kept anonymously.
+export async function getDeletionBlockers() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_account_deletion_blockers'))
+}
+
+export const deleteMyAccount = (reason = '') => invoke('delete-account', { confirm: 'DELETE', reason })

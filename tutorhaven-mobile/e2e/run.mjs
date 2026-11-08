@@ -266,6 +266,19 @@ await flow('reviews and Plus: category review, tutor reply, AI assistant', async
   await see(page, '1 verified review from paid, completed lessons')
 })
 
+await flow('account deletion from the Account tab', async (page) => {
+  await signIn(page, F.student.email)
+  await see(page, 'Hi, Sola')
+  await tapText(page, 'Account')
+  await page.getByRole('button', { name: 'Delete account' }).click()
+  await see(page, 'Delete your account?')
+  await page.getByLabel('Type DELETE to confirm').fill('DELETE')
+  await page.getByRole('button', { name: 'Delete permanently' }).click()
+  await see(page, 'Your account has been deleted.')
+  const [{ c }] = await stack.sql(`select count(*)::int c from auth.users where email = $1`, [F.student.email])
+  if (c !== 0) throw new Error('user still exists')
+})
+
 await flow('suspended account sees an explanation', async (page) => {
   await stack.sql(`update profiles set suspended_at = now(), suspended_reason = 'Payment dispute' where id = $1`, [F.student.id])
   await signIn(page, F.student.email)

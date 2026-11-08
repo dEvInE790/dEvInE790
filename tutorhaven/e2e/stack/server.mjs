@@ -12,6 +12,7 @@ import { createHash, createHmac, randomUUID } from 'node:crypto'
 import pg from 'pg'
 import * as core from '../../supabase/functions/_shared/core.ts'
 import * as aiCore from '../../supabase/functions/_shared/ai.ts'
+import * as accountCore from '../../supabase/functions/_shared/account.ts'
 import { handleRest, httpError } from './postgrest.mjs'
 
 export const ANON_KEY = 'local-stack-anon-key-not-a-secret-0123456789'
@@ -263,6 +264,11 @@ export async function startStack({ port = 54321, databaseUrl = 'postgres://postg
   }
   const FUNCTIONS = {
     'ai-assistant': (req) => aiCore.handleAiAssistant(req, aiDeps),
+    'delete-account': (req) => accountCore.handleDeleteAccount(req, {
+      service: deps.service, userId: aiDeps.userId,
+      removeFiles: async (id) => { for (const k of [...blobs.keys()]) if (k.startsWith(`qualifications/${id}/`)) blobs.delete(k) },
+      deleteUser: async (id) => { await pool.query('delete from auth.users where id = $1', [id]) },
+    }),
     'paystack-init': core.handleInit, 'paystack-verify': core.handleVerify, 'paystack-callback': core.handleCallback,
     'paystack-webhook': core.handleWebhook, 'paystack-refund': core.handleRefund, 'paystack-reconcile': core.handleReconcile,
     'paystack-payout-account': core.handlePayoutAccount,

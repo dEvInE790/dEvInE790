@@ -662,3 +662,11 @@ export async function adminPlusOverview() {
   ensureConfigured()
   return check(await supabase.rpc('admin_plus_overview'))
 }
+
+// Account deletion (Settings → Delete account). Payment records are kept anonymously.
+export async function getDeletionBlockers() {
+  ensureConfigured()
+  return check(await supabase.rpc('my_account_deletion_blockers'))
+}
+
+export const deleteMyAccount = (reason = '') => invoke('delete-account', { confirm: 'DELETE', reason })

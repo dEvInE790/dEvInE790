@@ -15,6 +15,7 @@ import { createServer } from 'node:http'
 import * as core from '../functions/_shared/core.ts'
 import { paystackApi } from '../functions/_shared/paystack.ts'
 import * as aiCore from '../functions/_shared/ai.ts'
+import * as accountCore from '../functions/_shared/account.ts'
 
 const DB = process.env.DATABASE_URL ?? 'postgres://postgres@localhost:5499/tutorhaven'
 const pool = new pg.Pool({ connectionString: DB, max: 8 })
@@ -763,7 +764,7 @@ await test('Paystack HTTP client sends the right requests', async () => {
 
 await test('migration can be re-run safely', async () => {
   const { readFileSync } = await import('node:fs')
-  for (const f of ['20261102000000_production_payments.sql', '20261103000000_tutor_payouts.sql', '20261104000000_business_info.sql', '20261106000000_plus_reviews_learning.sql']) {
+  for (const f of ['20261102000000_production_payments.sql', '20261103000000_tutor_payouts.sql', '20261104000000_business_info.sql', '20261106000000_plus_reviews_learning.sql', '20261108000000_account_deletion.sql']) {
     await sql('postgres', readFileSync(new URL('../migrations/' + f, import.meta.url), 'utf8'))
   }
   eq((await sql('anon', 'select id from tutor_directory where id = $1', [tutor.id])).length, 1, 'data intact after re-run')
@@ -1066,6 +1067,53 @@ await test('priority support: Plus requests are marked priority and listed first
   await rpc(admin, 'admin_update_support', { p_id: b.id, p_status: 'resolved', p_reply: 'It is on its way.' })
   eq((await sql(p, 'select status, admin_reply from support_requests'))[0].status, 'resolved', 'user sees the reply')
   eq((await sql(s, 'select * from support_requests where id = $1', [b.id])).length, 0, 'others cannot see it')
+})
+
+
+await test('account deletion: own account only, blocked by upcoming sessions, data removed, payments kept anonymously', async () => {
+  const removed = []
+  const accDeps = {
+    service: deps.service,
+    userId: async (req) => (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '') || null,
+    removeFiles: async (id) => { removed.push(id) },
+    deleteUser: async (id) => { await sql('postgres', 'delete from auth.users where id = $1', [id]) },
+  }
+  const del = async (u, payload = { confirm: 'DELETE' }) => body(await accountCore.handleDeleteAccount(post(u, payload), accDeps))
+  const t = await listTutor(await approvedTutor('Deletion Tutor'))
+  const leaver = await user('student', 'Leah Leaver')
+  const b = await paidCompleted(leaver, t)
+  await rpc(leaver, 'submit_review', stars(b, 5, [5, 5, 5, 5], 'Great lesson, thank you.'))
+  eq((await one('select review_count from tutors where id = $1', [t.id])).review_count, 1, 'review counted')
+  const upcoming = await book(leaver, t)
+  const { reference } = await checkout(leaver, { kind: 'session', booking_id: upcoming.id })
+  paystack.complete(reference)
+  await core.handleVerify(post(leaver, { reference }), deps)
+
+  eq((await del(null)).status, 401, 'signed out')
+  eq((await del(leaver, { confirm: 'yes' })).error, 'Type DELETE to confirm', 'needs confirmation')
+  eq((await rpc(leaver, 'my_account_deletion_blockers')).data.upcoming_sessions, 1, 'blocker shown in app')
+  const blocked = await del(leaver)
+  ok(blocked.status === 409 && /upcoming session/.test(blocked.error), 'blocked by upcoming paid session: ' + blocked.error)
+  denied(await rpc(leaver, 'prepare_account_deletion', { p_user: leaver.id, p_reason: '' }), /permission denied/, 'apps cannot call the backend step')
+
+  await rpc(leaver, 'set_booking_status', { p_booking: upcoming.id, p_status: 'cancelled' })
+  // A pending refund still blocks; once refunded it can go.
+  eq((await del(leaver)).status, 409, 'refund in progress blocks')
+  await sql('postgres', `update payments set status = 'refunded' where booking_id = $1`, [upcoming.id])
+  const paidBefore = (await one('select count(*)::int c from payments where user_id = $1', [leaver.id])).c
+  const done = await del(leaver, { confirm: 'DELETE', reason: 'Finished my exams' })
+  eq([done.status, done.deleted], [200, true], 'deleted')
+  eq(removed, [leaver.id], 'documents removed')
+  eq((await one('select count(*)::int c from profiles where id = $1', [leaver.id])).c, 0, 'profile gone')
+  eq((await one('select count(*)::int c from bookings where student_id = $1', [leaver.id])).c, 0, 'bookings gone')
+  eq((await one('select review_count from tutors where id = $1', [t.id])).review_count, 0, 'review removed and rating recalculated')
+  eq((await one('select count(*)::int c from payments where user_id = $1', [leaver.id])).c, 0, 'payments unlinked')
+  const kept = await one(`select d.reason, d.email_sha256, count(r.*)::int c from deleted_accounts d join retained_payment_records r on r.deleted_account_id = d.id
+                          where d.reason = 'Finished my exams' group by d.id`)
+  eq([kept.c, kept.email_sha256.length], [paidBefore, 64], 'payments kept anonymously, email only as a hash')
+  eq((await sql(t, 'select * from retained_payment_records')).length, 0, 'retained records admin-only')
+  const adminDel = await del(admin)
+  ok(adminDel.status === 409 && /Admin accounts/.test(adminDel.error), 'admins cannot self-delete')
 })
 
 await pool.end()

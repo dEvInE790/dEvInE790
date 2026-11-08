@@ -8,7 +8,7 @@ import { businessInfo, mailLink, telLink, whatsappLink } from '../../lib/busines
 const cols = [
   { title: 'Learn', links: [['Find a tutor', '/tutors'], ['Pricing', '/pricing'], ['How it works', '/#how-it-works'], ['Parent accounts', '/signup?role=parent']] },
   { title: 'Teach', links: [['Become a tutor', '/signup?role=tutor'], ['Tutor dashboard', '/dashboard']] },
-  { title: 'Help & legal', links: [['Contact us', '/contact'], ['Refund Policy', '/refunds'], ['Terms and Conditions', '/terms'], ['Privacy Policy', '/privacy']] },
+  { title: 'Help & legal', links: [['Contact us', '/contact'], ['Refund Policy', '/refunds'], ['Terms and Conditions', '/terms'], ['Privacy Policy', '/privacy'], ['Delete your account', '/delete-account']] },
 ]
 
 export default function SiteFooter() {

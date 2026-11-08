@@ -54,14 +54,16 @@ export default function Question({ onYes, onNo, musicRef }) {
     <Card>
       <motion.div variants={stagger} initial="hidden" animate="show">
         <motion.p variants={rise} className="text-[0.65rem] font-medium uppercase tracking-[0.28em] text-rose sm:text-[0.7rem] sm:tracking-[0.35em]">
-          a little question for you
+          made just for you
         </motion.p>
 
         <motion.h1
           variants={rise}
           className="mt-3 font-serif text-[clamp(1.75rem,8.5vw,2.75rem)] font-bold italic leading-tight text-burgundy"
         >
-          Hey <span className="whitespace-nowrap">Beautiful{' '}
+          Hey Hiqmoh,
+          <br />
+          <span className="whitespace-nowrap">pretty girl{' '}
           <motion.span
             className="inline-block not-italic"
             animate={{ scale: [1, 1.18, 1, 1.12, 1] }}
@@ -84,16 +86,16 @@ export default function Question({ onYes, onNo, musicRef }) {
         <motion.p
           ref={questionRef}
           variants={rise}
-          className="mt-4 font-serif text-[clamp(1.25rem,6.2vw,1.65rem)] font-medium leading-snug text-wine"
+          className="mt-4 font-serif text-[clamp(1.2rem,5.6vw,1.55rem)] font-medium leading-snug text-wine"
         >
-          Would you like to come over and spend some time with me?{' '}
+          Hiqmoh, would you do me the honour of coming over so we can spend some quality time together?{' '}
           <motion.span
             className="inline-block"
             animate={attempts ? { rotate: [0, -14, 14, -8, 0] } : {}}
             key={attempts}
             transition={{ duration: 0.5 }}
           >
-            🥺
+            🥹
           </motion.span>
         </motion.p>
 

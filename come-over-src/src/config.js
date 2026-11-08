@@ -6,11 +6,15 @@
 export const WHATSAPP_NUMBER = '2348028139086'
 
 // Pre-filled WhatsApp messages (she can edit them before sending).
-export const WHATSAPP_YES_TEXT = "Hey you 🥹 I said YES ❤️ I'm free on…"
-export const WHATSAPP_NO_TEXT = "Hey, I saw your little website 🙈 Not this time, but thank you for asking 💛"
+export const WHATSAPP_YES_TEXT = "It's Hiqmoh 🥹 I said YESSS ❤️ I'm free on…"
+export const WHATSAPP_NO_TEXT = "It's Hiqmoh, I saw your little website 🙈 Not this time, but thank you for asking 💛"
 
 // Lines the NO button says while it runs away. Shown in random order.
 export const NO_MESSAGES = [
+  'Hiqmohhhh, don’t do this to me 😭',
+  'Pretty girl, reconsider 😂❤️',
+  'Are you really saying no to me?',
+  'I promise we’ll have a lovely time 🥺',
   'Waittt, are you sure? 🥺',
   'Wrong button, pretty girl 😂',
   'My heart can’t take this.',

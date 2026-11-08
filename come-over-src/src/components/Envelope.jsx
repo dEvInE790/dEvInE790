@@ -61,7 +61,7 @@ export default function Envelope({ onOpened }) {
           animate={stage === 'open' ? { y: '-62%' } : { y: 0 }}
           transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p className="font-serif text-lg italic text-burgundy sm:text-xl">For you, beautiful</p>
+          <p className="font-serif text-lg italic text-burgundy sm:text-xl">For Hiqmoh, with love</p>
           <div className="mx-auto mt-2 flex items-center justify-center gap-1.5 text-rose">
             <span className="h-px w-8 bg-rose/50" />
             <Heart className="h-3 w-3" />
@@ -124,7 +124,7 @@ export default function Envelope({ onOpened }) {
       </motion.button>
 
       <motion.p
-        className="mt-14 font-sans text-sm font-medium uppercase tracking-[0.3em] text-burgundy/80"
+        className="mt-12 rounded-full bg-cream/75 px-5 py-2 font-sans text-xs font-medium uppercase tracking-[0.3em] text-burgundy shadow-md backdrop-blur-sm"
         animate={isOpening ? { opacity: 0 } : { opacity: [0.55, 1, 0.55] }}
         transition={isOpening ? { duration: 0.3 } : { duration: 2.2, repeat: Infinity }}
       >

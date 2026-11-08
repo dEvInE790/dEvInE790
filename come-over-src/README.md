@@ -8,7 +8,7 @@ A romantic, interactive invitation built with React, Tailwind CSS and Framer Mot
 ## The flow
 
 1. **Envelope.** It floats and pulses. Tap it: the wax seal pops, the flap opens and the letter slides out.
-2. **The question.** "Hey Beautiful ❤️", with YES ❤️ and NO 🙈 buttons.
+2. **The question.** "Hey Hiqmoh, pretty girl ❤️", with YES ❤️ and NO 🙈 buttons.
    - **NO** runs away on hover (desktop), on touch (mobile) and on click or keyboard. It sometimes shrinks (never below 72%), never lands on YES, the message or the music button, and always stays fully on screen. Each try shows a random funny line, and YES gets a little bigger.
    - After 7 tries the button gives up, walks back home and works normally. A gentle, no-pressure screen then lets her say no for real (or change her mind). It stays a joke and never takes away her choice.
 3. **YES.** Heart confetti, a denser wave of floating hearts, the celebration message and a "Let's make it happen ❤️" button. That button shows the "tell me when you're free" message, a little date ticket and a WhatsApp button.

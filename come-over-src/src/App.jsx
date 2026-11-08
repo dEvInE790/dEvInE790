@@ -29,9 +29,9 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.9, delay: 0.2 }}
               >
-                A little question
+                Hiqmoh, I have a
                 <br />
-                for you <span className="not-italic">❤️</span>
+                little question for you <span className="not-italic">💌</span>
               </motion.p>
               <Envelope onOpened={openLetter} />
             </motion.div>

@@ -70,11 +70,12 @@ export default function Celebration() {
           variants={rise}
           className="mt-4 font-serif text-[2.1rem] font-bold leading-[1.1] text-burgundy sm:text-[2.6rem]"
         >
-          YOU JUST MADE <span className="italic text-berry">MY DAY!!!</span> <span aria-hidden="true">❤️</span>
+          HIQMOHHH <span className="italic text-berry">SAID YESSS!</span>{' '}
+          <span className="whitespace-nowrap" aria-hidden="true">❤️😭</span>
         </motion.h1>
 
         <motion.p variants={rise} className="mt-4 text-[0.98rem] font-light leading-relaxed text-burgundy/85">
-          I was secretly hoping you’d say yes. I can’t wait to see you. <span aria-hidden="true">🥹</span>
+          You just made me the happiest person. Can’t wait to see you, beautiful. <span aria-hidden="true">❤️</span>
         </motion.p>
 
         <motion.div variants={rise} className="mx-auto my-6 flex items-center justify-center gap-2 text-rose/70" aria-hidden="true">

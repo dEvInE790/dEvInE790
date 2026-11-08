@@ -1,15 +1,7 @@
-import { useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Card, { rise, stagger } from './Card.jsx'
 import Heart from './Heart.jsx'
 import { fireHearts } from '../lib/heartConfetti.js'
-import { WHATSAPP_YES_TEXT, whatsappLink } from '../config.js'
-
-const PLAN = [
-  ['🎬', 'A movie', 'you pick, I promise'],
-  ['🍿', 'Snacks', 'all your favourites'],
-  ['🫶', 'Good vibes', 'and maybe some cuddles'],
-]
 
 function BeatingHeart() {
   return (
@@ -44,10 +36,7 @@ function BeatingHeart() {
   )
 }
 
-export default function Celebration() {
-  const [planning, setPlanning] = useState(false)
-  const wa = whatsappLink(WHATSAPP_YES_TEXT)
-
+export default function Celebration({ onNext }) {
   const makeItHappen = (e) => {
     const r = e.currentTarget.getBoundingClientRect()
     fireHearts({
@@ -56,7 +45,7 @@ export default function Celebration() {
       spread: 100,
       power: 12,
     })
-    setPlanning(true)
+    setTimeout(onNext, 450) // let the hearts burst before the page changes
   }
 
   return (
@@ -84,83 +73,20 @@ export default function Celebration() {
           <span className="h-px w-12 bg-gradient-to-l from-transparent to-rose/60" />
         </motion.div>
 
-        <AnimatePresence mode="wait">
-          {!planning ? (
-            <motion.div key="ask" variants={rise} exit={{ opacity: 0, y: -12, transition: { duration: 0.3 } }}>
-              <p className="font-serif text-xl italic text-wine">Now, let’s plan our little date.</p>
-              <motion.button
-                type="button"
-                onClick={makeItHappen}
-                className="btn-yes mt-6 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose/50"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                animate={{ y: [0, -4, 0] }}
-                transition={{ y: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } }}
-              >
-                Let’s make it happen <span aria-hidden="true">❤️</span>
-              </motion.button>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="plan"
-              initial={{ opacity: 0, y: 20, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <p className="font-serif text-[1.35rem] leading-snug text-wine">
-                Okay beautiful, just tell me when you’re free. I’ll handle the rest.{' '}
-                <span aria-hidden="true">😉</span>
-              </p>
-
-              {/* a little "date ticket" */}
-              <motion.div
-                className="relative mx-auto mt-6 max-w-xs overflow-hidden rounded-2xl border border-dashed border-rose/50 bg-cream/80 p-4 text-left"
-                initial={{ rotate: -4, opacity: 0 }}
-                animate={{ rotate: -1.5, opacity: 1 }}
-                transition={{ delay: 0.35, type: 'spring', stiffness: 120, damping: 12 }}
-              >
-                <span className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-dashed border-rose/50 bg-[#fdeee9]" aria-hidden="true" />
-                <span className="absolute -right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-dashed border-rose/50 bg-[#fdeee9]" aria-hidden="true" />
-                <p className="text-center text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-rose">
-                  admit one · you
-                </p>
-                <ul className="mt-3 space-y-2">
-                  {PLAN.map(([icon, title, note], i) => (
-                    <motion.li
-                      key={title}
-                      className="flex items-center gap-3 text-sm text-burgundy"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.6 + i * 0.15 }}
-                    >
-                      <span className="text-lg" aria-hidden="true">{icon}</span>
-                      <span>
-                        <span className="font-medium">{title}</span>{' '}
-                        <span className="font-light text-burgundy/70">— {note}</span>
-                      </span>
-                    </motion.li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-center text-[0.7rem] font-light text-burgundy/60">Date & time: whenever you say ♡</p>
-              </motion.div>
-
-              {wa && (
-                <motion.a
-                  href={wa}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-soft mt-6"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Tell me when you’re free <span aria-hidden="true">💬</span>
-                </motion.a>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <motion.div variants={rise}>
+          <p className="font-serif text-xl italic text-wine">Now, let’s plan our little date.</p>
+          <motion.button
+            type="button"
+            onClick={makeItHappen}
+            className="btn-yes mt-6 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose/50"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            animate={{ y: [0, -4, 0] }}
+            transition={{ y: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } }}
+          >
+            Let’s make it happen <span aria-hidden="true">❤️</span>
+          </motion.button>
+        </motion.div>
       </motion.div>
     </Card>
   )

@@ -1,0 +1,11 @@
+// Lets Cloudflare Workers (Git-connected builds) serve Hiqmoh's site.
+// Only the built come-over/ folder is published; nothing else in the repo.
+// Cloudflare Pages ignores this file (it has no pages_build_output_dir) and
+// uses the dashboard's "build output directory" setting (come-over) instead.
+{
+  "name": "for-hiqmoh",
+  "compatibility_date": "2024-09-23",
+  "assets": {
+    "directory": "./come-over"
+  }
+}

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import Card, { rise, stagger } from './Card.jsx'
+import ShareButtons from './ShareButtons.jsx'
 import { WHATSAPP_NO_TEXT, whatsappLink } from '../config.js'
 
 /** If she really means no, that's respected — kindly, with zero pressure. */
@@ -25,6 +26,9 @@ export default function GentleNo({ onBack }) {
               Send my answer <span aria-hidden="true">💌</span>
             </a>
           )}
+        </motion.div>
+        <motion.div variants={rise} className="mt-5">
+          <ShareButtons text={WHATSAPP_NO_TEXT} />
         </motion.div>
       </motion.div>
     </Card>

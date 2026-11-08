@@ -13,7 +13,7 @@ A romantic, interactive invitation built with React, Tailwind CSS and Framer Mot
    - After 7 tries the button gives up, walks back home and works normally. A gentle, no-pressure screen then lets her say no for real (or change her mind). It stays a joke and never takes away her choice.
 3. **YES.** Heart confetti, a denser wave of floating hearts, the celebration message and a "Let's make it happen ❤️" button.
 4. **Date picker.** "Okay, Hiqmoh, one more little question… 🥹❤️". It has a month calendar (past days are disabled, and she can look up to 6 months ahead), Afternoon ☀️ / Evening 🌙 / Night ✨, and an optional "Anything you'd like us to plan? 👀" note. "That's Our Date ❤️" unlocks once a date and a time are picked.
-5. **Confirmation.** "It's a date, Hiqmoh! ❤️", with a ticket showing her date, time and note. "Send My Answer 💌" opens WhatsApp with all of it already typed, and "Change something ✏️" goes back with her choices kept.
+5. **Confirmation.** "It's a date, Hiqmoh! ❤️", with a ticket showing her date, time and note. "Send My Answer 💌" opens WhatsApp with all of it already typed. Under it, "Share 📤" opens the phone's share menu (Instagram, Snapchat, texts…) and "Copy message 📋" copies it to paste anywhere. The "no" screen has the same options. Finally, "Change something ✏️" goes back with her choices kept.
 6. **Music** (top right) is off by default. It's a soft music-box tune made live in the browser, so there's no audio file.
 
 ## Personalising

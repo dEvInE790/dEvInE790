@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Card, { rise, stagger } from './Card.jsx'
+import ShareButtons from './ShareButtons.jsx'
 import { whatsappLink } from '../config.js'
 import { buildAnswerMessage, formatLong, timeOption } from '../lib/dates.js'
 import { celebrate } from '../lib/heartConfetti.js'
@@ -9,7 +10,8 @@ import { celebrate } from '../lib/heartConfetti.js'
 export default function DateConfirmed({ plan, onEdit }) {
   const t = timeOption(plan.time)
   const note = plan.note.trim()
-  const wa = whatsappLink(buildAnswerMessage(plan), { required: true })
+  const message = buildAnswerMessage(plan)
+  const wa = whatsappLink(message, { required: true })
 
   useEffect(() => {
     const id = setTimeout(celebrate, 200)
@@ -86,10 +88,11 @@ export default function DateConfirmed({ plan, onEdit }) {
           >
             Send My Answer <span aria-hidden="true">💌</span>
           </motion.a>
+          <ShareButtons text={message} title="It’s a date 💌" />
           <button
             type="button"
             onClick={onEdit}
-            className="text-sm text-burgundy/60 underline decoration-rose/40 underline-offset-4 hover:text-burgundy"
+            className="mt-2 text-sm text-burgundy/60 underline decoration-rose/40 underline-offset-4 hover:text-burgundy"
           >
             Change something ✏️
           </button>

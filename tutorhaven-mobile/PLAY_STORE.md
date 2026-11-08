@@ -1,6 +1,6 @@
 # Google Play listing kit for TutorHaven
 
-Everything Play Console asks for, ready to copy. Graphics are in `store/android/`.
+Everything Play Console asks for, ready to copy. Graphics are in `store/google-play/`.
 
 ## 1. Create the app
 
@@ -62,7 +62,7 @@ Support: tutorhaven737@gmail.com · WhatsApp 0802 813 9086
 TutorHaven is operated by Ojigbani Divine, Lagos, Nigeria.
 ```
 
-**Graphics** (from `store/android/`):
+**Graphics** (from `store/google-play/`):
 
 | Asset | File | Size |
 |---|---|---|

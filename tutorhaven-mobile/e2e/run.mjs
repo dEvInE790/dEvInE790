@@ -177,7 +177,7 @@ await flow('student: Plus membership via Paystack, history and notifications', a
   await signIn(page, F.student.email)
   await see(page, 'Hi, Sola')
   await tapText(page, 'Account')
-  await page.getByRole('button', { name: /Membership/ }).click()
+  await page.getByRole('button', { name: /TutorHaven Plus/ }).click()
   await see(page, 'Choose Plus')
   await payInPopup(page, () => page.getByRole('button', { name: 'Choose Plus' }).click())
   await see(page, 'Plus is active')

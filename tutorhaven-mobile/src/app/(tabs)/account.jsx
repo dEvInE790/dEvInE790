@@ -76,10 +76,10 @@ export default function Account() {
           <View style={{ backgroundColor: colors.navy950, padding: 20, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ width: 46, height: 46, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>{learner ? <Crown size={22} color={colors.mint300} /> : <BadgeCheck size={22} color={colors.mint300} />}</View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.navy300, fontSize: 13 }}>{learner ? 'Membership' : 'Tutor subscription'}</Text>
+              <Text style={{ color: colors.navy300, fontSize: 13 }}>{learner ? 'TutorHaven Plus' : 'Tutor subscription'}</Text>
               <Text style={{ color: colors.white, fontSize: 20, fontFamily: 'PlusJakartaSans_700Bold' }}>{sub.loading ? '…' : planName}</Text>
               <Text style={{ color: colors.navy200, fontSize: 13 }}>
-                {active ? `${active.status === 'cancelled' ? 'Ends' : 'Active until'} ${dateLong(active.current_period_end)}` : learner ? 'Members save on every session' : sub.data?.status === 'expired' ? 'Expired: renew to be listed again' : 'Subscribe to be listed in search'}
+                {active ? `${active.status === 'cancelled' ? 'Ends' : 'Active until'} ${dateLong(active.current_period_end)}` : learner ? 'See what Plus adds: AI assistant, reports and more' : sub.data?.status === 'expired' ? 'Expired: renew to be listed again' : 'Subscribe to be listed in search'}
               </Text>
             </View>
             <ChevronRight size={20} color={colors.navy300} />

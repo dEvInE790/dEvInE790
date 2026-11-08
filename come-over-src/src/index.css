@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply font-sans text-burgundy antialiased;
+    background-color: #f6c6d0;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button {
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* Layered pink → burgundy → cream wash behind everything. */
+  .romance-bg {
+    background:
+      radial-gradient(120% 70% at 15% 0%, #fff6ef 0%, rgba(255, 246, 239, 0) 60%),
+      radial-gradient(90% 60% at 100% 15%, rgba(249, 215, 221, 0.95) 0%, rgba(249, 215, 221, 0) 65%),
+      radial-gradient(110% 70% at 85% 105%, #7a1f3d 0%, rgba(122, 31, 61, 0) 60%),
+      radial-gradient(90% 60% at 0% 100%, rgba(178, 58, 94, 0.85) 0%, rgba(178, 58, 94, 0) 65%),
+      linear-gradient(165deg, #fff1ea 0%, #f9d7dd 35%, #ec9fb1 70%, #a83a5d 100%);
+  }
+
+  /* Very fine film grain so the gradient feels printed, not flat. */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.18;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .paper {
+    background:
+      radial-gradient(120% 80% at 50% 0%, #fffaf6 0%, #fff3ec 60%, #fde9e4 100%);
+  }
+
+  .btn-yes {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-full px-8 py-3.5 font-sans text-base font-semibold tracking-wide text-cream;
+    background: linear-gradient(135deg, #c2456b 0%, #9b2a4f 55%, #7a1f3d 100%);
+    box-shadow:
+      0 12px 30px -10px rgba(122, 31, 61, 0.75),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+
+  .btn-soft {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-burgundy/15 bg-cream/90 px-7 py-3.5 font-sans text-base font-medium text-burgundy;
+    box-shadow: 0 8px 22px -12px rgba(122, 31, 61, 0.5);
+  }
+}

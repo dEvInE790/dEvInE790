@@ -34,3 +34,9 @@ npm install
 npm run dev      # local preview with hot reload
 npm run build    # writes the static site to ../come-over (commit that folder)
 ```
+
+## Live site
+
+Hosted on a Git-connected Cloudflare Worker named `for-hiqmoh`. Its production branch is set to this
+branch, and `wrangler.jsonc` at the repo root publishes only the built `come-over/` folder.
+Every push rebuilds it automatically: https://for-hiqmoh.ojigbanidivine607.workers.dev

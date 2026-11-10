@@ -65,11 +65,14 @@ const REVIEWS = [
 
 The "Kind Words" section appears automatically when the array has entries.
 
-## Social media
+## Business details (from the owner)
 
-No social links are shown because no account URLs were provided. (The flyer shows
-the handle "Tushbeautyspa_".) To add one, uncomment the example in the footer of
-`index.html` and use the real profile URL.
+- Location: Fulshear, Texas (shown in the hero, contact section, footer and search data)
+- Opening hours: 9:00 am – 10:00 pm (days not yet confirmed)
+- Instagram: linked as https://www.instagram.com/tushbeautyspa_/ in the contact section and footer.
+  **Tap it once to confirm it opens the right page**, and fix the URL in `index.html` if not.
+- The spa focuses on Black and melanin-rich skin, and the copy reflects this.
+  Client photos should be of her own clients, used with their permission.
 
 ## Accessibility & performance notes
 

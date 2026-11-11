@@ -22,7 +22,10 @@
       },
       "package": "ng.tutorhaven.app",
       "softwareKeyboardLayoutMode": "resize",
-      "permissions": []
+      "permissions": [],
+      "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",

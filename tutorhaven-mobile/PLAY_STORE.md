@@ -31,34 +31,34 @@ Book verified tutors, pay securely in naira and track your child's progress.
 ```
 TutorHaven connects students and parents in Nigeria with verified tutors for one-to-one lessons in Maths, English, Physics, Chemistry, Biology, Economics and more, from primary school to WAEC, NECO, JAMB, IGCSE and university.
 
-FIND THE RIGHT TUTOR
-• Search by subject, level and price
-• Every tutor is reviewed by our team before they are listed
-• Verified qualifications are clearly marked
-• Honest ratings: only learners who completed a paid lesson can leave a review
+Find the right tutor
+- Search by subject, level and price
+- Every tutor is reviewed by our team before they are listed
+- Verified qualifications are clearly marked
+- Honest ratings: only learners who completed a paid lesson can leave a review
 
-BOOK AND PAY SAFELY
-• See each tutor's real weekly availability and book in a few taps
-• Pay securely with Paystack: card, bank transfer or USSD, in naira
-• A booking is confirmed only after Paystack confirms your payment
-• Free cancellation up to 24 hours before a lesson, with a full refund
+Book and pay safely
+- See each tutor's real weekly availability and book in a few taps
+- Pay securely with Paystack: card, bank transfer or USSD, in naira
+- A booking is confirmed only after Paystack confirms your payment
+- Free cancellation up to 24 hours before a lesson, with a full refund
 
-FOR PARENTS
-• Link your children's accounts and book lessons for them
-• See every child's sessions, tutors and feedback in one place
+For parents
+- Link your children's accounts and book lessons for them
+- See every child's sessions, tutors and feedback in one place
 
-FOR TUTORS
-• Create your profile, set your own rates and weekly availability
-• Get paid straight to your Nigerian bank account
-• Reply to reviews and add lesson feedback for your learners
+For tutors
+- Create your profile, set your own rates and weekly availability
+- Get paid straight to your Nigerian bank account
+- Reply to reviews and add lesson feedback for your learners
 
-TUTORHAVEN PLUS
+TutorHaven Plus
 Members get an AI Learning Assistant, learning analytics and goals, monthly progress reports for families, personal tutor matching and priority support. Plus is available on our website.
 
-MESSAGES AND NOTIFICATIONS
+Messages and notifications
 Message tutors before you book, and get notified about bookings, payments and feedback.
 
-Support: tutorhaven737@gmail.com · WhatsApp 0802 813 9086
+Support: tutorhaven737@gmail.com | WhatsApp 0802 813 9086
 TutorHaven is operated by Ojigbani Divine, Lagos, Nigeria.
 ```
 

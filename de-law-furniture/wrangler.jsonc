@@ -9,5 +9,8 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Keep variables added in the Cloudflare dashboard (ENQUIRY_TO_EMAIL,
+  // RESEND_FROM, …) when deploying; otherwise each deploy would remove them.
+  "keep_vars": true
 }

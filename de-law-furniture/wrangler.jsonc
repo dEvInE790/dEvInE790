@@ -10,6 +10,11 @@
     "binding": "ASSETS"
   },
   "observability": { "enabled": true },
+  // Content database (projects, collections, products, testimonials).
+  // No database_id: Wrangler creates the database automatically on first deploy.
+  "d1_databases": [{ "binding": "DB", "database_name": "de-law-furniture-db" }],
+  // Photos and videos uploaded from the admin area. Created automatically on first deploy.
+  "kv_namespaces": [{ "binding": "MEDIA" }],
   // Keep variables added in the Cloudflare dashboard (ENQUIRY_TO_EMAIL,
   // RESEND_FROM, …) when deploying; otherwise each deploy would remove them.
   "keep_vars": true

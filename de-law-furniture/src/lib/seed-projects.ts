@@ -1,46 +1,14 @@
-import type { Img } from "./images";
+import type { SeedProject } from "./types";
 
 /**
- * Portfolio entries — GENUINE DE. LAW FURNITURE LTD work only.
- *
- * To add a project, put the photo in /public/images/projects (or a video and
- * a poster frame in /public/videos) and add an entry below. Describe only what
- * the photo shows; do not add client names or locations without permission.
- * Filters with no projects are hidden automatically.
+ * SEED DATA for the projects gallery — GENUINE DE. LAW FURNITURE LTD work only.
+ * Copied into the database on first run; after that, projects are managed at /admin.
+ * Describe only what the photo shows; do not add client names or locations
+ * without permission.
  */
 
-export const projectFilters = [
-  { id: "all", label: "All Work" },
-  { id: "sofas", label: "Sofas & Seating" },
-  { id: "bedroom", label: "Beds" },
-  { id: "wardrobes", label: "Wardrobes" },
-  { id: "tv", label: "TV Units" },
-  { id: "tables", label: "Tables" },
-  { id: "kitchen", label: "Kitchens" },
-  { id: "dining", label: "Dining" },
-  { id: "office", label: "Offices" },
-  { id: "windows", label: "Blinds & Curtains" },
-] as const;
-
-export type ProjectFilter = (typeof projectFilters)[number]["id"];
-
-export type Project = {
-  id: string;
-  title: string;
-  category: Exclude<ProjectFilter, "all">;
-  description: string;
-  /** Photograph — or, for a video project, its poster frame */
-  image: Img;
-  /** Optional short video (muted autoplay preview in the grid, full playback in the viewer) */
-  video?: string;
-  /** Visual size in the gallery grid */
-  size: "tall" | "wide" | "regular";
-  /** Optional CSS object-position, to keep the important part of a cropped photo in view */
-  focus?: string;
-};
-
-export const projects: Project[] = [
-  // Order and sizes matter: they tile the 3-column gallery into full rows with no gaps
+export const seedProjects: SeedProject[] = [
+  // Order and sizes tile the 3-column gallery into full rows with no gaps
   // (2 wide + 7 tall + 3 regular = 21 cells = 7 rows).
   {
     id: "sofa-sets-black",
@@ -144,6 +112,3 @@ export const projects: Project[] = [
     size: "regular",
   },
 ];
-
-export const projectById = (id: string) => projects.find((p) => p.id === id)!;
-export const labelOfFilter = (id: string) => projectFilters.find((f) => f.id === id)?.label ?? id;

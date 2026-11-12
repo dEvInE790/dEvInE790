@@ -6,6 +6,7 @@ import { CustomCTA } from "@/components/sections/CustomCTA";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { PlaceholderNote } from "@/components/ui/PlaceholderNote";
 import { images } from "@/lib/images";
+import { getProjects } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Our Projects — Furniture & Furnishing Portfolio",
@@ -14,7 +15,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/projects" },
 };
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const projects = await getProjects();
   return (
     <>
       <PageHero
@@ -31,7 +33,7 @@ export default function ProjectsPage() {
             <PlaceholderNote className="max-w-sm md:text-right" />
           </div>
           <Suspense fallback={<div className="h-[60vh]" />}>
-            <ProjectGallery />
+            <ProjectGallery projects={projects} />
           </Suspense>
         </div>
       </section>

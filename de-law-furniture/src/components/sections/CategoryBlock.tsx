@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Check, ArrowRight } from "lucide-react";
-import type { Category } from "@/lib/catalogue";
+import type { Category } from "@/lib/types";
 import { Reveal, Stagger } from "@/components/motion/Reveal";
 import { SplitText } from "@/components/motion/SplitText";
 import { ProductCard } from "@/components/ui/ProductCard";

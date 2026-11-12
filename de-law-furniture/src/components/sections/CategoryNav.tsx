@@ -1,7 +1,7 @@
-import { categories } from "@/lib/catalogue";
+import type { Category } from "@/lib/types";
 
 /** Sticky in-page index of the nine collections. */
-export function CategoryNav() {
+export function CategoryNav({ categories }: { categories: Pick<Category, "slug" | "name" | "index">[] }) {
   return (
     <nav aria-label="Collections" className="sticky top-0 z-30 border-b border-espresso/10 bg-ivory/90 backdrop-blur-xl">
       <ul className="container-luxe flex gap-2 overflow-x-auto py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-lenis-prevent-touch>

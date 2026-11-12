@@ -3,7 +3,7 @@ import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/Button";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
-import { testimonials } from "@/lib/testimonials";
+import type { Testimonial } from "@/lib/types";
 import { whatsappLink, waMessages } from "@/lib/site";
 
 /**
@@ -11,7 +11,7 @@ import { whatsappLink, waMessages } from "@/lib/site";
  * business supplies reviews, it invites customers to share their experience
  * instead — no invented quotes.
  */
-export function Testimonials() {
+export function Testimonials({ testimonials }: { testimonials: Testimonial[] }) {
   return (
     <section className="bg-cream py-28 md:py-36" aria-label="Client stories">
       <div className="container-luxe">
@@ -19,8 +19,8 @@ export function Testimonials() {
           <>
             <SectionHeading eyebrow="Client Stories" title={["In our clients'", "own words."]} />
             <Stagger className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {testimonials.map((t, i) => (
-                <StaggerItem key={i} as="article" className="flex flex-col justify-between bg-ivory p-8 md:p-10">
+              {testimonials.map((t) => (
+                <StaggerItem key={t.id} as="article" className="flex flex-col justify-between bg-ivory p-8 md:p-10">
                   <Quote className="h-8 w-8 text-gold" strokeWidth={1} aria-hidden />
                   <blockquote className="display mt-6 text-2xl leading-snug text-espresso">“{t.quote}”</blockquote>
                   <footer className="mt-8 border-t border-espresso/10 pt-5 text-sm">

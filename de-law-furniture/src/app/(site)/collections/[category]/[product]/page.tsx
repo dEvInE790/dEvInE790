@@ -10,31 +10,28 @@ import { ButtonLink } from "@/components/ui/Button";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 import { Reveal, Stagger } from "@/components/motion/Reveal";
 import { HeroReveal } from "@/components/motion/HeroReveal";
-import { categories, findProduct } from "@/lib/catalogue";
+import { getProduct } from "@/lib/content";
+import { jsonLdString } from "@/lib/json-ld";
 import { site, whatsappLink, waMessages } from "@/lib/site";
 
 type Params = { params: Promise<{ category: string; product: string }> };
 
-export function generateStaticParams() {
-  return categories.flatMap((c) => c.products.map((p) => ({ category: c.slug, product: p.slug })));
-}
-
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category, product } = await params;
-  const found = findProduct(category, product);
+  const found = await getProduct(category, product);
   if (!found) return {};
   const { category: c, product: p } = found;
   return {
     title: `${p.name} — ${c.name}`,
     description: `${p.description} Made to order by DE. LAW FURNITURE LTD, Lagos. Request a personalised quotation.`,
     alternates: { canonical: `/collections/${c.slug}/${p.slug}` },
-    openGraph: { images: [{ url: p.images[0].src, alt: p.images[0].alt }] },
+    openGraph: p.images[0] ? { images: [{ url: p.images[0].src, alt: p.images[0].alt }] } : undefined,
   };
 }
 
 export default async function ProductPage({ params }: Params) {
   const { category, product } = await params;
-  const found = findProduct(category, product);
+  const found = await getProduct(category, product);
   if (!found) notFound();
   const { category: c, product: p } = found;
   const quoteHref = `/quote?category=${encodeURIComponent(c.name)}&product=${encodeURIComponent(p.name)}`;
@@ -53,7 +50,7 @@ export default async function ProductPage({ params }: Params) {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
       <section className="grain relative bg-espresso pb-20 pt-32 text-ivory md:pb-28 md:pt-40">
         <div className="container-luxe">
           <HeroReveal delay={0.1}>

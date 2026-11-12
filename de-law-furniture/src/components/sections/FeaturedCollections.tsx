@@ -9,7 +9,7 @@ import { ArrowRight } from "lucide-react";
 import { Photo } from "@/components/ui/Photo";
 import { SplitText } from "@/components/motion/SplitText";
 import { Reveal } from "@/components/motion/Reveal";
-import { categories } from "@/lib/catalogue";
+import type { Category } from "@/lib/types";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -18,7 +18,7 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
  * as the visitor scrolls (GSAP ScrollTrigger). On phones and tablets it
  * becomes a native swipeable row with scroll snapping.
  */
-export function FeaturedCollections() {
+export function FeaturedCollections({ categories }: { categories: Pick<Category, "slug" | "name" | "index" | "tagline" | "cover">[] }) {
   const section = useRef<HTMLElement>(null);
   const track = useRef<HTMLDivElement>(null);
 
@@ -68,7 +68,7 @@ export function FeaturedCollections() {
               <span className="rule" /> Featured Collections
             </p>
           </Reveal>
-          <SplitText id="collections-heading" as="h2" lines={["Nine collections,", "one standard."]} className="display text-5xl text-espresso md:text-6xl xl:text-7xl" />
+          <SplitText id="collections-heading" as="h2" lines={["Every collection,", "one standard."]} className="display text-5xl text-espresso md:text-6xl xl:text-7xl" />
           <Reveal delay={0.2}>
             <p className="mt-6 max-w-md text-base leading-relaxed text-taupe">
               Every collection is made to order — sized, finished and upholstered to suit your space. Prices are tailored to your specification, so every quote is personal.

@@ -9,7 +9,6 @@ import { FormProblem, FormSuccess } from "./FormOutcome";
 import { compressImage, useEnquiry } from "./useEnquiry";
 import { ButtonLink, buttonClass } from "@/components/ui/Button";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
-import { quoteCategories } from "@/lib/catalogue";
 import { LIMITS, type EnquiryFields } from "@/lib/enquiry";
 import { whatsappLink, waMessages } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -42,12 +41,12 @@ function Step({ n, title, children }: { n: string; title: string; children: Reac
   );
 }
 
-export function QuoteForm() {
+export function QuoteForm({ categories: quoteCategories }: { categories: string[] }) {
   const params = useSearchParams();
   const [fields, setFields] = useState<EnquiryFields>(empty);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const { state, setState, errors, setErrors, submit } = useEnquiry();
+  const { state, setState, errors, setErrors, submit } = useEnquiry(quoteCategories);
   const fileInput = useRef<HTMLInputElement>(null);
   const groupId = useId();
 
@@ -61,7 +60,7 @@ export function QuoteForm() {
       product: product?.slice(0, LIMITS.product) ?? f.product,
       description: product && !f.description ? `I'm interested in the ${product}. ` : f.description,
     }));
-  }, [params]);
+  }, [params, quoteCategories]);
 
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), [photos]);
 

@@ -9,13 +9,13 @@ import { Logo } from "@/components/ui/Logo";
 import { useIntro } from "@/components/providers/IntroProvider";
 import { useLenis } from "@/components/providers/SmoothScroll";
 import { nav, site, whatsappLink, waMessages } from "@/lib/site";
-import { categories } from "@/lib/catalogue";
+import type { CatalogueIndex } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 
 const EASE = [0.76, 0, 0.24, 1] as const;
 
-export function Header() {
+export function Header({ catalogue }: { catalogue: CatalogueIndex }) {
   const pathname = usePathname();
   const { introDone } = useIntro();
   const lenis = useLenis();
@@ -191,7 +191,7 @@ export function Header() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.8, delay: 0.85 }}
               >
-                {categories.map((c) => (
+                {catalogue.map((c) => (
                   <li key={c.slug}>
                     <Link href={`/collections/${c.slug}`} className="hover:text-ivory">
                       {c.name}

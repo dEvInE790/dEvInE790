@@ -8,6 +8,6 @@
  * Example:
  *   { quote: "…", name: "Adaeze O.", detail: "Wardrobe & bed frame, Ikeja" }
  */
-export type Testimonial = { quote: string; name: string; detail?: string };
+import type { SeedTestimonial } from "./types";
 
-export const testimonials: Testimonial[] = [];
+export const seedTestimonials: SeedTestimonial[] = [];

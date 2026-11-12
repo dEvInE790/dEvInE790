@@ -8,20 +8,21 @@ import { CustomCTA } from "@/components/sections/CustomCTA";
 import { Testimonials } from "@/components/sections/Testimonials";
 import { ContactSection } from "@/components/sections/ContactSection";
 import { Marquee } from "@/components/ui/Marquee";
-import { categories } from "@/lib/catalogue";
+import { getCatalogue, getProjects, getTestimonials } from "@/lib/content";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [categories, projects, testimonials] = await Promise.all([getCatalogue(), getProjects(), getTestimonials()]);
   return (
     <>
       <HomeHero />
       <HomeAbout />
-      <FeaturedCollections />
+      <FeaturedCollections categories={categories} />
       <Marquee items={categories.map((c) => c.name)} className="border-y border-espresso/10 bg-ivory text-espresso/80" />
       <WhyChoose />
       <Craftsmanship />
-      <FeaturedProjects />
+      <FeaturedProjects projects={projects.slice(0, 5)} />
       <CustomCTA />
-      <Testimonials />
+      <Testimonials testimonials={testimonials} />
       <ContactSection />
     </>
   );

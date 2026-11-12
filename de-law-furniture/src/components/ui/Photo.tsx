@@ -19,7 +19,7 @@ export function Photo({ src, alt, label: _label, className, ...rest }: PhotoProp
   void _label;
   const [failed, setFailed] = useState(false);
 
-  if (failed) {
+  if (failed || !src) {
     return (
       <div
         role="img"

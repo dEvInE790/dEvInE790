@@ -5,25 +5,21 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 import { useIntro } from "@/components/providers/IntroProvider";
-import { findProduct, categoryBySlug } from "@/lib/catalogue";
+import type { CatalogueIndex } from "@/lib/types";
 import { whatsappLink, waMessages } from "@/lib/site";
 
 /** Builds a context-aware WhatsApp message based on the page being viewed. */
-function messageFor(pathname: string) {
+function messageFor(pathname: string, catalogue: CatalogueIndex) {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] === "collections" && parts[1] && parts[2]) {
-    const found = findProduct(parts[1], parts[2]);
-    if (found) return waMessages.product(found.product.name, found.category.name);
-  }
-  if (parts[0] === "collections" && parts[1]) {
-    const c = categoryBySlug(parts[1]);
-    if (c) return waMessages.category(c.name);
-  }
+  const category = parts[0] === "collections" && parts[1] ? catalogue.find((c) => c.slug === parts[1]) : undefined;
+  const product = category && parts[2] ? category.products.find((p) => p.slug === parts[2]) : undefined;
+  if (category && product) return waMessages.product(product.name, category.name);
+  if (category) return waMessages.category(category.name);
   if (parts[0] === "quote") return waMessages.custom;
   return waMessages.general;
 }
 
-export function WhatsAppFloat() {
+export function WhatsAppFloat({ catalogue }: { catalogue: CatalogueIndex }) {
   const pathname = usePathname();
   const { introDone } = useIntro();
   const [hint, setHint] = useState(false);
@@ -59,7 +55,7 @@ export function WhatsAppFloat() {
         )}
       </AnimatePresence>
       <a
-        href={whatsappLink(messageFor(pathname))}
+        href={whatsappLink(messageFor(pathname, catalogue))}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat with DE. LAW FURNITURE LTD on WhatsApp"

@@ -7,30 +7,27 @@ import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 import { CategoryBlock } from "@/components/sections/CategoryBlock";
 import { CustomCTA } from "@/components/sections/CustomCTA";
 import { Reveal } from "@/components/motion/Reveal";
-import { categories, categoryBySlug } from "@/lib/catalogue";
+import { getCatalogue, getCategory } from "@/lib/content";
 import { whatsappLink, waMessages } from "@/lib/site";
 
 type Params = { params: Promise<{ category: string }> };
 
-export function generateStaticParams() {
-  return categories.map((c) => ({ category: c.slug }));
-}
-
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { category } = await params;
-  const c = categoryBySlug(category);
+  const c = await getCategory(category);
   if (!c) return {};
   return {
     title: `${c.name} — Made to Order in Lagos`,
     description: `${c.intro} Custom ${c.name.toLowerCase()} by DE. LAW FURNITURE LTD, Egbe, Lagos. Request a personalised quotation.`,
     alternates: { canonical: `/collections/${c.slug}` },
-    openGraph: { images: [{ url: c.cover.src, alt: c.cover.alt }] },
+    openGraph: c.cover.src ? { images: [{ url: c.cover.src, alt: c.cover.alt }] } : undefined,
   };
 }
 
 export default async function CategoryPage({ params }: Params) {
   const { category } = await params;
-  const c = categoryBySlug(category);
+  const categories = await getCatalogue();
+  const c = categories.find((x) => x.slug === category);
   if (!c) notFound();
   const idx = categories.findIndex((x) => x.slug === c.slug);
   const next = categories[(idx + 1) % categories.length];
@@ -77,7 +74,7 @@ export default async function CategoryPage({ params }: Params) {
         </div>
       </nav>
 
-      <CustomCTA image={c.products[0].images[1] ?? c.cover} title={[`Your ${c.singular.toLowerCase()},`, "your way."]} />
+      <CustomCTA image={c.products[0]?.images[1] ?? c.cover} title={[`Your ${c.singular.toLowerCase()},`, "your way."]} />
     </>
   );
 }

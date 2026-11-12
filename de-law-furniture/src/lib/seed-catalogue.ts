@@ -1,33 +1,14 @@
-import { images, type Img } from "./images";
+import { images } from "./images";
+import type { SeedCategory } from "./types";
 
 /**
- * Furniture catalogue. Product names describe common design styles that are
- * made to order — there are NO fixed prices. Every item is quoted according
- * to the customer's specification, materials and project details.
+ * SEED DATA for the furniture catalogue. On first run it is copied into the
+ * database; after that, collections and products are managed at /admin.
+ * Product names describe common design styles that are made to order —
+ * there are NO fixed prices.
  */
 
-export type Product = {
-  slug: string;
-  name: string;
-  summary: string;
-  description: string;
-  features: string[];
-  images: Img[];
-};
-
-export type Category = {
-  slug: string;
-  name: string;
-  singular: string;
-  index: string;
-  tagline: string;
-  intro: string;
-  cover: Img;
-  customisation: string[];
-  products: Product[];
-};
-
-export const categories: Category[] = [
+export const seedCategories: SeedCategory[] = [
   {
     slug: "sofas",
     name: "Sofas",
@@ -388,20 +369,4 @@ export const categories: Category[] = [
       },
     ],
   },
-];
-
-export const categoryBySlug = (slug: string) => categories.find((c) => c.slug === slug);
-
-export const findProduct = (categorySlug: string, productSlug: string) => {
-  const category = categoryBySlug(categorySlug);
-  const product = category?.products.find((p) => p.slug === productSlug);
-  return category && product ? { category, product } : undefined;
-};
-
-/** Options for the quotation form's furniture-category select. */
-export const quoteCategories = [
-  ...categories.map((c) => c.name),
-  "Interior furnishing (full room / home)",
-  "Exterior furniture",
-  "Other / not sure yet",
 ];

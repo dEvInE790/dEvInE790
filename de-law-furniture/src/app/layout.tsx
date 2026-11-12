@@ -2,12 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/site";
-import { categories } from "@/lib/catalogue";
-import { Providers } from "@/components/providers/Providers";
-import { Loader } from "@/components/layout/Loader";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
-import { WhatsAppFloat } from "@/components/layout/WhatsAppFloat";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -67,31 +61,6 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FurnitureStore",
-  name: site.name,
-  slogan: site.tagline,
-  description: site.description,
-  url: site.url,
-  foundingDate: site.established,
-  telephone: site.phones.map((p) => p.tel),
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: `${site.address.line1}, ${site.address.line2}`,
-    addressLocality: site.address.city,
-    addressRegion: "Lagos",
-    addressCountry: "NG",
-  },
-  openingHoursSpecification: [{ "@type": "OpeningHoursSpecification", opens: site.hours.opens, closes: site.hours.closes }],
-  priceRange: "Quoted on request",
-  hasOfferCatalog: {
-    "@type": "OfferCatalog",
-    name: "Furniture collections",
-    itemListElement: categories.map((c) => ({ "@type": "OfferCatalog", name: c.name, url: `${site.url}/collections/${c.slug}` })),
-  },
-};
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-NG" className={`${cormorant.variable} ${manrope.variable}`}>
@@ -100,17 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Without JavaScript, skip the intro and show every animated element in its final state. */}
           <style>{`#intro-loader{display:none!important}[style*="opacity:0"],[style*="clip-path"],[style*="transform"]{opacity:1!important;clip-path:none!important;transform:none!important}`}</style>
         </noscript>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-        <a href="#main" className="sr-only z-[200] bg-espresso px-4 py-3 text-ivory focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
-          Skip to content
-        </a>
-        <Providers>
-          <Loader />
-          <Header />
-          <main id="main">{children}</main>
-          <Footer />
-          <WhatsAppFloat />
-        </Providers>
+        {children}
       </body>
     </html>
   );

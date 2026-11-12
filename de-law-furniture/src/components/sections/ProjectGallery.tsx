@@ -7,15 +7,16 @@ import { ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { Photo } from "@/components/ui/Photo";
 import { InViewVideo } from "@/components/ui/InViewVideo";
 import { useLenis } from "@/components/providers/SmoothScroll";
-import { labelOfFilter as labelOf, projectFilters, projects, type ProjectFilter } from "@/lib/projects";
+import { labelOfFilter as labelOf, projectFilters, type ProjectFilter } from "@/lib/project-filters";
+import type { Project } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const isFilter = (v: string | null): v is ProjectFilter => !!v && activeFilters.some((f) => f.id === v);
-// Only show filters that have at least one project.
-const activeFilters = projectFilters.filter((f) => f.id === "all" || projects.some((p) => p.category === f.id));
 
-export function ProjectGallery() {
+export function ProjectGallery({ projects }: { projects: Project[] }) {
+  // Only show filters that have at least one project.
+  const activeFilters = useMemo(() => projectFilters.filter((f) => f.id === "all" || projects.some((p) => p.category === f.id)), [projects]);
+  const isFilter = (v: string | null): v is ProjectFilter => !!v && activeFilters.some((f) => f.id === v);
   const params = useSearchParams();
   const initial = params.get("filter");
   const [filter, setFilter] = useState<ProjectFilter>(isFilter(initial) ? initial : "all");
@@ -24,10 +25,10 @@ export function ProjectGallery() {
 
   useEffect(() => {
     const f = params.get("filter");
-    if (isFilter(f)) setFilter(f);
-  }, [params]);
+    if (f && activeFilters.some((x) => x.id === f)) setFilter(f as ProjectFilter);
+  }, [params, activeFilters]);
 
-  const visible = useMemo(() => (filter === "all" ? projects : projects.filter((p) => p.category === filter)), [filter]);
+  const visible = useMemo(() => (filter === "all" ? projects : projects.filter((p) => p.category === filter)), [filter, projects]);
 
   const choose = (f: ProjectFilter) => {
     setFilter(f);

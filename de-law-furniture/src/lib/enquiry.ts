@@ -2,7 +2,6 @@
  * Shared enquiry schema + validation, used by both the browser forms and the
  * /api/enquiry route so the rules can never drift apart.
  */
-import { quoteCategories } from "./catalogue";
 
 export type EnquiryType = "quote" | "contact";
 
@@ -46,7 +45,11 @@ export function phoneDigits(phone: string) {
   return phone.replace(/[^\d]/g, "");
 }
 
-export function validateEnquiry(f: EnquiryFields): FieldErrors {
+/**
+ * @param allowedCategories the quotation form's category choices; when given, the
+ * submitted category must be one of them.
+ */
+export function validateEnquiry(f: EnquiryFields, allowedCategories?: string[]): FieldErrors {
   const e: FieldErrors = {};
   const name = f.name.trim();
   if (name.length < 2) e.name = "Please enter your full name.";
@@ -63,7 +66,8 @@ export function validateEnquiry(f: EnquiryFields): FieldErrors {
 
   const desc = f.description.trim();
   if (f.type === "quote") {
-    if (!f.category || !quoteCategories.includes(f.category)) e.category = "Please choose a furniture category.";
+    if (!f.category || f.category.length > LIMITS.category || (allowedCategories && !allowedCategories.includes(f.category)))
+      e.category = "Please choose a furniture category.";
     if (desc.length < 10) e.description = "Please describe the furniture you'd like (at least a sentence).";
     if (f.location.trim().length < 2) e.location = "Please tell us where the project is located.";
   } else if (desc.length < 5) {

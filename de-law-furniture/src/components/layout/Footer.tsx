@@ -3,10 +3,10 @@ import { Clock, MapPin, Phone } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 import { ButtonLink } from "@/components/ui/Button";
-import { categories } from "@/lib/catalogue";
+import type { CatalogueIndex } from "@/lib/types";
 import { mapsDirectionsUrl, nav, site, whatsappLink, waMessages } from "@/lib/site";
 
-export function Footer() {
+export function Footer({ catalogue }: { catalogue: CatalogueIndex }) {
   const year = new Date().getFullYear();
   return (
     <footer className="grain relative overflow-hidden bg-charcoal text-ivory">
@@ -65,7 +65,7 @@ export function Footer() {
           <div className="lg:col-span-3">
             <h2 className="eyebrow mb-6 text-gold">Collections</h2>
             <ul className="grid grid-cols-1 gap-3 text-sm text-ivory/70 xs:grid-cols-2 sm:grid-cols-1">
-              {categories.map((c) => (
+              {catalogue.map((c) => (
                 <li key={c.slug}>
                   <Link href={`/collections/${c.slug}`} className="link-underline hover:text-ivory">
                     {c.name}

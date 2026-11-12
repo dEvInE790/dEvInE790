@@ -7,7 +7,8 @@ import { useIntro } from "@/components/providers/IntroProvider";
 import type { Img } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
-export function ProductGallery({ images, name }: { images: Img[]; name: string }) {
+export function ProductGallery({ images: given, name }: { images: Img[]; name: string }) {
+  const images = given.length ? given : [{ src: "", alt: name }];
   const [active, setActive] = useState(0);
   const { introDone } = useIntro();
   const reduce = useReducedMotion();

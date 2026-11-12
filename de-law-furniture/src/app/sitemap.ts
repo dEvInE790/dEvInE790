@@ -1,8 +1,11 @@
 import type { MetadataRoute } from "next";
-import { categories } from "@/lib/catalogue";
+import { getCatalogue } from "@/lib/content";
 import { site } from "@/lib/site";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const dynamic = "force-dynamic";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const categories = await getCatalogue();
   const now = new Date();
   const pages = ["", "/about", "/collections", "/projects", "/contact", "/quote"].map((p) => ({
     url: `${site.url}${p}`,

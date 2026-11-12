@@ -7,6 +7,8 @@ import { Reveal } from "@/components/motion/Reveal";
 import { WhatsAppIcon } from "@/components/ui/WhatsAppIcon";
 import { images } from "@/lib/images";
 import { site, whatsappLink, waMessages } from "@/lib/site";
+import { getCatalogue } from "@/lib/content";
+import { buildQuoteCategories } from "@/lib/quote";
 
 export const metadata: Metadata = {
   title: "Request a Quotation — Custom Furniture",
@@ -21,7 +23,8 @@ const next = [
   { icon: Truck, title: "We make, deliver & install", text: "Once approved, your furniture is crafted, delivered and installed." },
 ];
 
-export default function QuotePage() {
+export default async function QuotePage() {
+  const categories = buildQuoteCategories((await getCatalogue()).map((c) => c.name));
   return (
     <>
       <PageHero
@@ -72,7 +75,7 @@ export default function QuotePage() {
           </aside>
           <div className="order-1 lg:order-2 lg:col-span-8">
             <Suspense fallback={<div className="h-[80vh]" />}>
-              <QuoteForm />
+              <QuoteForm categories={categories} />
             </Suspense>
           </div>
         </div>

@@ -99,19 +99,56 @@ SMTP also worked in a local test of the Cloudflare runtime, but encrypted SMTP (
 
 ### Other hosts
 
-Vercel and Netlify also work: use `npm run build` with root directory `de-law-furniture`, and either email method. GitHub Pages can't run this site, because it only serves static files.
+The site is built for Cloudflare, because the admin area needs Cloudflare's D1 database and KV storage. On other Node hosts (Vercel, Netlify) the public site still runs, but it shows the built-in starting content and the admin area can't save changes. GitHub Pages can't run this site, because it only serves static files.
+
+## Admin area (/admin)
+
+Staff can manage the website's content at **`/admin`** without touching code:
+
+| Section | What you can do |
+|---|---|
+| **Projects** | Upload photos or videos (MP4, up to 24 MB) of completed work, with title, category, description and tile size. Reorder with the arrows: the first five appear in "Featured Projects" on the homepage. Hide or delete projects. |
+| **Collections** | Edit each furniture collection (name, tagline, introduction, cover photo, customisation options), add or remove collections, and manage each collection's products (up to 8 photos, description, features). |
+| **Testimonials** | Add genuine customer reviews. They appear on the homepage straight away. |
+
+Changes go live immediately.
+
+### Setting it up (one-time)
+
+1. In Cloudflare: open the **de-law-furniture** Worker, go to **Settings → Variables and Secrets → Add**, and create a **Secret** named `ADMIN_PASSWORD` with a strong password (at least 8 characters). Share it only with staff who need it.
+2. Visit `https://<your-site>/admin` and sign in.
+
+On the first deploy, Wrangler creates the database (**D1**, `de-law-furniture-db`) and the media storage (**KV**) automatically. On the first visit, the site fills the database with the content that was previously hard-coded. Both services are free within Cloudflare's free-plan limits, and neither needs a payment card.
+
+**Security:**
+- **Login:** the session cookie is signed and HttpOnly and lasts 7 days. Changing `ADMIN_PASSWORD` signs everyone out.
+- **Rate limiting:** 5 wrong passwords lock that IP address out for 15 minutes.
+- **Requests:** every admin action re-checks the session and validates its input on the server, and cross-site requests are rejected.
+- **Uploads:** checked by file content, not just the file name.
+
+### How it works
+
+| Part | Where |
+|---|---|
+| Database schema, automatic setup and seeding | `src/lib/db.ts` |
+| Content queries used by the website and admin | `src/lib/content.ts` |
+| Login and sessions | `src/lib/auth.ts`, `src/app/api/admin/login` |
+| Uploads (KV) and serving with Range support | `src/app/api/admin/media`, `src/app/media/[...key]` |
+| Admin actions (save, delete, reorder, show/hide) | `src/app/admin/actions.ts` |
+| Admin pages | `src/app/admin` |
+
+To try the admin locally:
+1. Create `.dev.vars` containing `ADMIN_PASSWORD=some-local-password`.
+2. Run `npm run preview`. This uses a local database and storage under `.wrangler/`.
 
 ## Content you'll want to update
 
-All editable content lives in `src/lib/`:
+Projects, collections, products and testimonials are managed at **`/admin`** (see above). The files `src/lib/seed-*.ts` only hold the starting content that is copied into the database on first run. Everything else is in `src/lib/`:
 
 | File | What it controls |
 |---|---|
 | `site.ts` | Business details: address, phones, WhatsApp, hours, plus `email` and `socials` (both empty until supplied, so they're hidden), WhatsApp message templates, and the `USING_PLACEHOLDER_PHOTOS` flag |
 | `images.ts` | **Every photograph on the site.** They're currently temporary Unsplash stock photos, except the hero. To swap one, put your photo in `public/images/` and change its `src` to `/images/your-photo.jpg`. Local photos are served as-is, so export them at about 1600px wide (2400px for the hero) as JPEGs. If any photo fails to load, the site shows a styled placeholder panel. |
-| `catalogue.ts` | The 9 categories and the made-to-order designs in each: names, descriptions, features, customisation options |
-| `projects.ts` | Portfolio entries for the Projects page and the homepage |
-| `testimonials.ts` | **Empty on purpose.** Only add genuine reviews, with the customer's permission. Until there are some, the site invites customers to share their experience on WhatsApp. |
 
 **Photos and honesty:** while `USING_PLACEHOLDER_PHOTOS` is `true`, the project sections show a small note saying the photos are representative. Once the company's own photographs are in place, set it to `false`.
 
@@ -140,4 +177,4 @@ All editable content lives in `src/lib/`:
 - Open Graph image generated at `/opengraph-image`
 - `FurnitureStore` JSON-LD (address, phones, opening hours, founding date, catalogue) and `Product` JSON-LD on product pages
 - `sitemap.xml` and `robots.txt`
-- Every page except the API is pre-rendered as static HTML
+- Pages are rendered on request from the database, so admin changes appear immediately

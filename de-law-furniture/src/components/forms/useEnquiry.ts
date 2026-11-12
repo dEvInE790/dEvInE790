@@ -12,12 +12,12 @@ export type SubmitState =
   | { status: "error"; message: string; whatsapp: string };
 
 /** Submits an enquiry to /api/enquiry and reports exactly what happened — never a fake success. */
-export function useEnquiry() {
+export function useEnquiry(allowedCategories?: string[]) {
   const [state, setState] = useState<SubmitState>({ status: "idle" });
   const [errors, setErrors] = useState<FieldErrors>({});
 
   const submit = async (fields: EnquiryFields, photos: File[] = []) => {
-    const clientErrors = validateEnquiry(fields);
+    const clientErrors = validateEnquiry(fields, allowedCategories);
     setErrors(clientErrors);
     if (Object.keys(clientErrors).length) {
       const first = Object.keys(clientErrors)[0];

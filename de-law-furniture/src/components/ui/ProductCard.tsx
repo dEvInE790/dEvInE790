@@ -6,7 +6,7 @@ import { ArrowRight } from "lucide-react";
 import type { PointerEvent } from "react";
 import { Photo } from "./Photo";
 import { WhatsAppIcon } from "./WhatsAppIcon";
-import type { Category, Product } from "@/lib/catalogue";
+import type { Category, Product } from "@/lib/types";
 import { staggerItem } from "@/components/motion/Reveal";
 import { whatsappLink, waMessages } from "@/lib/site";
 
@@ -17,6 +17,7 @@ import { whatsappLink, waMessages } from "@/lib/site";
  */
 export function ProductCard({ product, category, index }: { product: Product; category: Category; index: number }) {
   const href = `/collections/${category.slug}/${product.slug}`;
+  const cover = product.images[0] ?? { src: "", alt: product.name };
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
   const rx = useSpring(useTransform(my, [-0.5, 0.5], [3, -3]), { stiffness: 150, damping: 20 });
@@ -46,8 +47,8 @@ export function ProductCard({ product, category, index }: { product: Product; ca
         <Link href={href} aria-label={`${product.name} — view details`} className="absolute inset-0 block">
           <motion.div className="absolute -inset-4" style={{ x: ix, y: iy }}>
             <Photo
-              src={product.images[0].src}
-              alt={product.images[0].alt}
+              src={cover.src}
+              alt={cover.alt}
               fill
               sizes="(min-width: 1280px) 30vw, (min-width: 640px) 45vw, 100vw"
               className="object-cover transition-transform duration-[1.4s] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.07]"

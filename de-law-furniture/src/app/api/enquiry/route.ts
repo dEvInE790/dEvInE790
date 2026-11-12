@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { ACCEPTED_IMAGE_TYPES, LIMITS, enquiryRows, enquiryToText, validateEnquiry, type EnquiryFields } from "@/lib/enquiry";
 import { deliveryMethod, sendMail, type Attachment } from "@/lib/mailer";
 import { site } from "@/lib/site";
+import { getCatalogue } from "@/lib/content";
+import { buildQuoteCategories } from "@/lib/quote";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,7 +70,8 @@ export async function POST(req: Request) {
     budget: str(fd, "budget"),
   };
 
-  const errors = validateEnquiry(fields);
+  const allowed = type === "quote" ? buildQuoteCategories((await getCatalogue()).map((c) => c.name)) : undefined;
+  const errors = validateEnquiry(fields, allowed);
 
   // Reference photographs (quote requests only)
   const attachments: Attachment[] = [];

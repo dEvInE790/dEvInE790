@@ -1,5 +1,4 @@
 import "server-only";
-import nodemailer from "nodemailer";
 
 export type Attachment = { filename: string; content: Buffer; contentType: string };
 export type Mail = { subject: string; text: string; html: string; replyTo?: string; attachments: Attachment[] };
@@ -41,6 +40,7 @@ export async function sendMail(mail: Mail) {
 
   if (method === "smtp") {
     const port = Number(env("SMTP_PORT") || 465);
+    const nodemailer = (await import("nodemailer")).default;
     const transporter = nodemailer.createTransport({
       host: env("SMTP_HOST"),
       port,

@@ -4,10 +4,10 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
-    formats: ["image/avif", "image/webp"],
-    // Temporary stock photography is served from Unsplash. Once the company's
-    // own photographs are added to /public/images, this can be removed.
-    remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
+    // Custom loader (see src/lib/image-loader.ts): no image-optimisation server
+    // is needed, which keeps the site deployable to Cloudflare Workers.
+    loader: "custom",
+    loaderFile: "./src/lib/image-loader.ts",
   },
   experimental: {
     optimizePackageImports: ["lucide-react"],

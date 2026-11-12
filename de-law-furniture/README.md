@@ -56,16 +56,50 @@ Each email includes:
 - a honeypot field catches bots
 - best-effort rate limiting: 5 submissions per IP every 10 minutes
 
-## Deploying
+## Deploying to Cloudflare (Workers)
 
-The site needs a Node.js host because `/api/enquiry` is a server route. **Vercel** is the simplest option:
+The site runs as a Cloudflare **Worker**, built with the official Next.js adapter [OpenNext](https://opennext.js.org/cloudflare). The enquiry form needs server code, so the dashboard's "Upload your static files" option **can't** be used.
 
-1. Import this GitHub repository in Vercel.
-2. Set **Root Directory** to `de-law-furniture`.
-3. Add the environment variables above, plus `NEXT_PUBLIC_SITE_URL` (for example `https://www.your-domain.com`). This value is used for SEO metadata, the sitemap and social previews.
-4. Deploy. Netlify and any other Node host that supports Next.js also work.
+### Option A — connect GitHub (recommended, auto-deploys on every push)
 
-> GitHub Pages can't run this site: it only serves static files, and the enquiry form needs a server.
+1. Cloudflare dashboard → **Workers & Pages** → **Create** → **Import a repository** → connect GitHub and pick this repository.
+2. Fill in the build settings:
+   - **Project name:** `de-law-furniture` (must match `name` in `wrangler.jsonc`)
+   - **Root directory / Path:** `de-law-furniture`
+   - **Build command:** `npx opennextjs-cloudflare build`
+   - **Deploy command:** `npx opennextjs-cloudflare deploy`
+   - **Branch:** the branch that holds this code
+3. Under **Build variables**, add `NEXT_PUBLIC_SITE_URL` with the site's address. Before you have a custom domain, use the `https://de-law-furniture.<your-subdomain>.workers.dev` address Cloudflare shows after the first deploy, then redeploy.
+4. Deploy. Then open the Worker → **Settings → Variables and Secrets** and add the enquiry email settings below, using the **Secret** type for API keys and passwords.
+
+### Option B — deploy from your own computer
+
+```bash
+cd de-law-furniture
+npm install
+npx wrangler login        # opens the browser to sign in to Cloudflare
+npm run deploy            # builds and deploys
+```
+
+`npm run preview` runs the production build locally in Cloudflare's runtime. For local email testing, put the variables in a `.dev.vars` file; it's git-ignored.
+
+### Email delivery on Cloudflare
+
+Use **Resend**. It sends over HTTPS, which Workers fully support. For a quick start without a domain, sign up at resend.com with the inbox that should receive enquiries, then set:
+
+| Variable | Value |
+|---|---|
+| `ENQUIRY_TO_EMAIL` | that same inbox |
+| `RESEND_FROM` | `DE. LAW Website <onboarding@resend.dev>` |
+| `RESEND_API_KEY` | your API key, as a **Secret** |
+
+Resend's test sender only delivers to your own account address, which is exactly what this needs. If you later verify your domain in Resend, you can change `RESEND_FROM` to an address on it.
+
+SMTP also worked in a local test of the Cloudflare runtime, but encrypted SMTP (such as Gmail on port 465) hasn't been verified on Cloudflare's network. That's why Resend is the safer choice there.
+
+### Other hosts
+
+Vercel and Netlify also work: use `npm run build` with root directory `de-law-furniture`, and either email method. GitHub Pages can't run this site, because it only serves static files.
 
 ## Content you'll want to update
 
@@ -74,7 +108,7 @@ All editable content lives in `src/lib/`:
 | File | What it controls |
 |---|---|
 | `site.ts` | Business details: address, phones, WhatsApp, hours, plus `email` and `socials` (both empty until supplied, so they're hidden), WhatsApp message templates, and the `USING_PLACEHOLDER_PHOTOS` flag |
-| `images.ts` | **Every photograph on the site.** They're currently temporary Unsplash stock photos. To swap one, put your photo in `public/images/` and change its `src` to `/images/your-photo.jpg`. If any photo fails to load, the site shows a styled placeholder panel. |
+| `images.ts` | **Every photograph on the site.** They're currently temporary Unsplash stock photos, except the hero. To swap one, put your photo in `public/images/` and change its `src` to `/images/your-photo.jpg`. Local photos are served as-is, so export them at about 1600px wide (2400px for the hero) as JPEGs. If any photo fails to load, the site shows a styled placeholder panel. |
 | `catalogue.ts` | The 9 categories and the made-to-order designs in each: names, descriptions, features, customisation options |
 | `projects.ts` | Portfolio entries for the Projects page and the homepage |
 | `testimonials.ts` | **Empty on purpose.** Only add genuine reviews, with the customer's permission. Until there are some, the site invites customers to share their experience on WhatsApp. |

@@ -10,7 +10,7 @@ import { images } from "@/lib/images";
 export const metadata: Metadata = {
   title: "Our Projects — Furniture & Furnishing Portfolio",
   description:
-    "Living rooms, bedrooms, kitchens, wardrobes, offices, dining spaces, window blinds and curtains — explore furniture and furnishing projects by DE. LAW FURNITURE LTD.",
+    "Recent furniture made by DE. LAW FURNITURE LTD in Lagos — channel-tufted sofa sets, chaise lounges, upholstered bed frames, wardrobes and TV wall units.",
   alternates: { canonical: "/projects" },
 };
 
@@ -20,9 +20,9 @@ export default function ProjectsPage() {
       <PageHero
         eyebrow="Our Projects"
         title={["Spaces,", "transformed."]}
-        image={images.interiorCalm}
+        image={images.hero}
         crumbs={[{ href: "/", label: "Home" }, { href: "/projects", label: "Projects" }]}
-        intro="A look at the kinds of rooms we furnish — from living rooms and bedrooms to kitchens, offices and finished window treatments."
+        intro="Recent furniture made by DE. LAW FURNITURE LTD — sofas, beds, wardrobes and TV wall units."
       />
       <section className="bg-ivory py-20 md:py-28" aria-label="Project gallery">
         <div className="container-luxe">

@@ -1,20 +1,23 @@
-import { images, type Img } from "./images";
+import type { Img } from "./images";
 
 /**
- * Portfolio entries. The photographs are TEMPORARY placeholders (see
- * src/lib/images.ts). Replace each image with a photograph of a real
- * DE. LAW FURNITURE LTD project and update the title/description to match.
- * Do not add client names or locations without the client's permission.
+ * Portfolio entries — GENUINE DE. LAW FURNITURE LTD work only.
+ *
+ * To add a project, put the photo in /public/images/projects (or a video and
+ * a poster frame in /public/videos) and add an entry below. Describe only what
+ * the photo shows; do not add client names or locations without permission.
+ * Filters with no projects are hidden automatically.
  */
 
 export const projectFilters = [
   { id: "all", label: "All Work" },
-  { id: "living", label: "Living Rooms" },
-  { id: "bedroom", label: "Bedrooms" },
-  { id: "kitchen", label: "Kitchens" },
+  { id: "sofas", label: "Sofas & Seating" },
+  { id: "bedroom", label: "Beds" },
   { id: "wardrobes", label: "Wardrobes" },
-  { id: "office", label: "Offices" },
+  { id: "tv", label: "TV Units" },
+  { id: "kitchen", label: "Kitchens" },
   { id: "dining", label: "Dining" },
+  { id: "office", label: "Offices" },
   { id: "windows", label: "Blinds & Curtains" },
 ] as const;
 
@@ -25,26 +28,75 @@ export type Project = {
   title: string;
   category: Exclude<ProjectFilter, "all">;
   description: string;
+  /** Photograph — or, for a video project, its poster frame */
   image: Img;
+  /** Optional short video (muted autoplay preview in the grid, full playback in the viewer) */
+  video?: string;
   /** Visual size in the gallery grid */
   size: "tall" | "wide" | "regular";
 };
 
 export const projects: Project[] = [
-  { id: "p1", title: "Living Room Furnishing", category: "living", description: "Sectional sofa, coffee table and coordinated soft furnishings.", image: images.livingBright, size: "wide" },
-  { id: "p2", title: "Fitted Kitchen Installation", category: "kitchen", description: "Wall and base cabinets planned, built and installed on site.", image: images.kitchenWhite, size: "tall" },
-  { id: "p3", title: "Upholstered Bedroom Suite", category: "bedroom", description: "Upholstered bed frame with matching bedside furniture.", image: images.bedroomHotel, size: "regular" },
-  { id: "p4", title: "Executive Office Setting", category: "office", description: "Executive desk, storage and meeting furniture.", image: images.officeDesk, size: "regular" },
-  { id: "p5", title: "Family Dining Set", category: "dining", description: "Dining table with upholstered chairs, finished to order.", image: images.dining, size: "wide" },
-  { id: "p6", title: "Built-In Wardrobe", category: "wardrobes", description: "Floor-to-ceiling wardrobe with a custom interior layout.", image: images.bedroomLight, size: "tall" },
-  { id: "p7", title: "Bedroom Curtains & Blinds", category: "windows", description: "Lined curtains and blinds measured and fitted to each window.", image: images.bedroomSoft, size: "regular" },
-  { id: "p8", title: "Lounge Seating", category: "living", description: "Sofa and armchairs upholstered in coordinated fabrics.", image: images.livingLounge, size: "regular" },
-  { id: "p9", title: "Modern Kitchen Cabinetry", category: "kitchen", description: "Flat-panel cabinetry with tall storage units.", image: images.kitchenModern, size: "wide" },
-  { id: "p10", title: "Open-Plan Office Workstations", category: "office", description: "Team workstations configured to the floor plan.", image: images.office, size: "tall" },
-  { id: "p11", title: "Wooden Bed Frame", category: "bedroom", description: "Wooden bed frame with a refined natural finish.", image: images.bedroomLinen, size: "regular" },
-  { id: "p12", title: "Living Room Drapery", category: "windows", description: "Floor-length drapes framing living-room windows.", image: images.interiorLamp, size: "regular" },
-  { id: "p13", title: "Open Dining Area", category: "dining", description: "Dining furniture for an open-plan living space.", image: images.diningOpen, size: "regular" },
-  { id: "p14", title: "Wardrobe & Dressing Area", category: "wardrobes", description: "Storage and dressing furniture designed as one.", image: images.interiorCalm, size: "wide" },
-  { id: "p15", title: "TV Wall & Living Space", category: "living", description: "Media wall with storage and display shelving.", image: images.livingModern, size: "regular" },
-  { id: "p16", title: "Meeting Room Furniture", category: "office", description: "Conference table and seating for a meeting room.", image: images.officeMeeting, size: "wide" },
+  // Order matters: it tiles the 3-column gallery into 4 full rows with no gaps.
+  {
+    id: "sofa-sets-black",
+    title: "Channel-Tufted Sofa Sets",
+    category: "sofas",
+    description: "A run of black channel-tufted sofas finished with gold-toned legs.",
+    image: { src: "/images/projects/sofa-sets-black.jpg", alt: "Several black channel-tufted sofas with gold-toned legs, finished and lined up outdoors" },
+    size: "wide",
+  },
+  {
+    id: "sofa-set-tan",
+    title: "Tan Sofa Set with Gold Trim",
+    category: "sofas",
+    description: "Channel-stitched sofa set in tan, with gold-trimmed arm panels and matching accent cushions.",
+    image: { src: "/videos/sofa-set-tan-poster.jpg", alt: "Tan channel-stitched sofa with gold-trimmed arms and a gold-striped cushion" },
+    video: "/videos/sofa-set-tan.mp4",
+    size: "tall",
+  },
+  {
+    id: "wardrobe-oak",
+    title: "Six-Door Wardrobe",
+    category: "wardrobes",
+    description: "Oak-effect wardrobe with full-height doors, drawers and black bar handles.",
+    image: { src: "/images/projects/wardrobe-oak-six-door.jpg", alt: "Tall oak-effect wardrobe with six doors, drawers and black bar handles" },
+    size: "tall",
+  },
+  {
+    id: "chaise-lounge-grey",
+    title: "Curved Chaise Lounge",
+    category: "sofas",
+    description: "Sculpted chaise in soft grey fabric on tapered wooden legs.",
+    image: { src: "/images/projects/chaise-lounge-grey.jpg", alt: "Curved grey fabric chaise lounge with a sweeping backrest on tapered wooden legs" },
+    size: "regular",
+  },
+  {
+    id: "sofa-grey-fabric",
+    title: "Grey Fabric Sofa",
+    category: "sofas",
+    description: "Grey fabric sofa with loose back cushions on slim black legs, still in its protective wrap.",
+    image: { src: "/images/projects/sofa-grey-fabric.jpg", alt: "Grey fabric sofa with two back cushions and slim black legs, wrapped in protective plastic" },
+    size: "regular",
+  },
+  {
+    id: "tv-wall-unit",
+    title: "TV Wall Unit with LED Lighting",
+    category: "tv",
+    description: "Gloss-white media wall with concealed LED backlighting and a long floating console.",
+    image: { src: "/videos/tv-wall-unit-poster.jpg", alt: "White gloss TV wall panel with warm LED backlighting above a floating white console" },
+    video: "/videos/tv-wall-unit.mp4",
+    size: "tall",
+  },
+  {
+    id: "bed-frames-upholstered",
+    title: "Upholstered Bed Frames",
+    category: "bedroom",
+    description: "Channel-tufted headboards and frames in charcoal and magenta fabric.",
+    image: { src: "/images/projects/bed-frames-upholstered.jpg", alt: "Two upholstered bed frames with tall channel-tufted headboards, one charcoal and one magenta" },
+    size: "wide",
+  },
 ];
+
+export const projectById = (id: string) => projects.find((p) => p.id === id)!;
+export const labelOfFilter = (id: string) => projectFilters.find((f) => f.id === id)?.label ?? id;

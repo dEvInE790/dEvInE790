@@ -3,6 +3,7 @@
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { Photo } from "@/components/ui/Photo";
+import { InViewVideo } from "@/components/ui/InViewVideo";
 import type { Img } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,8 @@ type ClipImageProps = {
   parallax?: number;
   delay?: number;
   label?: string;
+  /** Optional video; `image` is then used as its poster frame */
+  video?: string;
 };
 
 const clipFrom = {
@@ -30,7 +33,7 @@ const clipFrom = {
  * Image revealed through an animated clip-path mask, with a gentle scale-down
  * and optional scroll parallax for depth. Transforms only — GPU friendly.
  */
-export function ClipImage({ image, className, sizes = "(min-width: 1024px) 50vw, 100vw", priority, from = "bottom", parallax = 10, delay = 0, label }: ClipImageProps) {
+export function ClipImage({ image, className, sizes = "(min-width: 1024px) 50vw, 100vw", priority, from = "bottom", parallax = 10, delay = 0, label, video }: ClipImageProps) {
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
@@ -59,7 +62,11 @@ export function ClipImage({ image, className, sizes = "(min-width: 1024px) 50vw,
             className="absolute inset-0"
             variants={{ hidden: { scale: 1.25 }, show: { scale: 1, transition: { duration: 1.8, ease: [0.22, 1, 0.36, 1], delay } } }}
           >
-            <Photo src={image.src} alt={image.alt} fill sizes={sizes} priority={priority} className="object-cover" label={label} />
+            {video ? (
+              <InViewVideo src={video} poster={image.src} label={image.alt} />
+            ) : (
+              <Photo src={image.src} alt={image.alt} fill sizes={sizes} priority={priority} className="object-cover" label={label} />
+            )}
           </motion.div>
         </motion.div>
       </motion.div>

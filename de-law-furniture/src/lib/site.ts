@@ -57,11 +57,11 @@ export const site = {
 };
 
 /**
- * While this is true, project/portfolio sections show a discreet note that the
- * photographs are representative. Set to false once the company's own project
- * photographs have replaced the temporary stock images in src/lib/images.ts.
+ * When true, the project sections show a note that the photographs are
+ * representative. The portfolio now uses only genuine DE. LAW work, so it is
+ * off; switch it back on if stock photos are ever added to src/lib/projects.ts.
  */
-export const USING_PLACEHOLDER_PHOTOS = true;
+export const USING_PLACEHOLDER_PHOTOS = false;
 
 export function whatsappLink(message?: string) {
   const base = `https://wa.me/${WHATSAPP_NUMBER}`;

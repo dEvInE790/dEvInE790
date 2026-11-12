@@ -5,13 +5,15 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { Photo } from "@/components/ui/Photo";
+import { InViewVideo } from "@/components/ui/InViewVideo";
 import { useLenis } from "@/components/providers/SmoothScroll";
-import { projectFilters, projects, type ProjectFilter } from "@/lib/projects";
+import { labelOfFilter as labelOf, projectFilters, projects, type ProjectFilter } from "@/lib/projects";
 import { cn } from "@/lib/utils";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const isFilter = (v: string | null): v is ProjectFilter => !!v && projectFilters.some((f) => f.id === v);
-const labelOf = (id: string) => projectFilters.find((f) => f.id === id)?.label ?? id;
+const isFilter = (v: string | null): v is ProjectFilter => !!v && activeFilters.some((f) => f.id === v);
+// Only show filters that have at least one project.
+const activeFilters = projectFilters.filter((f) => f.id === "all" || projects.some((p) => p.category === f.id));
 
 export function ProjectGallery() {
   const params = useSearchParams();
@@ -61,7 +63,7 @@ export function ProjectGallery() {
     <div>
       <LayoutGroup>
         <div role="group" aria-label="Filter projects" className="-mx-5 flex gap-1 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
-          {projectFilters.map((f) => {
+          {activeFilters.map((f) => {
             const count = f.id === "all" ? projects.length : projects.filter((p) => p.category === f.id).length;
             return (
               <button
@@ -101,16 +103,20 @@ export function ProjectGallery() {
                   type="button"
                   onClick={() => setOpen(i)}
                   className="group relative block h-full w-full overflow-hidden bg-sand text-left"
-                  aria-label={`Open ${p.title} in gallery viewer`}
+                  aria-label={`${p.video ? "Play" : "Open"} ${p.title} in gallery viewer`}
                 >
-                  <Photo
-                    src={p.image.src}
-                    alt={p.image.alt}
-                    fill
-                    sizes={p.size === "wide" ? "(min-width: 1024px) 66vw, 100vw" : "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"}
-                    className="object-cover transition-transform duration-[1.6s] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.06]"
-                    label={p.title}
-                  />
+                  {p.video ? (
+                    <InViewVideo src={p.video} poster={p.image.src} label={p.image.alt} className="transition-transform duration-[1.6s] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.06]" />
+                  ) : (
+                    <Photo
+                      src={p.image.src}
+                      alt={p.image.alt}
+                      fill
+                      sizes={p.size === "wide" ? "(min-width: 1024px) 66vw, 100vw" : "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"}
+                      className="object-cover transition-transform duration-[1.6s] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.06]"
+                      label={p.title}
+                    />
+                  )}
                   <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-espresso/80 via-espresso/0 to-transparent opacity-80 transition-opacity duration-700 group-hover:opacity-100" />
                   <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5 text-ivory md:p-6">
                     <span>
@@ -158,7 +164,7 @@ export function ProjectGallery() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.6, ease: EASE }}
-                  drag="x"
+                  drag={current.video ? false : "x"}
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.25}
                   onDragEnd={(_, info) => {
@@ -166,7 +172,20 @@ export function ProjectGallery() {
                     else if (info.offset.x > 80) step(-1);
                   }}
                 >
-                  <Photo src={current.image.src} alt={current.image.alt} fill sizes="100vw" className="object-contain" label={current.title} draggable={false} />
+                  {current.video ? (
+                    <video
+                      key={current.video}
+                      src={current.video}
+                      poster={current.image.src}
+                      aria-label={current.image.alt}
+                      controls
+                      autoPlay
+                      playsInline
+                      className="absolute inset-0 h-full w-full object-contain"
+                    />
+                  ) : (
+                    <Photo src={current.image.src} alt={current.image.alt} fill sizes="100vw" className="object-contain" label={current.title} draggable={false} />
+                  )}
                 </motion.div>
               </AnimatePresence>
               <button type="button" onClick={() => step(-1)} className="absolute left-2 top-1/2 hidden h-14 w-14 -translate-y-1/2 items-center justify-center border border-ivory/25 transition-colors hover:bg-ivory hover:text-espresso md:left-6 md:flex" aria-label="Previous image">

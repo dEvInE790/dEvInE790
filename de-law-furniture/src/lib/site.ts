@@ -5,6 +5,21 @@
 
 export const WHATSAPP_NUMBER = "2348090986792"; // international format, digits only
 
+/**
+ * The site's public address, from NEXT_PUBLIC_SITE_URL. Tolerates common
+ * typing slips (missing https://, quotes, spaces, trailing slash or path) so
+ * a mistyped build variable can never break the build.
+ */
+function resolveSiteUrl() {
+  let raw = (process.env.NEXT_PUBLIC_SITE_URL || "").trim().replace(/^["']+|["']+$/g, "").trim();
+  if (raw && !/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
+  try {
+    return new URL(raw || "http://localhost:3000").origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+}
+
 export const site = {
   name: "DE. LAW FURNITURE LTD",
   shortName: "DE. LAW",
@@ -38,7 +53,7 @@ export const site = {
   email: null as string | null,
   /** Add social profiles when supplied, e.g. { label: "Instagram", href: "https://instagram.com/..." } */
   socials: [] as { label: string; href: string }[],
-  url: (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, ""),
+  url: resolveSiteUrl(),
 };
 
 /**

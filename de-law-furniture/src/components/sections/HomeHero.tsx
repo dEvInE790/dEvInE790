@@ -76,7 +76,7 @@ export function HomeHero() {
           <Photo src={images.hero.src} alt={images.hero.alt} fill priority sizes="100vw" className="object-cover" label="Hero photograph" />
         </div>
       </div>
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-espresso/60 via-espresso/25 to-espresso/90" />
+      <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-espresso/45 via-espresso/25 to-espresso/90" />
       <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-espresso/70 via-transparent to-transparent" />
 
       <div data-hero-content className="container-luxe relative flex min-h-[100svh] flex-col justify-end pb-24 pt-32 md:min-h-[max(100svh,640px)] md:pb-32">

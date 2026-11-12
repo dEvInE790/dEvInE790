@@ -16,7 +16,7 @@ const u = (id: string, w = 2000) =>
   `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=80`;
 
 export const images = {
-  hero: { src: u("1618221195710-dd6b41faaea6", 2400), alt: "Warm, elegantly furnished living room with a tailored sofa" },
+  hero: { src: "/images/hero-living-room.jpg", alt: "Double-height living room with a cream modular sofa, oak wall panelling, a paper globe pendant and a floating mezzanine" },
   livingWarm: { src: u("1586023492125-27b2c045efd7"), alt: "Living room with upholstered sofa, side tables and soft lighting" },
   livingModern: { src: u("1600210492486-724fe5c67fb0"), alt: "Modern living space with sofa and timber details" },
   livingBright: { src: u("1616486338812-3dadae4b4ace"), alt: "Bright living room with a fabric sofa and cushions" },

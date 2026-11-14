@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
-import { moveItem, setVisible, type ActionResult } from "@/app/admin/actions";
+import type { ActionResult, Table } from "@/lib/admin-api";
+import { useAdmin } from "./AdminApp";
 import { btn } from "./ui";
 
-type Table = "projects" | "categories" | "products" | "testimonials";
 
 /** Reorder / show-hide / edit / delete buttons for one row of an admin list. */
 export function ItemControls({
@@ -20,6 +19,7 @@ export function ItemControls({
   onEdit,
   onDelete,
   deleteConfirm,
+  onChanged,
 }: {
   table: Table;
   id: number;
@@ -30,30 +30,32 @@ export function ItemControls({
   onEdit?: () => void;
   onDelete: () => Promise<ActionResult>;
   deleteConfirm: string;
+  /** Called after any change so the list can reload */
+  onChanged: () => void;
 }) {
-  const router = useRouter();
+  const { api } = useAdmin();
   const [pending, start] = useTransition();
 
   const run = (fn: () => Promise<ActionResult>) =>
     start(async () => {
       const res = await fn();
       if (!res.ok) alert(res.error);
-      router.refresh();
+      onChanged();
     });
 
   return (
     <div className="flex flex-wrap items-center gap-1.5" aria-busy={pending}>
-      <button type="button" className={btn.icon} disabled={pending || first} onClick={() => run(() => moveItem(table, id, "up"))} aria-label="Move up" title="Move up">
+      <button type="button" className={btn.icon} disabled={pending || first} onClick={() => run(() => api.moveItem(table, id, "up"))} aria-label="Move up" title="Move up">
         <ArrowUp className="h-4 w-4" />
       </button>
-      <button type="button" className={btn.icon} disabled={pending || last} onClick={() => run(() => moveItem(table, id, "down"))} aria-label="Move down" title="Move down">
+      <button type="button" className={btn.icon} disabled={pending || last} onClick={() => run(() => api.moveItem(table, id, "down"))} aria-label="Move down" title="Move down">
         <ArrowDown className="h-4 w-4" />
       </button>
       <button
         type="button"
         className={btn.icon}
         disabled={pending}
-        onClick={() => run(() => setVisible(table, id, !visible))}
+        onClick={() => run(() => api.setVisible(table, id, !visible))}
         aria-label={visible ? "Hide from website" : "Show on website"}
         title={visible ? "Visible — click to hide" : "Hidden — click to show"}
       >

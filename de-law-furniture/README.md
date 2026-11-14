@@ -99,51 +99,88 @@ SMTP also worked in a local test of the Cloudflare runtime, but encrypted SMTP (
 
 ### Other hosts
 
-The site is built for Cloudflare, because the admin area needs Cloudflare's D1 database and KV storage. On other Node hosts (Vercel, Netlify) the public site still runs, but it shows the built-in starting content and the admin area can't save changes. GitHub Pages can't run this site, because it only serves static files.
+Vercel and Netlify also work: use `npm run build` with root directory `de-law-furniture`, and set the same `SUPABASE_*` and email variables there. GitHub Pages can't run this site, because it only serves static files.
 
-## Admin area (/admin)
+## Admin area (/admin), powered by Supabase
 
-Staff can manage the website's content at **`/admin`** without touching code:
+Staff manage the website's content at **`/admin`**, from a phone or a computer, without touching code:
 
 | Section | What you can do |
 |---|---|
-| **Projects** | Upload photos or videos (MP4, up to 24 MB) of completed work, with title, category, description and tile size. Reorder with the arrows: the first five appear in "Featured Projects" on the homepage. Hide or delete projects. |
+| **Projects** | Upload photos or videos (MP4, up to 50 MB) of completed work, with title, category, description and tile size. Reorder with the arrows: the first five visible projects appear in "Featured Projects" on the homepage. Hide or delete projects. |
 | **Collections** | Edit each furniture collection (name, tagline, introduction, cover photo, customisation options), add or remove collections, and manage each collection's products (up to 8 photos, description, features). |
 | **Testimonials** | Add genuine customer reviews. They appear on the homepage straight away. |
 
-Changes go live immediately.
+Content lives in **Supabase**: its database, its Storage (for photos and videos) and its Auth (for staff logins). The website itself stays on Cloudflare. Until Supabase is connected, the website shows its built-in starting content, and `/admin` explains how to connect it.
 
-### Setting it up (one-time)
+### One-time setup (about 10 minutes)
 
-1. In Cloudflare: open the **de-law-furniture** Worker, go to **Settings → Variables and Secrets → Add**, and create a **Secret** named `ADMIN_PASSWORD` with a strong password (at least 8 characters). Share it only with staff who need it.
-2. Visit `https://<your-site>/admin` and sign in.
+1. **Create a Supabase project.** Go to [supabase.com](https://supabase.com) → **New project** (the free plan is fine). Pick a region close to your visitors and wait for the project to finish setting up.
 
-On the first deploy, Wrangler creates the database (**D1**, `de-law-furniture-db`) and the media storage (**KV**) automatically. On the first visit, the site fills the database with the content that was previously hard-coded. Both services are free within Cloudflare's free-plan limits, and neither needs a payment card.
+2. **Create the database.** Open **SQL Editor → New query**, paste the whole of [`supabase/setup.sql`](supabase/setup.sql) and click **Run**. This creates the tables, the security rules and the `media` storage bucket, and adds the website's current content. It's safe to run again later.
 
-**Security:**
-- **Login:** the session cookie is signed and HttpOnly and lasts 7 days. Changing `ADMIN_PASSWORD` signs everyone out.
-- **Rate limiting:** 5 wrong passwords lock that IP address out for 15 minutes.
-- **Requests:** every admin action re-checks the session and validates its input on the server, and cross-site requests are rejected.
-- **Uploads:** checked by file content, not just the file name.
+3. **Turn off public sign-ups.** Open **Authentication → Sign In / Providers** (named **Providers** or **Settings** in some versions) and switch off **Allow new users to sign up**. Staff accounts are created by you, not by visitors.
+
+4. **Create staff logins.** Open **Authentication → Users → Add user → Create new user**. Enter each person's email and a password, and tick **Auto Confirm User**.
+
+5. **Make them admins.** Back in **SQL Editor**, run this once for each person, using their email:
+
+   ```sql
+   insert into public.admin_users (user_id, email)
+   select id, email from auth.users where lower(email) = lower('name@example.com')
+   on conflict (user_id) do nothing;
+   ```
+
+   To remove someone's admin access:
+
+   ```sql
+   delete from public.admin_users where lower(email) = lower('name@example.com');
+   ```
+
+6. **Connect the website.** In Supabase, open **Project Settings → API** (or **API Keys**) and copy the **Project URL** and the **anon / publishable** key. In Cloudflare, open the **de-law-furniture** Worker → **Settings → Variables and Secrets** and add:
+
+   | Name | Value |
+   |---|---|
+   | `SUPABASE_URL` | the Project URL, e.g. `https://abcdefgh.supabase.co` |
+   | `SUPABASE_ANON_KEY` | the anon / publishable key |
+
+   This key is designed to be public, so storing it as a plain variable is fine. **Never** use the `service_role` / secret key here.
+
+7. **Sign in.** Visit `https://<your-site>/admin` and sign in with a staff email and password. "Forgot password?" sends a reset link by email.
+
+8. **For password-reset links:** in Supabase, open **Authentication → URL Configuration** and set the **Site URL** to your website's address.
+
+### Security
+
+- **Row-level security in the database.** The rules live in Supabase itself, so they apply however someone connects:
+  - The public can only **read** visible content.
+  - Only signed-in users on the `admin_users` list (with a confirmed email) can add, change, delete or reorder anything, or upload and delete files.
+- **Admin rights belong to accounts, not emails.** They're tied to an existing account ID, so nobody can gain them by later signing up with an admin's email address.
+- **Database rules reject bad data:** text that's too long, unknown categories, or badly formed web addresses.
+- **The storage bucket only accepts** JPEG, PNG and WebP photos and MP4/MOV videos, up to 50 MB.
+- These rules were checked against a real local Supabase with 38 tests covering anonymous visitors, strangers who sign up, signed-in staff not on the list, and admins.
+
+### Good to know (Supabase free plan)
+
+- The free plan includes 500 MB of database, 1 GB of file storage and 5 GB of downloads a month. That's plenty for this site; photos are compressed in the browser before upload.
+- **Supabase pauses free projects after about a week with no activity.** Normal website traffic counts as activity. If the project is ever paused, the website keeps working with its built-in starting content until you click **Restore project** in Supabase. Upgrading to Supabase Pro avoids pausing completely.
 
 ### How it works
 
 | Part | Where |
 |---|---|
-| Database schema, automatic setup and seeding | `src/lib/db.ts` |
-| Content queries used by the website and admin | `src/lib/content.ts` |
-| Login and sessions | `src/lib/auth.ts`, `src/app/api/admin/login` |
-| Uploads (KV) and serving with Range support | `src/app/api/admin/media`, `src/app/media/[...key]` |
-| Admin actions (save, delete, reorder, show/hide) | `src/app/admin/actions.ts` |
+| Database tables, security rules, storage bucket | `supabase/schema.sql` |
+| The file you run (schema + starting content) | `supabase/setup.sql`, generated with `npm run supabase:sql` |
+| Public pages reading content (anon key) | `src/lib/content.ts`, `src/lib/supabase-config.ts` |
+| Admin sign-in, admin check, page shell | `src/components/admin/AdminApp.tsx` |
+| Admin reads and writes, uploads | `src/lib/admin-api.ts` (runs in the browser as the signed-in user) |
 | Admin pages | `src/app/admin` |
 
-To try the admin locally:
-1. Create `.dev.vars` containing `ADMIN_PASSWORD=some-local-password`.
-2. Run `npm run preview`. This uses a local database and storage under `.wrangler/`.
+**To try it locally with your Supabase project:** create `.dev.vars` containing the two `SUPABASE_*` lines above, then run `npm run preview`.
 
 ## Content you'll want to update
 
-Projects, collections, products and testimonials are managed at **`/admin`** (see above). The files `src/lib/seed-*.ts` only hold the starting content that is copied into the database on first run. Everything else is in `src/lib/`:
+Projects, collections, products and testimonials are managed at **`/admin`** (see above). The files `src/lib/seed-*.ts` only hold the starting content: it's built into `supabase/setup.sql`, and it's what the site shows when Supabase isn't connected. Everything else is in `src/lib/`:
 
 | File | What it controls |
 |---|---|
@@ -177,4 +214,4 @@ Projects, collections, products and testimonials are managed at **`/admin`** (se
 - Open Graph image generated at `/opengraph-image`
 - `FurnitureStore` JSON-LD (address, phones, opening hours, founding date, catalogue) and `Product` JSON-LD on product pages
 - `sitemap.xml` and `robots.txt`
-- Pages are rendered on request from the database, so admin changes appear immediately
+- Pages are rendered on request from Supabase, so admin changes appear immediately

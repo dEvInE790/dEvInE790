@@ -3,19 +3,10 @@
 import { useRef, useState } from "react";
 import { Film, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { compressImage } from "@/components/forms/useEnquiry";
-import { btn } from "./ui";
+import { btn } from "./styles";
+import { useAdmin } from "./AdminApp";
+import { MAX_VIDEO_BYTES } from "@/lib/admin-api";
 import { cn } from "@/lib/utils";
-
-type UploadResult = { ok: boolean; src?: string; message?: string };
-
-async function upload(file: File | Blob, name: string): Promise<string> {
-  const fd = new FormData();
-  fd.append("file", file, name);
-  const res = await fetch("/api/admin/media", { method: "POST", body: fd });
-  const data = (await res.json().catch(() => ({}))) as UploadResult;
-  if (!res.ok || !data.ok || !data.src) throw new Error(data.message || "Upload failed. Please try again.");
-  return data.src;
-}
 
 /** Grabs a frame ~1s into a video in the browser, to use as its poster image. */
 async function posterFromVideo(file: File): Promise<Blob> {
@@ -56,6 +47,8 @@ type Props = {
 };
 
 export function MediaPicker({ mode = "image", image, video, onChange, onClear, className }: Props) {
+  const { api } = useAdmin();
+  const upload = api.uploadMedia;
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +59,7 @@ export function MediaPicker({ mode = "image", image, video, onChange, onClear, c
     try {
       if (file.type.startsWith("video/")) {
         if (mode !== "image-or-video") throw new Error("Please choose a photo.");
-        if (file.size > 24 * 1024 * 1024) throw new Error("Videos must be under 24 MB. Try a shorter clip.");
+        if (file.size > MAX_VIDEO_BYTES) throw new Error("Videos must be under 50 MB. Try a shorter clip.");
         setBusy("Preparing video…");
         const poster = await posterFromVideo(file);
         setBusy("Uploading video…");
@@ -116,7 +109,7 @@ export function MediaPicker({ mode = "image", image, video, onChange, onClear, c
           </button>
         )}
       </div>
-      {mode === "image-or-video" && <p className="text-xs text-taupe">Photos: JPEG/PNG. Videos: MP4 up to 24 MB (WhatsApp videos work well).</p>}
+      {mode === "image-or-video" && <p className="text-xs text-taupe">Photos: JPEG/PNG. Videos: MP4 up to 50 MB (WhatsApp videos work well).</p>}
       {error && <p role="alert" className="text-sm text-[#a4442e]">{error}</p>}
       <input
         ref={input}

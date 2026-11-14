@@ -14,14 +14,13 @@ const links = [
   { href: "/admin/testimonials", label: "Testimonials", icon: MessageSquareQuote },
 ];
 
-export function AdminNav() {
+export function AdminNav({ email, onSignOut }: { email: string; onSignOut: () => Promise<void> }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const active = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
 
   const logout = async () => {
-    await fetch("/api/admin/logout", { method: "POST" }).catch(() => {});
-    window.location.href = "/admin/login";
+    await onSignOut();
   };
 
   return (
@@ -50,6 +49,9 @@ export function AdminNav() {
           </Link>
         ))}
         <div className="mt-auto space-y-1 border-t border-ivory/10 pt-4">
+          <p className="truncate px-3 pb-2 text-xs text-ivory/45" title={email}>
+            {email}
+          </p>
           <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-3 text-sm text-ivory/75 hover:text-ivory">
             <ExternalLink className="h-4 w-4" strokeWidth={1.6} /> View website
           </a>

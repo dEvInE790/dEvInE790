@@ -182,3 +182,5 @@ npm run test:e2e
 - Unpaid registrations hold their spot until you **Remove** them. Chase or remove people who
   register but never pay, otherwise the 35 spots can fill with non-payers.
 - No request rate-limiting beyond the bot honeypot; add Vercel Firewall rules if you see abuse.
+
+_Deployed on Cloudflare Workers as `krazy-hours-party`._

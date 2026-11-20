@@ -79,7 +79,7 @@ The app runs on Cloudflare Workers through the OpenNext adapter (`wrangler.jsonc
 
    | Setting | Value |
    |---|---|
-   | Project / Worker name | `krazy-hours` (must match `name` in `wrangler.jsonc`) |
+   | Project / Worker name | `krazy-hours-party` (must match `name` in `wrangler.jsonc`) |
    | Root directory | `krazy-hours` |
    | Build command | `npx opennextjs-cloudflare build` |
    | Deploy command | `npx opennextjs-cloudflare deploy` |

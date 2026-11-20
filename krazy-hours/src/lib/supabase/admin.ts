@@ -11,6 +11,6 @@ export function supabaseAdmin(): SupabaseClient {
   if (!url || !key) {
     throw new Error("Supabase is not configured: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
   }
-  cached = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  cached = createClient(url, key.trim(), { auth: { persistSession: false, autoRefreshToken: false } });
   return cached;
 }

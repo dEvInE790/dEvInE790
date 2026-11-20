@@ -184,3 +184,4 @@ npm run test:e2e
 - No request rate-limiting beyond the bot honeypot; add Vercel Firewall rules if you see abuse.
 
 _Deployed on Cloudflare Workers as `krazy-hours-party`._
+_Supabase connected via Cloudflare build variables and the SUPABASE_SERVICE_ROLE_KEY secret._

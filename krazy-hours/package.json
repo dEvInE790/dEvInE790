@@ -6,9 +6,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:e2e": "node --env-file=.env.local scripts/e2e-api.mjs"
+    "test:e2e": "node --env-file=.env.local scripts/e2e-api.mjs",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.18",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.2",
     "framer-motion": "^14.14.0",
@@ -32,7 +36,8 @@
     "eslint-config-next": "^15.5.29",
     "postcss": "^8.5.33",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.165.0"
   },
   "private": true,
   "overrides": {

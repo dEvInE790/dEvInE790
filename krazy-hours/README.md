@@ -4,7 +4,7 @@ Event site, ticket booking, PalmPay bank-transfer checkout, digital tickets and 
 organiser dashboard for **KRAZY HOURS** (TribeWave Records × Motion Boys Squad),
 December 17, 10 PM – 5 AM, Isheri, Lagos. Capacity: 30.
 
-**Stack:** Next.js 15 (App Router) · React 19 · Tailwind CSS · Framer Motion · GSAP
+**Stack:** Next.js 15 (App Router) on Cloudflare Workers (OpenNext) · React 19 · Tailwind CSS · Framer Motion · GSAP
 ScrollTrigger · Lenis smooth scroll · Supabase (Postgres, Auth, private Storage).
 
 ---
@@ -44,7 +44,7 @@ Rejecting a pending booking releases its spots back to the public counter.
 
 ## Setup (about 20 minutes)
 
-You need: a free [Supabase](https://supabase.com) account, a free [Vercel](https://vercel.com)
+You need: a free [Supabase](https://supabase.com) account, a free [Cloudflare](https://cloudflare.com)
 account, and this repository on GitHub.
 
 ### 1. Create the Supabase project
@@ -67,19 +67,35 @@ account, and this repository on GitHub.
 3. Recommended: in **Authentication** settings (menu names vary slightly between Supabase versions), turn **off**
    "Allow new users to sign up". Organisers are added by hand only.
 
-### 3. Deploy to Vercel
-1. Vercel → **Add New → Project** → import this GitHub repo.
-2. Set **Root Directory** to `krazy-hours`.
-3. Add these **Environment Variables** (Supabase → Project Settings → API):
+### 3. Deploy to Cloudflare (recommended)
+The app runs on Cloudflare Workers through the OpenNext adapter (`wrangler.jsonc`,
+`open-next.config.ts`).
 
-   | Name | Value |
+1. Cloudflare dashboard → **Workers & Pages → Create → Import a repository** and pick this GitHub repo.
+2. Settings:
+
+   | Setting | Value |
    |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon` / publishable key |
-   | `SUPABASE_SERVICE_ROLE_KEY` | `service_role` / secret key — **never share this** |
-   | `NEXT_PUBLIC_SITE_URL` | Your final URL, e.g. `https://krazyhours.vercel.app` |
+   | Project / Worker name | `krazy-hours` (must match `name` in `wrangler.jsonc`) |
+   | Root directory | `krazy-hours` |
+   | Build command | `npx opennextjs-cloudflare build` |
+   | Deploy command | `npx opennextjs-cloudflare deploy` |
 
-4. Click **Deploy**. Then open `/admin` on the live site and sign in.
+3. Add the variables from Supabase → Project Settings → API in **two places**:
+   - **Build variables** (they are baked into the browser code at build time):
+     `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL`
+   - **Runtime variables & secrets** (Worker → Settings → Variables and Secrets):
+     the same three, plus `SUPABASE_SERVICE_ROLE_KEY` as a **Secret** — never share this key.
+4. Deploy. After changing any `NEXT_PUBLIC_` value, redeploy so it's rebuilt.
+5. Optional: Worker → Settings → **Domains & Routes** → add your own domain.
+
+CLI alternative: `npx wrangler login`, put the runtime values in `.dev.vars` (local) or
+`npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY`, then `npm run cf:deploy`.
+Test locally in the Cloudflare runtime with `npm run cf:preview` (http://localhost:8787).
+
+### 3b. Or deploy to Vercel
+Import the repo, set **Root Directory** to `krazy-hours`, add the four variables from the
+table in step 3, and deploy.
 
 ### 4. Before you share the link
 - Make a real ₦3,000 test booking from your phone, verify it in the dashboard, check the

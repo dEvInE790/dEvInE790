@@ -21,7 +21,8 @@ export async function getAdmin(): Promise<AdminUser | null> {
       .maybeSingle();
     if (!row) return null;
     return { id: data.user.id, email: data.user.email ?? null };
-  } catch {
+  } catch (e) {
+    console.error("admin check failed:", (e as Error).message);
     return null;
   }
 }

@@ -18,18 +18,19 @@ export async function GET(req: Request) {
   const status = new URL(req.url).searchParams.get("status");
 
   let q = supabaseAdmin().from("bookings").select(BOOKING_COLUMNS).order("created_at", { ascending: true });
-  if (status && ["pending", "confirmed", "rejected", "cancelled"].includes(status)) q = q.eq("status", status);
+  if (status && ["registered", "pending", "confirmed", "cancelled"].includes(status)) q = q.eq("status", status);
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const header = [
-    "Booking ID", "Name", "Phone", "Email", "Category", "Qty", "Unit price (NGN)", "Amount (NGN)",
-    "Payment reference", "Status", "Booked at", "Verified at", "Checked in at", "Admin note",
+    "Booking ID", "Name", "Phone", "Email", "Category", "Amount (NGN)", "Status",
+    "Payment reference", "Registered at", "Payment submitted at", "Verified at", "Checked in at", "Admin note",
   ];
   const rows = (data as AdminBooking[]).map((b) =>
     [
-      b.booking_code, b.full_name, b.phone, b.email, b.category_name, b.quantity, b.unit_price, b.amount,
-      b.payment_reference, b.status, b.created_at, b.verified_at, b.checked_in_at, b.admin_note,
+      b.booking_code, b.full_name, b.phone, b.email, b.category_name, b.amount,
+      b.status === "registered" ? "registered (unpaid)" : b.status === "pending" ? "payment to verify" : b.status,
+      b.payment_reference, b.created_at, b.paid_submitted_at, b.verified_at, b.checked_in_at, b.admin_note,
     ].map(cell).join(","),
   );
   const csv = "﻿" + [header.map(cell).join(","), ...rows].join("\r\n");

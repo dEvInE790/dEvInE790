@@ -17,8 +17,8 @@ export default function Footer() {
         >
           SEE YOU INSIDE
         </motion.p>
-        <a href="#tickets" className="btn btn-red mt-6">
-          Book your ticket
+        <a href="#register" className="btn btn-red mt-6">
+          Register now
         </a>
         <div className="mt-14 grid gap-6 text-sm text-white/55 sm:grid-cols-3">
           <div>

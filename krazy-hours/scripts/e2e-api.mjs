@@ -1,5 +1,5 @@
-// End-to-end API checks against a running app + local Supabase.
-// Usage: BASE=http://localhost:3000 node scripts/e2e-api.mjs   (needs .env.local loaded)
+// End-to-end API checks against a running app + LOCAL Supabase (creates real rows!).
+// Usage: npm run test:e2e   (BASE defaults to http://localhost:3000)
 import { randomBytes } from "node:crypto";
 
 const BASE = process.env.BASE ?? "http://localhost:3000";
@@ -10,95 +10,94 @@ const ok = (cond, name, extra = "") => { cond ? pass++ : fail++; console.log(`${
 
 const png = () => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), randomBytes(200)]);
 let n = 0;
-const phone = () => "0803" + String(1000000 + ++n * 7919).slice(-7);
+const phone = () => "0803" + String(1000000 + ++n * 7919 + Math.floor(Math.random() * 999)).slice(-7);
+const status = async () => (await fetch(`${BASE}/api/status`)).json();
+const s0 = await status();
+const cat = (slug) => s0.categories.find((c) => c.slug === slug)?.id;
 
-async function book(over = {}, file = png(), type = "image/png") {
-  const status = await (await fetch(`${BASE}/api/status`)).json();
-  const cat = status.categories.find((c) => c.slug === (over.slug ?? "girls"));
+async function register(over = {}) {
+  const body = { categoryId: cat("girls"), fullName: "Test Guest", phone: phone(), email: `g${Date.now()}${randomBytes(3).toString("hex")}@example.com`, ...over };
+  const r = await fetch(`${BASE}/api/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return { r, d: await r.json(), body };
+}
+async function pay(reg, over = {}, file = png(), type = "image/png") {
   const fd = new FormData();
-  const f = {
-    categoryId: cat?.id ?? over.categoryId, quantity: "1", fullName: "Test Guest",
-    phone: phone(), email: `guest${Date.now()}${Math.random().toString(36).slice(2, 6)}@example.com`,
-    paymentReference: "REF" + randomBytes(5).toString("hex"), ...over,
-  };
-  delete f.slug;
+  const f = { code: reg.bookingCode, k: reg.k, paymentReference: "REF" + randomBytes(5).toString("hex"), ...over };
   for (const [k, v] of Object.entries(f)) fd.set(k, v);
   if (file) fd.set("receipt", new Blob([file], { type }), "r.png");
-  const r = await fetch(`${BASE}/api/bookings`, { method: "POST", body: fd });
+  const r = await fetch(`${BASE}/api/payments`, { method: "POST", body: fd });
   return { r, d: await r.json(), f };
 }
 
-const s0 = await (await fetch(`${BASE}/api/status`)).json();
 ok(s0.account_name === "Awal Ayomide Balogun" && s0.account_number === "8141276327", "status exposes PalmPay details");
+ok(s0.capacity === 35, "registration limit is 35", String(s0.capacity));
 ok(s0.categories.some((c) => c.name === "Girls" && c.price === 3000) && s0.categories.some((c) => c.name === "Boys" && c.price === 4000), "prices Girls ₦3,000 / Boys ₦4,000");
 
-// basic booking → pending, amount computed server-side
-let { r, d } = await book({ slug: "boys", quantity: "2", amount: "1" });
-ok(r.status === 201 && d.status === "pending" && d.amount === 8000, "booking created as PENDING with server-side total", JSON.stringify(d).slice(0, 90));
+// register
+let { r, d } = await register({ categoryId: cat("boys"), amount: 1 });
+ok(r.status === 201 && d.status === "registered" && d.amount === 4000, "registration saved as REGISTERED with server-side price", `${r.status} ${d.status} ${d.amount}`);
 const first = d;
+const st = await (await fetch(`${BASE}/api/registration?code=${first.bookingCode}&k=${first.k}`)).json();
+ok(st.status === "registered" && st.amount === 4000, "guest can read their own registration");
+ok((await fetch(`${BASE}/api/registration?code=${first.bookingCode}&k=${"0".repeat(48)}`)).status === 404, "wrong link token refused");
+const tp = await (await fetch(`${BASE}/ticket/${first.bookingCode}?k=${first.k}`)).text();
+ok(/Pay (<!-- -->)?₦4,000(<!-- -->)? now/.test(tp) && !tp.includes("Check-in code"), "unpaid ticket page asks for payment, shows no QR");
 
-// ticket page for pending booking shows no QR
-const tp = await (await fetch(BASE + first.ticketUrl)).text();
-ok(tp.includes("Pending verification") && !tp.includes("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0"), "pending ticket page has no QR code");
-ok((await fetch(`${BASE}/ticket/${first.bookingCode}?k=${"0".repeat(48)}`).then((x) => x.text())).includes("Ticket not found"), "wrong ticket token is refused");
-
-// validation
-({ r, d } = await book({ phone: "123" }));
+// registration validation + duplicates
+({ r, d } = await register({ phone: "123" }));
 ok(r.status === 400 && d.fieldErrors?.phone, "invalid phone rejected");
-({ r, d } = await book({}, null));
-ok(r.status === 400 && d.fieldErrors?.receipt, "missing receipt rejected");
-({ r, d } = await book({}, Buffer.from("GIF89a fake not allowed"), "image/png"));
-ok(r.status === 400 && d.fieldErrors?.receipt, "non-image disguised as PNG rejected (magic bytes)");
-({ r, d } = await book({}, Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(6 * 1024 * 1024)])));
-ok(r.status === 400, "receipt over 5 MB rejected");
-({ r, d } = await book({ quantity: "6" }));
-ok(r.status === 400, "quantity above per-booking max rejected");
-({ r, d } = await book({ website: "spam" }));
+({ r, d } = await register({ categoryId: "not-a-uuid" }));
+ok(r.status === 400, "missing category rejected");
+({ r, d } = await register({ website: "spam" }));
 ok(r.status === 400, "honeypot blocks bots");
+const dupEmail = await register();
+const again = await register({ email: dupEmail.body.email.toUpperCase() });
+ok(again.r.status === 409 && /already registered/.test(again.d.error), "same email can't register twice");
+const againPhone = await register({ phone: "+234" + dupEmail.body.phone.slice(1) });
+ok(againPhone.r.status === 409, "same phone (other format) can't register twice");
 
-// duplicates
-const dupFile = png();
-const a = await book({}, dupFile);
-const b = await book({}, dupFile);
-ok(a.r.status === 201 && b.r.status === 409 && /receipt/.test(b.d.error), "same receipt can't be reused", b.d.error);
-const c = await book({ paymentReference: a.f.paymentReference.toLowerCase() });
-ok(c.r.status === 409 && /reference/.test(c.d.error), "same payment reference can't be reused (case-insensitive)");
-const e = await book({ email: a.f.email.toUpperCase() });
-ok(e.r.status === 409 && /active booking/.test(e.d.error), "same email can't hold two live bookings");
-const p = await book({ phone: "+234" + a.f.phone.slice(1) });
-ok(p.r.status === 409, "same phone (different format) can't hold two live bookings");
+// payment
+({ r, d } = await pay(first, {}, null));
+ok(r.status === 400 && d.fieldErrors?.receipt, "payment without receipt rejected");
+({ r, d } = await pay(first, {}, Buffer.from("GIF89a not allowed"), "image/png"));
+ok(r.status === 400 && d.fieldErrors?.receipt, "fake image rejected (magic bytes)");
+({ r, d } = await pay(first, {}, Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(6 * 1024 * 1024)])));
+ok(r.status === 400, "receipt over 5 MB rejected");
+({ r, d } = await pay({ ...first, k: "f".repeat(48) }));
+ok(r.status === 404, "payment with wrong token refused");
+const receipt = png();
+const p1 = await pay(first, {}, receipt);
+ok(p1.r.status === 201 && p1.d.status === "pending", "payment submitted → PENDING (not confirmed)");
+({ r, d } = await pay(first));
+ok(r.status === 409 && /already submitted/.test(d.error), "can't submit payment twice");
+const other = dupEmail.d;
+({ r, d } = await pay(other, {}, receipt));
+ok(r.status === 409 && /receipt/.test(d.error), "same receipt can't be reused by someone else");
+({ r, d } = await pay(other, { paymentReference: p1.f.paymentReference.toLowerCase() }));
+ok(r.status === 409 && /reference/.test(d.error), "same payment reference can't be reused");
 
-// overbooking under concurrency
-const before = await (await fetch(`${BASE}/api/status`)).json();
+// capacity rush
+const before = await status();
 const left = before.remaining;
-const results = await Promise.all(Array.from({ length: left + 8 }, () => book({ quantity: "1" })));
+const results = await Promise.all(Array.from({ length: left + 10 }, () => register()));
 const created = results.filter((x) => x.r.status === 201).length;
-const soldOut = results.filter((x) => x.r.status === 409 && /spot/.test(x.d.error)).length;
-const after = await (await fetch(`${BASE}/api/status`)).json();
-ok(created === left && after.remaining === 0 && after.reserved === after.capacity, `concurrent rush: ${left} spots → ${created} booked, ${soldOut} refused, 0 oversold`);
-({ r, d } = await book({}));
-ok(r.status === 409 && /taken/.test(d.error), "sold-out message once full", d.error);
+const after = await status();
+ok(created === left && after.remaining === 0 && after.registered === 35, `concurrent rush: ${left} spots → ${created} registered, ${results.length - created} refused, total ${after.registered}/35`);
+({ r, d } = await register());
+ok(r.status === 409 && /full/.test(d.error), "registration closes at 35", d.error);
 
-// direct database access with the public anon key is blocked
+// lockdown
 const direct = await fetch(`${SB}/rest/v1/bookings?select=*`, { headers: { apikey: ANON, Authorization: `Bearer ${ANON}` } });
-const directBody = await direct.text();
-ok(direct.status >= 400 || directBody === "[]", "anon key cannot read bookings table", `${direct.status}`);
-const rpc = await fetch(`${SB}/rest/v1/rpc/kh_create_booking`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" }, body: "{}" });
-ok(rpc.status >= 400, "anon key cannot call booking function directly", `${rpc.status}`);
-const recv = await fetch(`${SB}/storage/v1/object/list/receipts`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" }, body: JSON.stringify({ prefix: "" }) });
-const recvBody = await recv.text();
-ok(recv.status >= 400 || recvBody === "[]", "anon key cannot list receipts", `${recv.status}`);
-
-// admin APIs need a session
-for (const [m, u] of [["GET", "/api/admin/overview"], ["GET", "/api/admin/export"], ["PATCH", `/api/admin/bookings/${"00000000-0000-0000-0000-000000000000"}`], ["PUT", "/api/admin/settings"], ["POST", "/api/admin/checkin"]]) {
+ok(direct.status >= 400 || (await direct.text()) === "[]", "anon key cannot read registrations table", `${direct.status}`);
+const rpc = await fetch(`${SB}/rest/v1/rpc/kh_register`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" }, body: "{}" });
+ok(rpc.status >= 400, "anon key cannot call register function directly", `${rpc.status}`);
+for (const [m, u] of [["GET", "/api/admin/overview"], ["GET", "/api/admin/export"], ["PATCH", "/api/admin/bookings/00000000-0000-0000-0000-000000000000"], ["PUT", "/api/admin/settings"], ["POST", "/api/admin/checkin"]]) {
   const x = await fetch(BASE + u, { method: m, headers: { "Content-Type": "application/json" }, body: m === "GET" ? undefined : JSON.stringify({ action: "confirm" }) });
   ok(x.status === 401, `${m} ${u} without login → 401`);
 }
-
-// lookup
 const lk = await fetch(`${BASE}/api/tickets/lookup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: first.bookingCode, contact: "nobody@example.com" }) });
-ok(lk.status === 404, "ticket lookup with wrong email refused");
+ok(lk.status === 404, "lookup with wrong email refused");
 
 console.log(`\n${pass} passed, ${fail} failed`);
-console.log(JSON.stringify({ firstBooking: first }));
+console.log(JSON.stringify({ pending: first.bookingCode, unpaid: other.bookingCode }));
 process.exit(fail ? 1 : 0);

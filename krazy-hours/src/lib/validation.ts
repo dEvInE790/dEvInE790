@@ -12,36 +12,43 @@ export function normalisePhone(raw: string): string | null {
   return "+234" + d;
 }
 
-export const bookingSchema = z.object({
-  categoryId: z.uuid({ message: "Choose a ticket category" }),
-  quantity: z.coerce.number().int().min(1, "At least 1 ticket").max(50),
-  fullName: z
-    .string()
-    .trim()
-    .min(2, "Enter your full name")
-    .max(80)
-    .regex(/^[\p{L}][\p{L} .'-]+$/u, "Use letters only"),
-  phone: z
-    .string()
-    .trim()
-    .transform((v, ctx) => {
-      const p = normalisePhone(v);
-      if (!p) {
-        ctx.addIssue({ code: "custom", message: "Enter a valid Nigerian phone number" });
-        return z.NEVER;
-      }
-      return p;
-    }),
+const fullName = z
+  .string()
+  .trim()
+  .min(2, "Enter your full name")
+  .max(80)
+  .regex(/^[\p{L}][\p{L} .'-]+$/u, "Use letters only");
+
+const phone = z
+  .string()
+  .trim()
+  .transform((v, ctx) => {
+    const p = normalisePhone(v);
+    if (!p) {
+      ctx.addIssue({ code: "custom", message: "Enter a valid phone number" });
+      return z.NEVER;
+    }
+    return p;
+  });
+
+export const registerSchema = z.object({
+  categoryId: z.uuid({ message: "Choose Girls or Boys" }),
+  fullName,
+  phone,
   email: z.string().trim().toLowerCase().pipe(z.email({ message: "Enter a valid email" }).max(120)),
-  paymentReference: z
-    .string()
-    .trim()
-    .min(4, "Enter the transfer reference / session ID")
-    .max(64)
-    .regex(/^[A-Za-z0-9 _\-/.:]+$/, "Reference has unexpected characters"),
 });
 
-export type BookingInput = z.infer<typeof bookingSchema>;
+export const accessSchema = z.object({
+  code: z.string().trim().toUpperCase().regex(/^KH-[A-Z0-9]{6}$/, "Booking ID looks like KH-XXXXXX"),
+  k: z.string().regex(/^[a-f0-9]{48}$/, "Invalid link"),
+});
+
+export const paymentReference = z
+  .string()
+  .trim()
+  .min(4, "Enter the transfer reference / session ID")
+  .max(64)
+  .regex(/^[A-Za-z0-9 _\-/.:]+$/, "Reference has unexpected characters");
 
 export const RECEIPT_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -69,29 +76,25 @@ export function sniffReceipt(buf: Uint8Array): string | null {
   return null;
 }
 
-/** Map DB errors raised by kh_* functions to customer-friendly messages. */
+/** Map DB errors raised by kh_* functions to guest-friendly messages. */
 export function bookingErrorMessage(raw: string): { message: string; status: number } {
-  if (raw.includes("BOOKINGS_CLOSED")) return { message: "Bookings are closed right now.", status: 409 };
+  if (raw.includes("BOOKINGS_CLOSED")) return { message: "Registration is closed right now.", status: 409 };
   if (raw.includes("INVALID_CATEGORY")) return { message: "That ticket category is no longer available.", status: 400 };
-  if (raw.includes("INVALID_QUANTITY")) return { message: "That number of tickets isn't allowed.", status: 400 };
-  const sold = raw.match(/SOLD_OUT:(\d+)/);
-  if (sold) {
-    const left = Number(sold[1]);
+  if (raw.includes("SOLD_OUT")) return { message: "Registration is full — every spot has been taken.", status: 409 };
+  if (raw.includes("DUPLICATE_CUSTOMER") || raw.includes("bookings_live_email_uniq") || raw.includes("bookings_live_phone_uniq"))
     return {
-      message: left === 0 ? "Sorry — every spot has been taken." : `Only ${left} spot${left === 1 ? "" : "s"} left. Reduce your tickets and try again.`,
-      status: 409,
-    };
-  }
-  if (raw.includes("DUPLICATE_CUSTOMER"))
-    return {
-      message: "There's already an active booking for this email or phone number. Check your ticket status instead.",
+      message: "This email or phone number is already registered. Go to the payment section to pay or check your status.",
       status: 409,
     };
   if (raw.includes("DUPLICATE_REFERENCE") || raw.includes("bookings_live_reference_uniq"))
-    return { message: "This payment reference has already been used for a booking.", status: 409 };
+    return { message: "This payment reference has already been used.", status: 409 };
   if (raw.includes("DUPLICATE_RECEIPT") || raw.includes("bookings_live_receipt_uniq"))
-    return { message: "This receipt has already been submitted for another booking.", status: 409 };
+    return { message: "This receipt has already been submitted by someone else.", status: 409 };
+  if (raw.includes("ALREADY_SUBMITTED")) return { message: "Your payment is already submitted and waiting for verification.", status: 409 };
+  if (raw.includes("ALREADY_CONFIRMED")) return { message: "Your payment is already verified — your ticket is ready.", status: 409 };
+  if (raw.includes("CANCELLED")) return { message: "This registration was cancelled. Contact the organisers.", status: 409 };
+  if (raw.includes("NOT_PENDING")) return { message: "There's no payment waiting for verification on this booking.", status: 409 };
   if (raw.includes("booking_code") || raw.includes("duplicate key"))
-    return { message: "Something clashed on our side — please submit again.", status: 409 };
-  return { message: "We couldn't save your booking. Please try again.", status: 500 };
+    return { message: "Something clashed on our side — please try again.", status: 409 };
+  return { message: "We couldn't save that. Please try again.", status: 500 };
 }

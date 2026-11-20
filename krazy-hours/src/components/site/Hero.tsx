@@ -5,6 +5,7 @@ import PartyScene from "./PartyScene";
 import Countdown from "./Countdown";
 import SpotsCounter from "./SpotsCounter";
 import { EVENT } from "@/lib/event";
+import { useStatus } from "./useStatus";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 // Fixed (not random) per-letter offsets so SSR and client match.
@@ -32,6 +33,8 @@ function GraffitiWord({ word, start, className, glitch }: { word: string; start:
 }
 
 export default function Hero() {
+  const { status } = useStatus();
+  const capacity = status?.capacity ?? EVENT.capacity;
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const titleY = useTransform(scrollYProgress, [0, 1], ["0%", "40%"]);
@@ -157,7 +160,7 @@ export default function Hero() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 1.5, ease }}
         >
-          ⚠ Only 30 people allowed
+          ⚠ Only {capacity} people allowed
         </motion.div>
 
         <motion.div
@@ -175,7 +178,7 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 1.85, ease }}
         >
-          <a href="#tickets" className="btn btn-red w-full sm:w-auto">
+          <a href="#register" className="btn btn-red w-full sm:w-auto">
             Book your ticket
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
               <path d="M5 12h14M13 6l6 6-6 6" />

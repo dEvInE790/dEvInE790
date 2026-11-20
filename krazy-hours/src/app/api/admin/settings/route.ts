@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   capacity: z.coerce.number().int().min(0).max(10000),
-  max_per_booking: z.coerce.number().int().min(1).max(50),
   bookings_open: z.boolean(),
   bank_name: z.string().trim().min(2).max(40),
   account_number: z.string().trim().regex(/^\d{10}$/, "Account number must be 10 digits"),
@@ -25,7 +24,6 @@ export async function PUT(req: Request) {
 
   const { data, error } = await supabaseAdmin().rpc("kh_update_settings", {
     p_capacity: s.capacity,
-    p_max_per_booking: s.max_per_booking,
     p_bookings_open: s.bookings_open,
     p_bank_name: s.bank_name,
     p_account_number: s.account_number,
@@ -33,7 +31,7 @@ export async function PUT(req: Request) {
   });
   if (error) {
     const m = error.message.match(/CAPACITY_BELOW_RESERVED:(\d+)/);
-    if (m) return json({ error: `Capacity can't be lower than the ${m[1]} seats already booked.` }, 409);
+    if (m) return json({ error: `Capacity can't be lower than the ${m[1]} seats already registered.` }, 409);
     return json({ error: error.message }, 500);
   }
   return json({ settings: data });

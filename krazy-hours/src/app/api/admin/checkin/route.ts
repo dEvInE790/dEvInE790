@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
   const { data: b } = await query.maybeSingle();
   if (!b) return json({ error: "No ticket matches that code." }, 404);
-  if (b.status !== "confirmed") return json({ error: `Ticket is ${b.status.toUpperCase()} — do not admit.`, booking: b }, 409);
+  if (b.status !== "confirmed") return json({ error: b.status === "registered" ? "Registered but NOT PAID — do not admit." : b.status === "pending" ? "Payment NOT VERIFIED yet — do not admit." : "Registration CANCELLED — do not admit.", booking: b }, 409);
   if (!parsed.data.commit) return json({ booking: b, alreadyCheckedIn: !!b.checked_in_at });
   if (b.checked_in_at) return json({ booking: b, alreadyCheckedIn: true });
 

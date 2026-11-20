@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 const links = [
   { href: "#details", label: "Details" },
   { href: "#expect", label: "What to expect" },
-  { href: "#tickets", label: "Tickets" },
+  { href: "#register", label: "Register" },
+  { href: "#payment", label: "Pay" },
   { href: "#sponsors", label: "Sponsors" },
 ];
 
@@ -62,8 +63,8 @@ export default function Nav() {
             </li>
           </ul>
           <div className="flex items-center gap-2">
-            <a href="#tickets" className="btn btn-red !min-h-[40px] !px-5 !text-sm">
-              Book
+            <a href="#register" className="btn btn-red !min-h-[40px] !px-5 !text-sm">
+              Register
             </a>
             <button
               type="button"
@@ -112,8 +113,8 @@ export default function Nav() {
               ))}
             </motion.ul>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="relative space-y-4">
-              <a href="#tickets" onClick={() => setOpen(false)} className="btn btn-red w-full">
-                Book your ticket
+              <a href="#register" onClick={() => setOpen(false)} className="btn btn-red w-full">
+                Register now
               </a>
               <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">
                 Dec 17 · 10PM–5AM · Isheri

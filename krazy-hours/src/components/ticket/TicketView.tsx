@@ -7,11 +7,11 @@ import { EVENT, naira } from "@/lib/event";
 
 export type TicketData = {
   bookingCode: string;
+  accessToken: string;
   fullName: string;
   category: string;
-  quantity: number;
   amount: number;
-  status: "pending" | "confirmed" | "rejected" | "cancelled";
+  status: "registered" | "pending" | "confirmed" | "cancelled";
   checkedIn: boolean;
   createdAt: string;
   note: string | null;
@@ -70,7 +70,30 @@ export default function TicketView({ data }: { data: TicketData }) {
   };
 
   if (data.status !== "confirmed") {
-    const pending = data.status === "pending";
+    const st = data.status;
+    const payHref = `/?code=${data.bookingCode}&k=${data.accessToken}#payment`;
+    const copy = {
+      registered: {
+        badge: "Registered · payment needed",
+        badgeCls: "border border-amber-400/40 bg-amber-400/10 text-amber-300",
+        title: data.note ? "Please pay again" : "You're registered!",
+        body: data.note
+          ? "Your last payment couldn't be verified. Make the transfer and upload a new receipt to keep your spot."
+          : `Your spot is held. Pay ${naira(data.amount)} to PalmPay and upload your receipt to get your ticket.`,
+      },
+      pending: {
+        badge: "Pending verification",
+        badgeCls: "border border-amber-400/40 bg-amber-400/10 text-amber-300",
+        title: "We're checking your payment",
+        body: "Your payment has been submitted successfully! Your ticket will be confirmed once payment has been verified. This page updates automatically.",
+      },
+      cancelled: {
+        badge: "Registration cancelled",
+        badgeCls: "border border-[#ff6b61]/40 bg-[#ff6b61]/10 text-[#ffb4ae]",
+        title: "This registration was cancelled",
+        body: "No ticket has been issued. If you believe this is a mistake, contact the organisers with your Booking ID.",
+      },
+    }[st];
     return (
       <Shell>
         <motion.div
@@ -79,44 +102,44 @@ export default function TicketView({ data }: { data: TicketData }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease }}
         >
-          {pending ? (
+          {st === "cancelled" ? (
+            <svg viewBox="0 0 24 24" className="mx-auto h-16 w-16" fill="none" stroke="#ff6b61" strokeWidth="1.6" strokeLinecap="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9 9l6 6M15 9l-6 6" />
+            </svg>
+          ) : st === "pending" ? (
             <motion.svg viewBox="0 0 24 24" className="mx-auto h-16 w-16" fill="none" stroke="#e10600" strokeWidth="1.6" strokeLinecap="round"
               animate={{ rotate: [0, 0, 180, 180] }} transition={{ duration: 3, repeat: Infinity, times: [0, 0.4, 0.6, 1] }}>
               <path d="M6 3h12M6 21h12M7 3c0 5 10 7 10 9s-10 4-10 9M17 3c0 5-10 7-10 9s10 4 10 9" />
             </motion.svg>
           ) : (
-            <svg viewBox="0 0 24 24" className="mx-auto h-16 w-16" fill="none" stroke="#ff6b61" strokeWidth="1.6" strokeLinecap="round">
+            <motion.svg viewBox="0 0 24 24" className="mx-auto h-16 w-16" fill="none" stroke="#e10600" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+              initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 220, damping: 14 }}>
               <circle cx="12" cy="12" r="9" />
-              <path d="M9 9l6 6M15 9l-6 6" />
-            </svg>
+              <path d="M8 12.5l2.5 2.5L16 9.5" />
+            </motion.svg>
           )}
-          <p
-            className={`mt-5 inline-block rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.3em] ${
-              pending ? "border border-amber-400/40 bg-amber-400/10 text-amber-300" : "border border-[#ff6b61]/40 bg-[#ff6b61]/10 text-[#ffb4ae]"
-            }`}
-          >
-            {pending ? "Pending verification" : data.status === "rejected" ? "Payment not verified" : "Booking cancelled"}
-          </p>
-          <h1 className="mt-4 font-display text-3xl uppercase leading-tight">
-            {pending ? "We're checking your payment" : data.status === "rejected" ? "We couldn't verify this payment" : "This booking was cancelled"}
-          </h1>
-          <p className="mt-3 text-white/60">
-            {pending
-              ? "Your booking has been submitted successfully! Your ticket will be confirmed once payment has been verified. This page updates automatically."
-              : "No ticket has been issued for this booking. If you believe this is a mistake, contact the organisers with your Booking ID and transfer receipt."}
-          </p>
-          {data.note && !pending && <p className="mt-3 rounded-xl bg-white/5 p-3 text-sm text-white/70">Note from organisers: {data.note}</p>}
+          <p className={`mt-5 inline-block rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.3em] ${copy.badgeCls}`}>{copy.badge}</p>
+          <h1 className="mt-4 font-display text-3xl uppercase leading-tight">{copy.title}</h1>
+          <p className="mt-3 text-white/60">{copy.body}</p>
+          {data.note && <p className="mt-3 rounded-xl bg-white/5 p-3 text-sm text-white/70">Note from organisers: {data.note}</p>}
           <div className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white/[0.03] p-4 text-left">
             <Row k="Booking ID" v={data.bookingCode} mono />
             <Row k="Name" v={data.fullName} />
-            <Row k="Tickets" v={`${data.quantity} × ${data.category}`} />
+            <Row k="Ticket" v={data.category} />
             <Row k="Amount" v={naira(data.amount)} />
           </div>
-          {pending && (
+          {st === "registered" && (
+            <Link href={payHref} className="btn btn-red mt-6 w-full">
+              Pay {naira(data.amount)} now
+            </Link>
+          )}
+          {st === "pending" && (
             <button onClick={() => router.refresh()} className="btn btn-ghost mt-6 w-full">
               Refresh status
             </button>
           )}
+          <p className="mt-4 text-xs text-white/40">Bookmark this page — it&apos;s your private link.</p>
         </motion.div>
       </Shell>
     );
@@ -154,7 +177,7 @@ export default function TicketView({ data }: { data: TicketData }) {
               <p className="font-display text-2xl uppercase leading-tight">{data.fullName}</p>
             </div>
             <Row k="Category" v={data.category} />
-            <Row k="Admits" v={`${data.quantity} ${data.quantity > 1 ? "people" : "person"}`} />
+            <Row k="Admits" v="1 person" />
             <Row k="Date" v={EVENT.dateLabel} />
             <Row k="Time" v={EVENT.timeLabel} />
             <Row k="Booking ID" v={data.bookingCode} mono />
@@ -180,7 +203,7 @@ export default function TicketView({ data }: { data: TicketData }) {
             <div className="min-w-0">
               <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-white/40">Check-in code</p>
               <p className="mt-1 break-all font-mono text-lg tracking-[0.15em] text-white">{data.checkinCode}</p>
-              <p className="mt-3 text-[11px] leading-snug text-white/45">Show this QR at the door. One scan admits your whole booking.</p>
+              <p className="mt-3 text-[11px] leading-snug text-white/45">Show this QR at the door. Your ticket admits one person.</p>
               {data.checkedIn && (
                 <p className="mt-2 inline-block rounded bg-white/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70">Checked in</p>
               )}

@@ -58,7 +58,6 @@ export default function Settings({ data, onSaved, notify }: { data: Overview; on
         method: "PUT",
         body: JSON.stringify({
           capacity: Number(form.capacity),
-          max_per_booking: Number(form.max_per_booking),
           bookings_open: form.bookings_open,
           bank_name: form.bank_name,
           account_number: form.account_number,
@@ -93,18 +92,13 @@ export default function Settings({ data, onSaved, notify }: { data: Overview; on
     <div className="grid gap-8 lg:grid-cols-2">
       <form onSubmit={save} className="space-y-6">
         <section className="space-y-4 rounded-3xl border border-white/10 p-5">
-          <h2 className="font-display text-xl uppercase">Capacity</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <L label="Total capacity" hint={`${data.stats.ticketsConfirmed + data.stats.ticketsPending} already held`}>
-              <input className="field" type="number" min={0} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} />
-            </L>
-            <L label="Max per booking">
-              <input className="field" type="number" min={1} max={50} value={form.max_per_booking} onChange={(e) => setForm({ ...form, max_per_booking: Number(e.target.value) })} />
-            </L>
-          </div>
+          <h2 className="font-display text-xl uppercase">Registration</h2>
+          <L label="Registration limit (people)" hint={`${data.stats.registered} already registered`}>
+            <input className="field" type="number" min={0} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} />
+          </L>
           <label className="flex items-center gap-3 text-sm">
             <input type="checkbox" className="h-5 w-5 accent-[#e10600]" checked={form.bookings_open} onChange={(e) => setForm({ ...form, bookings_open: e.target.checked })} />
-            Bookings open (untick to pause sales)
+            Registration open (untick to pause sign-ups)
           </label>
         </section>
         <section className="space-y-4 rounded-3xl border border-white/10 p-5">

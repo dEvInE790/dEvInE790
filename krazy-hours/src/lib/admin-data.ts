@@ -2,21 +2,20 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const BOOKING_COLUMNS =
-  "id, booking_code, category_name, unit_price, quantity, amount, full_name, phone, email, payment_reference, receipt_path, status, admin_note, verified_at, checked_in_at, created_at";
+  "id, booking_code, category_name, amount, full_name, phone, email, payment_reference, receipt_path, paid_submitted_at, status, admin_note, verified_at, checked_in_at, created_at";
 
 export type AdminBooking = {
   id: string;
   booking_code: string;
   category_name: string;
-  unit_price: number;
-  quantity: number;
   amount: number;
   full_name: string;
   phone: string;
   email: string;
-  payment_reference: string;
-  receipt_path: string;
-  status: "pending" | "confirmed" | "rejected" | "cancelled";
+  payment_reference: string | null;
+  receipt_path: string | null;
+  paid_submitted_at: string | null;
+  status: "registered" | "pending" | "confirmed" | "cancelled";
   admin_note: string | null;
   verified_at: string | null;
   checked_in_at: string | null;
@@ -26,7 +25,7 @@ export type AdminBooking = {
 export async function loadOverview() {
   const db = supabaseAdmin();
   const [bookings, settings, categories] = await Promise.all([
-    db.from("bookings").select(BOOKING_COLUMNS).order("created_at", { ascending: false }).limit(1000),
+    db.from("bookings").select(BOOKING_COLUMNS).order("created_at", { ascending: false }).limit(2000),
     db.from("event_settings").select("*").eq("id", 1).single(),
     db.from("ticket_categories").select("*").order("sort_order").order("name"),
   ]);
@@ -35,22 +34,27 @@ export async function loadOverview() {
   if (categories.error) throw new Error(categories.error.message);
 
   const list = (bookings.data ?? []) as AdminBooking[];
-  const sum = (f: (b: AdminBooking) => boolean, k: "quantity" | "amount") =>
-    list.filter(f).reduce((n, b) => n + b[k], 0);
+  const count = (s: AdminBooking["status"]) => list.filter((b) => b.status === s).length;
+  const money = (s: AdminBooking["status"]) => list.filter((b) => b.status === s).reduce((n, b) => n + b.amount, 0);
+  const capacity = settings.data.capacity as number;
+  const taken = list.filter((b) => b.status !== "cancelled").length;
 
-  const stats = {
-    capacity: settings.data.capacity as number,
-    ticketsConfirmed: sum((b) => b.status === "confirmed", "quantity"),
-    ticketsPending: sum((b) => b.status === "pending", "quantity"),
-    revenueConfirmed: sum((b) => b.status === "confirmed", "amount"),
-    revenuePending: sum((b) => b.status === "pending", "amount"),
-    checkedIn: sum((b) => b.status === "confirmed" && !!b.checked_in_at, "quantity"),
-    pendingCount: list.filter((b) => b.status === "pending").length,
-  };
   return {
     bookings: list,
     settings: settings.data,
     categories: categories.data,
-    stats: { ...stats, remaining: Math.max(stats.capacity - stats.ticketsConfirmed - stats.ticketsPending, 0) },
+    stats: {
+      capacity,
+      registered: taken,
+      remaining: Math.max(capacity - taken, 0),
+      awaitingPayment: count("registered"),
+      pendingCount: count("pending"),
+      revenuePending: money("pending"),
+      confirmed: count("confirmed"),
+      revenueConfirmed: money("confirmed"),
+      checkedIn: list.filter((b) => b.status === "confirmed" && !!b.checked_in_at).length,
+      girls: list.filter((b) => b.status !== "cancelled" && b.category_name.toLowerCase() === "girls").length,
+      boys: list.filter((b) => b.status !== "cancelled" && b.category_name.toLowerCase() === "boys").length,
+    },
   };
 }

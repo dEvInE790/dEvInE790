@@ -11,14 +11,14 @@ export type Booking = {
   id: string;
   booking_code: string;
   category_name: string;
-  unit_price: number;
-  quantity: number;
   amount: number;
   full_name: string;
   phone: string;
   email: string;
-  payment_reference: string;
-  status: "pending" | "confirmed" | "rejected" | "cancelled";
+  payment_reference: string | null;
+  receipt_path: string | null;
+  paid_submitted_at: string | null;
+  status: "registered" | "pending" | "confirmed" | "cancelled";
   admin_note: string | null;
   verified_at: string | null;
   checked_in_at: string | null;
@@ -27,7 +27,6 @@ export type Booking = {
 export type Category = { id: string; slug: string; name: string; price: number; description: string | null; active: boolean; sort_order: number };
 export type EventSettings = {
   capacity: number;
-  max_per_booking: number;
   bookings_open: boolean;
   bank_name: string;
   account_number: string;
@@ -39,24 +38,40 @@ export type Overview = {
   categories: Category[];
   stats: {
     capacity: number;
+    registered: number;
     remaining: number;
-    ticketsConfirmed: number;
-    ticketsPending: number;
-    revenueConfirmed: number;
-    revenuePending: number;
-    checkedIn: number;
+    awaitingPayment: number;
     pendingCount: number;
+    revenuePending: number;
+    confirmed: number;
+    revenueConfirmed: number;
+    checkedIn: number;
+    girls: number;
+    boys: number;
   };
 };
 
 const TABS = ["Overview", "Bookings", "Check-in", "Settings"] as const;
 type Tab = (typeof TABS)[number];
-const FILTERS = ["pending", "confirmed", "rejected", "cancelled", "all"] as const;
+const FILTERS = ["all", "registered", "pending", "confirmed", "cancelled"] as const;
+const FILTER_LABEL: Record<(typeof FILTERS)[number], string> = {
+  all: "All",
+  registered: "Not paid yet",
+  pending: "Payment to verify",
+  confirmed: "Confirmed",
+  cancelled: "Cancelled",
+};
+const STATUS_LABEL: Record<Booking["status"], string> = {
+  registered: "Registered · unpaid",
+  pending: "Payment to verify",
+  confirmed: "Confirmed",
+  cancelled: "Cancelled",
+};
 
 const badge: Record<Booking["status"], string> = {
   pending: "bg-amber-400/15 text-amber-300 border-amber-400/30",
   confirmed: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  rejected: "bg-[#ff6b61]/15 text-[#ffb4ae] border-[#ff6b61]/30",
+  registered: "bg-sky-400/15 text-sky-300 border-sky-400/30",
   cancelled: "bg-white/10 text-white/60 border-white/15",
 };
 
@@ -88,7 +103,7 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
   const router = useRouter();
   const [data, setData] = useState<Overview>(initial);
   const [tab, setTab] = useState<Tab>("Overview");
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("pending");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; err?: boolean } | null>(null);
@@ -116,7 +131,9 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
     let note: string | undefined;
     if (action === "reject" || action === "cancel") {
       const n = window.prompt(
-        `${action === "reject" ? "Reject" : "Cancel"} ${b.booking_code} (${b.full_name})?\nOptional reason shown to the customer:`,
+        action === "reject"
+          ? `Reject the payment for ${b.booking_code} (${b.full_name})?\nThey keep their registration and can pay again. Reason shown to them:`
+          : `Remove ${b.booking_code} (${b.full_name})?\nTheir spot is freed for someone else. Optional reason shown to them:`,
         action === "reject" ? "Payment not received in the PalmPay account." : "",
       );
       if (n === null) return;
@@ -127,7 +144,7 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
     try {
       await api(`/api/admin/bookings/${b.id}`, { method: "PATCH", body: JSON.stringify({ action, note }) });
       notify(
-        { confirm: "Payment verified — ticket issued", reject: "Booking rejected — spots released", cancel: "Booking cancelled", reopen: "Moved back to pending", checkin: "Checked in", "undo-checkin": "Check-in undone" }[action],
+        { confirm: "Payment verified — ticket issued", reject: "Payment rejected — guest can pay again", cancel: "Registration removed — spot freed", reopen: "Registration restored", checkin: "Checked in", "undo-checkin": "Check-in undone" }[action],
       );
       await reload();
       if (receipt?.booking.id === b.id) setReceipt(null);
@@ -159,26 +176,27 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
     return data.bookings.filter(
       (b) =>
         (filter === "all" || b.status === filter) &&
-        (!s || [b.full_name, b.phone, b.email, b.booking_code, b.payment_reference].some((v) => v.toLowerCase().includes(s))),
+        (!s || [b.full_name, b.phone, b.email, b.booking_code, b.payment_reference ?? ""].some((v) => v.toLowerCase().includes(s))),
     );
   }, [data.bookings, filter, q]);
 
   const st = data.stats;
-  const used = st.ticketsConfirmed + st.ticketsPending;
   const counts = Object.fromEntries(FILTERS.map((f) => [f, f === "all" ? data.bookings.length : data.bookings.filter((b) => b.status === f).length]));
 
   const Actions = ({ b }: { b: Booking }) => (
     <div className="flex flex-wrap gap-1.5">
-      <button className="rounded-full border border-white/15 px-3 py-1.5 text-xs hover:border-white/40" onClick={() => openReceipt(b)}>
-        Receipt
-      </button>
+      {b.receipt_path && (
+        <button className="rounded-full border border-white/15 px-3 py-1.5 text-xs hover:border-white/40" onClick={() => openReceipt(b)}>
+          Receipt
+        </button>
+      )}
       {b.status === "pending" && (
         <>
           <button disabled={!!busy} className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500 disabled:opacity-50" onClick={() => act(b, "confirm")}>
             Verify
           </button>
           <button disabled={!!busy} className="rounded-full bg-[#7a1712] px-3 py-1.5 text-xs font-semibold hover:bg-[#9b1d17] disabled:opacity-50" onClick={() => act(b, "reject")}>
-            Reject
+            Reject payment
           </button>
         </>
       )}
@@ -192,14 +210,14 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
             Check in
           </button>
         ))}
-      {b.status === "confirmed" && (
-        <button disabled={!!busy} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60" onClick={() => act(b, "cancel")}>
-          Cancel
+      {b.status !== "cancelled" && (
+        <button disabled={!!busy} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:border-[#ff6b61]" onClick={() => act(b, "cancel")}>
+          Remove
         </button>
       )}
-      {(b.status === "rejected" || b.status === "cancelled") && (
+      {b.status === "cancelled" && (
         <button disabled={!!busy} className="rounded-full border border-white/15 px-3 py-1.5 text-xs" onClick={() => act(b, "reopen")}>
-          Reopen
+          Restore
         </button>
       )}
     </div>
@@ -235,26 +253,28 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
           {tab === "Overview" && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Stat label="Tickets sold (verified)" value={`${st.ticketsConfirmed}`} sub={`of ${st.capacity} capacity`} accent />
-                <Stat label="Revenue (verified)" value={naira(st.revenueConfirmed)} sub="Confirmed bookings only" />
-                <Stat label="Pending payments" value={`${st.pendingCount}`} sub={`${st.ticketsPending} tickets · ${naira(st.revenuePending)} to verify`} />
-                <Stat label="Spots left" value={`${st.remaining}`} sub={`${st.checkedIn} checked in`} />
+                <Stat label="Registered" value={`${st.registered} / ${st.capacity}`} sub={`${st.remaining} spots left · ${st.girls} girls · ${st.boys} boys`} accent />
+                <Stat label="Not paid yet" value={`${st.awaitingPayment}`} sub="Registered, no receipt" />
+                <Stat label="Payments to verify" value={`${st.pendingCount}`} sub={`${naira(st.revenuePending)} to check in PalmPay`} />
+                <Stat label="Confirmed tickets" value={`${st.confirmed}`} sub={`${naira(st.revenueConfirmed)} verified · ${st.checkedIn} checked in`} />
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex justify-between font-mono text-[10px] uppercase tracking-[0.25em] text-white/50">
-                  <span>Capacity</span>
-                  <span>{used} / {st.capacity} held</span>
+                  <span>Registration limit</span>
+                  <span>{st.registered} / {st.capacity}</span>
                 </div>
                 <div className="mt-3 flex h-4 overflow-hidden rounded-full bg-white/10">
-                  <div className="bg-emerald-500" style={{ width: `${(st.ticketsConfirmed / Math.max(st.capacity, 1)) * 100}%` }} title="Confirmed" />
-                  <div className="bg-amber-400" style={{ width: `${(st.ticketsPending / Math.max(st.capacity, 1)) * 100}%` }} title="Pending" />
+                  <div className="bg-emerald-500" style={{ width: `${(st.confirmed / Math.max(st.capacity, 1)) * 100}%` }} title="Confirmed" />
+                  <div className="bg-amber-400" style={{ width: `${(st.pendingCount / Math.max(st.capacity, 1)) * 100}%` }} title="Payment to verify" />
+                  <div className="bg-sky-400" style={{ width: `${(st.awaitingPayment / Math.max(st.capacity, 1)) * 100}%` }} title="Not paid yet" />
                 </div>
-                <div className="mt-2 flex gap-4 text-xs text-white/50">
-                  <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />Confirmed {st.ticketsConfirmed}</span>
-                  <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400" />Pending {st.ticketsPending}</span>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/50">
+                  <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />Confirmed {st.confirmed}</span>
+                  <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400" />To verify {st.pendingCount}</span>
+                  <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-sky-400" />Not paid {st.awaitingPayment}</span>
                   <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-white/20" />Free {st.remaining}</span>
                 </div>
-                <p className="mt-3 text-xs text-white/40">Pending bookings hold their spots until you verify or reject them.</p>
+                <p className="mt-3 text-xs text-white/40">Registration closes automatically at {st.capacity}. Remove people who never pay to free their spot.</p>
               </div>
               <div>
                 <div className="flex items-center justify-between">
@@ -266,7 +286,7 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
                     <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                       <div>
                         <p className="font-semibold">{b.full_name} <span className="font-mono text-xs text-white/45">{b.booking_code}</span></p>
-                        <p className="text-sm text-white/55">{b.quantity} × {b.category_name} · <b className="text-white">{naira(b.amount)}</b> · ref <span className="font-mono">{b.payment_reference}</span></p>
+                        <p className="text-sm text-white/55">{b.category_name} · <b className="text-white">{naira(b.amount)}</b> · ref <span className="font-mono">{b.payment_reference}</span></p>
                       </div>
                       <Actions b={b} />
                     </div>
@@ -282,8 +302,8 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
                   {FILTERS.map((f) => (
-                    <button key={f} onClick={() => setFilter(f)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs capitalize ${filter === f ? "border-blood bg-blood/15 text-white" : "border-white/10 text-white/55"}`}>
-                      {f} <span className="opacity-60">{counts[f]}</span>
+                    <button key={f} onClick={() => setFilter(f)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${filter === f ? "border-blood bg-blood/15 text-white" : "border-white/10 text-white/55"}`}>
+                      {FILTER_LABEL[f]} <span className="opacity-60">{counts[f]}</span>
                     </button>
                   ))}
                 </div>
@@ -300,13 +320,13 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
                 <table className="w-full text-left text-sm">
                   <thead className="bg-white/[0.04] font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
                     <tr>
-                      <th className="px-4 py-3">Customer</th>
+                      <th className="px-4 py-3">Name</th>
                       <th className="px-4 py-3">Phone</th>
                       <th className="px-4 py-3">Category</th>
                       <th className="px-4 py-3">Amount</th>
-                      <th className="px-4 py-3">Reference</th>
+                      <th className="px-4 py-3">Payment ref</th>
                       <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Booked</th>
+                      <th className="px-4 py-3">Registered</th>
                       <th className="px-4 py-3">Actions</th>
                     </tr>
                   </thead>
@@ -319,11 +339,11 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
                           <p className="text-xs text-white/45">{b.email}</p>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs"><a href={`tel:${b.phone}`} className="hover:text-blood-400">{b.phone}</a></td>
-                        <td className="px-4 py-3">{b.quantity} × {b.category_name}</td>
+                        <td className="px-4 py-3">{b.category_name}</td>
                         <td className="px-4 py-3 font-semibold">{naira(b.amount)}</td>
-                        <td className="px-4 py-3 font-mono text-xs">{b.payment_reference}</td>
+                        <td className="px-4 py-3 font-mono text-xs">{b.payment_reference ?? <span className="font-sans text-white/35">Not paid yet</span>}</td>
                         <td className="px-4 py-3">
-                          <span className={`rounded-full border px-2 py-0.5 text-[11px] uppercase ${badge[b.status]}`}>{b.status}</span>
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] uppercase ${badge[b.status]}`}>{STATUS_LABEL[b.status]}</span>
                           {b.checked_in_at && <p className="mt-1 text-[11px] text-emerald-400">✓ In {fmtDate(b.checked_in_at)}</p>}
                           {b.admin_note && <p className="mt-1 max-w-[160px] text-[11px] text-white/40">{b.admin_note}</p>}
                         </td>
@@ -333,7 +353,7 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
                     ))}
                   </tbody>
                 </table>
-                {list.length === 0 && <p className="p-8 text-center text-sm text-white/45">No bookings here.</p>}
+                {list.length === 0 && <p className="p-8 text-center text-sm text-white/45">Nobody here yet.</p>}
               </div>
 
               {/* mobile cards */}
@@ -345,20 +365,20 @@ export default function Dashboard({ initial, adminEmail }: { initial: Overview; 
                         <p className="font-semibold">{b.full_name}</p>
                         <p className="font-mono text-xs text-white/45">{b.booking_code} · {fmtDate(b.created_at)}</p>
                       </div>
-                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] uppercase ${badge[b.status]}`}>{b.status}</span>
+                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] uppercase ${badge[b.status]}`}>{STATUS_LABEL[b.status]}</span>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                      <p><span className="text-white/45">Tickets</span><br />{b.quantity} × {b.category_name}</p>
+                      <p><span className="text-white/45">Ticket</span><br />{b.category_name}</p>
                       <p><span className="text-white/45">Amount</span><br /><b>{naira(b.amount)}</b></p>
                       <p><span className="text-white/45">Phone</span><br /><a href={`tel:${b.phone}`} className="font-mono text-xs">{b.phone}</a></p>
-                      <p className="min-w-0"><span className="text-white/45">Ref</span><br /><span className="break-all font-mono text-xs">{b.payment_reference}</span></p>
+                      <p className="min-w-0"><span className="text-white/45">Ref</span><br /><span className="break-all font-mono text-xs">{b.payment_reference ?? "Not paid yet"}</span></p>
                     </div>
                     <p className="mt-2 truncate text-xs text-white/45">{b.email}</p>
                     {b.checked_in_at && <p className="mt-1 text-xs text-emerald-400">✓ Checked in {fmtDate(b.checked_in_at)}</p>}
                     <div className="mt-3"><Actions b={b} /></div>
                   </div>
                 ))}
-                {list.length === 0 && <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-white/45">No bookings here.</p>}
+                {list.length === 0 && <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-white/45">Nobody here yet.</p>}
               </div>
             </div>
           )}

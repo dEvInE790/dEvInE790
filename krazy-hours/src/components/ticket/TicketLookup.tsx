@@ -14,8 +14,11 @@ export default function TicketLookup() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("kh_last_booking");
-      if (raw) setSaved(JSON.parse(raw));
+      const raw = localStorage.getItem("kh_registration");
+      if (raw) {
+        const r = JSON.parse(raw) as { code: string; k: string };
+        setSaved({ code: r.code, url: `/ticket/${r.code}?k=${r.k}` });
+      }
     } catch {}
   }, []);
 
@@ -49,7 +52,7 @@ export default function TicketLookup() {
       >
         <Link href="/" className="font-graffiti text-3xl text-blood">KRAZY HOURS</Link>
         <h1 className="mt-4 font-display text-4xl uppercase">Find my ticket</h1>
-        <p className="mt-1 text-sm text-white/55">Enter the Booking ID you got after paying, plus the email or phone you used.</p>
+        <p className="mt-1 text-sm text-white/55">Enter the Booking ID you got when you registered, plus the email or phone you used.</p>
 
         {saved && (
           <Link href={saved.url} className="mt-5 flex items-center justify-between rounded-2xl border border-blood/40 bg-blood/10 p-4 text-sm">
@@ -72,8 +75,8 @@ export default function TicketLookup() {
           {error && <p className="rounded-xl bg-[#ff6b61]/10 p-3 text-sm text-[#ffb4ae]" role="alert">{error}</p>}
           <button className="btn btn-red w-full" disabled={loading}>{loading ? "Searching…" : "Show my ticket"}</button>
         </form>
-        <Link href="/#tickets" className="mt-6 block text-center font-mono text-[11px] uppercase tracking-[0.2em] text-white/45 hover:text-white">
-          ← Haven&apos;t booked yet?
+        <Link href="/#register" className="mt-6 block text-center font-mono text-[11px] uppercase tracking-[0.2em] text-white/45 hover:text-white">
+          ← Haven&apos;t registered yet?
         </Link>
       </motion.div>
     </main>

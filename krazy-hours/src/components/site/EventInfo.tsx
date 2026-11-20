@@ -3,13 +3,14 @@ import { motion } from "framer-motion";
 import { EVENT, mapsUrl } from "@/lib/event";
 import { Eyebrow, SplitHeading, stagger } from "./Reveal";
 import SpotsCounter from "./SpotsCounter";
+import { useStatus } from "./useStatus";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-const cards = [
+const baseCards = [
   { k: "Date", big: "17", sub: "December", note: "Thursday night", icon: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" },
   { k: "Time", big: "10PM", sub: "till 5AM", note: "7 hours non-stop", icon: "M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z" },
-  { k: "Capacity", big: "30", sub: "People only", note: "Once it's full, it's full", icon: "M17 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M10 11a4 4 0 100-8 4 4 0 000 8zM21 20v-1a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8" },
+  { k: "Capacity", big: "", sub: "People only", note: "Once it's full, it's full", icon: "M17 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M10 11a4 4 0 100-8 4 4 0 000 8zM21 20v-1a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8" },
 ];
 
 function icsHref() {
@@ -19,21 +20,24 @@ function icsHref() {
     "UID:krazy-hours-2026@krazyhours", "DTSTAMP:20261101T000000Z",
     `DTSTART:${f(EVENT.startsAt)}`, `DTEND:${f(EVENT.endsAt)}`,
     "SUMMARY:KRAZY HOURS — Apartment Party", `LOCATION:${EVENT.address.replace(/,/g, "\\,")}`,
-    "DESCRIPTION:TribeWave Records × Motion Boys Squad. Only 30 people allowed.",
+    "DESCRIPTION:TribeWave Records × Motion Boys Squad. Only 35 people allowed.",
     "END:VEVENT", "END:VCALENDAR",
   ].join("\r\n");
   return "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
 }
 
 export default function EventInfo() {
+  const { status } = useStatus();
+  const capacity = status?.capacity ?? EVENT.capacity;
+  const cards = baseCards.map((c) => (c.k === "Capacity" ? { ...c, big: String(capacity) } : c));
   return (
     <section id="details" className="relative overflow-hidden px-4 py-24 sm:px-6 sm:py-32">
       <div className="pointer-events-none absolute -left-40 top-20 h-96 w-96 rounded-full bg-blood/20 blur-[120px]" />
       <div className="relative mx-auto max-w-6xl">
         <Eyebrow>The details</Eyebrow>
         <SplitHeading
-          text="ONE NIGHT. ONE APARTMENT. THIRTY PEOPLE."
-          accent="THIRTY"
+          text={`ONE NIGHT. ONE APARTMENT. ${capacity} PEOPLE.`}
+          accent={String(capacity)}
           className="max-w-4xl font-display text-5xl uppercase leading-[0.95] sm:text-7xl"
         />
 

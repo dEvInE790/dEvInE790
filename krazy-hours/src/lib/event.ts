@@ -9,6 +9,7 @@ export const EVENT = {
   // 10 PM Lagos time (WAT, UTC+1)
   startsAt: "2026-12-17T22:00:00+01:00",
   endsAt: "2026-12-18T05:00:00+01:00",
+  capacity: 35, // fallback only — the live number comes from the database
   address: "Road 13, Block 13, Diamond Estate, Isheri, opposite Jendol Supermarket",
   mapsQuery: "Diamond Estate Isheri opposite Jendol Supermarket, Lagos, Nigeria",
 };
@@ -21,10 +22,9 @@ export const naira = (n: number) => "₦" + n.toLocaleString("en-NG");
 
 export type PublicStatus = {
   capacity: number;
-  reserved: number;
+  registered: number;
   confirmed: number;
   remaining: number;
-  max_per_booking: number;
   bookings_open: boolean;
   bank_name: string;
   account_number: string;

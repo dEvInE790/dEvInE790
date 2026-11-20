@@ -43,7 +43,7 @@ export default function CheckIn({ onChange, notify }: { onChange: () => void; no
       }
       setResult(d);
       if (commit) {
-        notify(d.alreadyCheckedIn ? "Already checked in earlier" : `Admitted ${d.booking.quantity} — ${d.booking.full_name}`, d.alreadyCheckedIn);
+        notify(d.alreadyCheckedIn ? "Already checked in earlier" : `Admitted — ${d.booking.full_name}`, d.alreadyCheckedIn);
         onChange();
       }
     } catch (e) {
@@ -116,12 +116,12 @@ export default function CheckIn({ onChange, notify }: { onChange: () => void; no
           </p>
           <p className="mt-2 text-lg font-semibold">{b.full_name}</p>
           <p className="text-white/65">
-            Admit <b className="text-white">{b.quantity}</b> · {b.category_name} · {naira(b.amount)} · <span className="font-mono">{b.booking_code}</span>
+            {b.category_name} · {naira(b.amount)} · <span className="font-mono">{b.booking_code}</span>
           </p>
           {b.checked_in_at && <p className="mt-1 text-sm text-white/55">Checked in at {new Date(b.checked_in_at).toLocaleTimeString("en-NG", { timeZone: "Africa/Lagos" })}</p>}
           {!result!.alreadyCheckedIn && (
             <button className="btn btn-red mt-4 w-full" disabled={loading} onClick={() => lookup(b.booking_code, true)}>
-              Admit {b.quantity} {b.quantity > 1 ? "guests" : "guest"}
+              Admit guest
             </button>
           )}
           <button className="mt-3 w-full text-sm text-white/50" onClick={() => { setResult(null); setCode(""); }}>Next guest</button>

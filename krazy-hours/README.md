@@ -2,43 +2,46 @@
 
 Event site, ticket booking, PalmPay bank-transfer checkout, digital tickets and an
 organiser dashboard for **KRAZY HOURS** (TribeWave Records × Motion Boys Squad),
-December 17, 10 PM – 5 AM, Isheri, Lagos. Capacity: 30.
+December 17, 10 PM – 5 AM, Isheri, Lagos. Limit: 35 people.
 
 **Stack:** Next.js 15 (App Router) on Cloudflare Workers (OpenNext) · React 19 · Tailwind CSS · Framer Motion · GSAP
 ScrollTrigger · Lenis smooth scroll · Supabase (Postgres, Auth, private Storage).
 
 ---
 
-## How the money flow works (read this first)
+## How it works (read this first)
 
-1. A guest picks **Girls ₦3,000** or **Boys ₦4,000**, chooses a quantity and enters their details.
-2. They see the PalmPay account (**8141276327 · Awal Ayomide Balogun**) and the exact total.
-3. They transfer the money, then upload their receipt and enter the transfer reference.
-4. The booking is saved as **PENDING**. It holds its spots, so the event can't be oversold,
-   but **no ticket exists yet**.
-5. An organiser opens the dashboard, looks at the receipt **and checks the PalmPay app to
-   make sure the money actually arrived**, then taps **Verify** (or **Reject**).
-6. Only then does the guest's ticket page show the QR code and check-in code.
+**Step 1 — Register.** A guest picks **Girls ₦3,000** or **Boys ₦4,000** and enters name,
+phone and email. One registration = one person. It's saved straight away and appears in the
+admin dashboard as **Registered · unpaid**. Registration closes automatically at **35**.
+
+**Step 2 — Pay.** In the separate Payment section the guest sees the PalmPay account
+(**8141276327 · Awal Ayomide Balogun**) and their exact amount, transfers the money, then
+uploads the receipt and enters the transfer reference. Status becomes **Payment to verify**.
+
+**Step 3 — Verify.** An organiser opens the receipt in the dashboard **and checks the PalmPay
+app to make sure the money actually arrived**, then taps **Verify**. Only then does the guest's
+ticket (QR + check-in code) appear. **Reject payment** sends them back to "unpaid" so they can
+pay again; **Remove** deletes their registration and frees the spot for someone else.
 
 Nothing is ever confirmed automatically. A screenshot can be faked; the PalmPay app is the
 source of truth.
-
-Rejecting a pending booking releases its spots back to the public counter.
 
 ## What's protected
 
 | Rule | Where it's enforced |
 |---|---|
-| Never more than capacity (pending + confirmed) | `kh_create_booking()` in Postgres, with a row lock so simultaneous checkouts queue up |
-| Price comes from the database, never the browser | `kh_create_booking()` |
-| One live booking per email and per phone number | `kh_create_booking()` |
-| A transfer reference or receipt file can't be reused | `kh_create_booking()` + unique indexes |
-| Receipts must really be JPG/PNG/WEBP/HEIC/PDF, ≤ 5 MB | `/api/bookings` checks the file's bytes, not just its name |
+| Never more than 35 registrations (registered + paying + confirmed) | `kh_register()` in Postgres, with a row lock so simultaneous sign-ups queue up |
+| Price comes from the database, never the browser | `kh_register()` |
+| One registration per email and per phone number | `kh_register()` + unique indexes |
+| A transfer reference or receipt file can't be reused | `kh_submit_payment()` + unique indexes |
+| Payment never confirms itself | `kh_submit_payment()` only sets "pending"; only an admin can confirm |
+| Receipts must really be JPG/PNG/WEBP/HEIC/PDF, ≤ 5 MB | `/api/payments` checks the file's bytes, not just its name |
 | Receipts are private | Private Supabase bucket; organisers view them through 2-minute signed links |
 | Database can't be read from the browser | RLS on, no public policies, functions revoked from `anon` |
 | Dashboard and admin APIs | Supabase login **and** listed in the `admins` table, re-checked on every request |
-| Capacity can't be lowered below seats already held | `kh_update_settings()` |
-| Ticket links can't be guessed | Each link carries a 48-character secret token |
+| Limit can't be lowered below people already registered | `kh_update_settings()` |
+| Private links can't be guessed | Each guest link carries a 48-character secret token |
 
 ---
 
@@ -52,7 +55,7 @@ account, and this repository on GitHub.
 2. When it's ready, open **SQL Editor → New query**.
 3. Paste the whole of `supabase/migrations/0001_krazy_hours.sql` and click **Run**.
    You should see *Success. No rows returned*.
-   This creates the tables, the Girls/Boys categories, capacity 30, the PalmPay details and
+   This creates the tables, the Girls/Boys categories, the 35-person limit, the PalmPay details and
    the private `receipts` storage bucket.
 
 ### 2. Create the organiser login(s)
@@ -106,16 +109,20 @@ table in step 3, and deploy.
 
 ## Using the dashboard (`/admin`)
 
-- **Overview** — tickets sold, verified revenue, pending payments, spots left, capacity bar.
-- **Bookings** — filter by status, search by name/phone/ID/reference, view receipts,
-  **Verify**, **Reject**, **Cancel**, **Reopen**, **Check in**, and **⬇ CSV** download.
+- **Overview** — registered x / 35 (girls/boys split), not paid yet, payments to verify,
+  confirmed tickets and verified revenue, checked in.
+- **Bookings** — filter by *Not paid yet / Payment to verify / Confirmed / Cancelled*, search by
+  name/phone/ID/reference, view receipts, **Verify**, **Reject payment**, **Remove**, **Restore**,
+  **Check in**, and **⬇ CSV** download.
 - **Check-in** — at the door, scan the guest's QR (Android Chrome) or type their check-in
-  code / Booking ID. A ticket can only be admitted once; a second scan shows a warning.
-- **Settings** — capacity, max tickets per booking, open/close sales, PalmPay bank name,
-  account number and account name, ticket categories and prices (price changes only affect
-  new bookings).
+  code / Booking ID. Unpaid or unverified guests show a red "do not admit". A ticket can only
+  be admitted once.
+- **Settings** — registration limit, open/close registration, PalmPay bank name, account
+  number and account name, ticket categories and prices (price changes only affect new
+  registrations).
 
-Guests find their ticket at `/ticket` with their Booking ID + the email or phone they used.
+Guests can come back any time: the Payment section and `/ticket` both accept their Booking ID +
+the email or phone they registered with.
 
 ## Replacing artwork
 
@@ -148,9 +155,10 @@ Then put the printed API URL, anon key and service-role key in `.env.local`.
 
 ### Tests
 
-`scripts/e2e-api.mjs` runs 26 checks against a running app + database: pending-only creation,
-server-side pricing, validation, receipt sniffing, duplicate email/phone/reference/receipt,
-a concurrent rush for the last spots (no overbooking), anon-key lockout and admin 401s.
+`scripts/e2e-api.mjs` runs 30 checks against a running app + database: registration, server-side
+pricing, validation, receipt sniffing, duplicate email/phone/reference/receipt, payment can't
+self-confirm, a concurrent rush for the last spots (stops at exactly 35), anon-key lockout and
+admin 401s.
 **It creates real bookings — only run it against a local database.**
 
 ```bash
@@ -171,4 +179,6 @@ npm run test:e2e
 - Payments are verified by a person, by design. There is no automatic PalmPay confirmation.
 - No email/SMS is sent when a ticket is confirmed; guests check `/ticket` (pending pages
   refresh themselves every 30 s). Tell guests to keep their Booking ID.
+- Unpaid registrations hold their spot until you **Remove** them. Chase or remove people who
+  register but never pay, otherwise the 35 spots can fill with non-payers.
 - No request rate-limiting beyond the bot honeypot; add Vercel Firewall rules if you see abuse.

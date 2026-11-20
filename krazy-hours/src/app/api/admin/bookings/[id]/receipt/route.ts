@@ -16,6 +16,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   const db = supabaseAdmin();
   const { data: b } = await db.from("bookings").select("receipt_path").eq("id", id).maybeSingle();
   if (!b) return json({ error: "Booking not found" }, 404);
+  if (!b.receipt_path) return json({ error: "No receipt uploaded yet." }, 404);
   const { data, error } = await db.storage.from("receipts").createSignedUrl(b.receipt_path, 120);
   if (error || !data) return json({ error: "Could not load receipt" }, 500);
   return json({ url: data.signedUrl, isPdf: b.receipt_path.endsWith(".pdf") });

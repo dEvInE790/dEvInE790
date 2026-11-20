@@ -43,10 +43,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return json({ booking: data });
   }
 
-  const status = { confirm: "confirmed", reject: "rejected", cancel: "cancelled", reopen: "pending" }[action];
-  const { error } = await db.rpc("kh_set_booking_status", {
+  const { error } = await db.rpc("kh_admin_action", {
     p_booking_id: id,
-    p_status: status,
+    p_action: action,
     p_admin: admin.id,
     p_note: note || null,
   });

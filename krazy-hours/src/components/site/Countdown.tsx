@@ -57,7 +57,7 @@ export default function Countdown({ compact = false }: { compact?: boolean }) {
   }
   const vals = t ?? { d: 0, h: 0, m: 0, s: 0 };
   return (
-    <div className={`flex items-start gap-2 sm:gap-3 ${compact ? "scale-90" : ""}`} role="timer" aria-label="Countdown to December 17, 10 PM">
+    <div className={`flex items-start gap-2 sm:gap-3 ${compact ? "scale-90" : ""}`} role="timer" aria-label="Countdown to December 17, 4 PM">
       <Digit value={vals.d} label="Days" />
       <span className="pt-2 font-display text-2xl text-blood sm:pt-3">:</span>
       <Digit value={vals.h} label="Hrs" />

@@ -117,7 +117,7 @@ export default function Nav() {
                 Register now
               </a>
               <p className="text-center font-mono text-[10px] uppercase tracking-[0.3em] text-white/40">
-                Dec 17 · 10PM–5AM · Isheri
+                Dec 17 · 4PM–10PM · Isheri
               </p>
             </motion.div>
           </motion.div>

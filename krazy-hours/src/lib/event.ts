@@ -5,10 +5,10 @@ export const EVENT = {
   presenters: ["TribeWave Records", "Motion Boys Squad"],
   dateLabel: "December 17",
   dateLong: "Thursday, 17 December 2026",
-  timeLabel: "10 PM – 5 AM",
-  // 10 PM Lagos time (WAT, UTC+1)
-  startsAt: "2026-12-17T22:00:00+01:00",
-  endsAt: "2026-12-18T05:00:00+01:00",
+  timeLabel: "4 PM – 10 PM",
+  // 4 PM Lagos time (WAT, UTC+1)
+  startsAt: "2026-12-17T16:00:00+01:00",
+  endsAt: "2026-12-17T22:00:00+01:00",
   capacity: 35, // fallback only — the live number comes from the database
   address: "Road 13, Block 13, Diamond Estate, Isheri, opposite Jendol Supermarket",
   mapsQuery: "Diamond Estate Isheri opposite Jendol Supermarket, Lagos, Nigeria",

@@ -2,7 +2,7 @@
 
 Event site, ticket booking, PalmPay bank-transfer checkout, digital tickets and an
 organiser dashboard for **KRAZY HOURS** (TribeWave Records × Motion Boys Squad),
-December 17, 10 PM – 5 AM, Isheri, Lagos. Limit: 35 people.
+December 17, 4 PM – 10 PM, Isheri, Lagos. Limit: 35 people.
 
 **Stack:** Next.js 15 (App Router) on Cloudflare Workers (OpenNext) · React 19 · Tailwind CSS · Framer Motion · GSAP
 ScrollTrigger · Lenis smooth scroll · Supabase (Postgres, Auth, private Storage).

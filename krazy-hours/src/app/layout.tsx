@@ -13,10 +13,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "KRAZY HOURS — Apartment Party · Dec 17 · Only 35 People",
   description:
-    "TribeWave Records × Motion Boys Squad present KRAZY HOURS — an apartment party in Isheri, Lagos. December 17, 10 PM – 5 AM. Only 35 people allowed. Register now.",
+    "TribeWave Records × Motion Boys Squad present KRAZY HOURS — an apartment party in Isheri, Lagos. December 17, 4 PM – 10 PM. Only 35 people allowed. Register now.",
   openGraph: {
     title: "KRAZY HOURS — Apartment Party",
-    description: "Dec 17 · 10 PM – 5 AM · Isheri, Lagos · Only 35 people allowed.",
+    description: "Dec 17 · 4 PM – 10 PM · Isheri, Lagos · Only 35 people allowed.",
     type: "website",
     images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "KRAZY HOURS apartment party" }],
   },

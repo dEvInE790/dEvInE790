@@ -8,8 +8,8 @@ import { useStatus } from "./useStatus";
 const ease = [0.16, 1, 0.3, 1] as const;
 
 const baseCards = [
-  { k: "Date", big: "17", sub: "December", note: "Thursday night", icon: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" },
-  { k: "Time", big: "10PM", sub: "till 5AM", note: "7 hours non-stop", icon: "M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z" },
+  { k: "Date", big: "17", sub: "December", note: "Thursday", icon: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" },
+  { k: "Time", big: "4PM", sub: "till 10PM", note: "6 hours non-stop", icon: "M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z" },
   { k: "Capacity", big: "", sub: "People only", note: "Once it's full, it's full", icon: "M17 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M10 11a4 4 0 100-8 4 4 0 000 8zM21 20v-1a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8" },
 ];
 

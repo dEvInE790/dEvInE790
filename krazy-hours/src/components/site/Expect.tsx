@@ -88,7 +88,7 @@ function More() {
 }
 
 const items = [
-  { key: "drinks", title: "Drinks", copy: "Cold bottles, mixes and shots flowing all night.", Art: Drinks },
+  { key: "drinks", title: "Drinks", copy: "Cold bottles, mixes and shots flowing all day into the night.", Art: Drinks },
   { key: "music", title: "Music", copy: "Afrobeats, amapiano & street anthems — loud.", Art: Music },
   { key: "games", title: "Games", copy: "Cards, dares and party games that get krazy.", Art: Games },
   { key: "performances", title: "Performances", copy: "Live sets and surprise acts from the squad.", Art: Performances },

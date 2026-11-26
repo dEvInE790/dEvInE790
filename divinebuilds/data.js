@@ -83,11 +83,32 @@ const WEBSITES = [
     url: "https://odingasculpture.com"
   },
   {
-    name: "Simple Interior Tech",
-    description: "Website for a furniture store, with an admin area built on Supabase.",
+    name: "TutorHaven",
+    description: "Tutoring marketplace for students, parents and tutors, with live scheduling, Paystack payments and an admin panel.",
+    tags: ["React", "Supabase", "Paystack"],
+    image: "img/sites/tutorhaven.jpg",
+    url: "https://tutorhaven.pages.dev"
+  },
+  {
+    name: "DE. LAW Furniture",
+    description: "Website for a custom furniture manufacturer in Lagos, with a Supabase admin area for products and quote requests.",
     tags: ["HTML/CSS/JS", "Supabase", "Admin panel"],
-    image: "img/sites/simple-interior-tech.jpg",
-    url: "https://simpleinteriortech.co"
+    image: "img/sites/de-law-furniture.jpg",
+    url: "https://de-lawfurniture.com"
+  },
+  {
+    name: "Cherish Boutique",
+    description: "Luxury fashion store with cart, WhatsApp ordering and an admin dashboard for products, orders and stock.",
+    tags: ["Node.js", "E-commerce", "Admin panel"],
+    image: "img/sites/cherish-boutique.jpg",
+    url: ""
+  },
+  {
+    name: "Ojigbani Cherish Portfolio",
+    description: "Portfolio website for a social media manager, content creator and UI/UX designer.",
+    tags: ["HTML/CSS/JS", "Portfolio", "Animations"],
+    image: "img/sites/cherish-portfolio.jpg",
+    url: ""
   }
 ];
 
@@ -104,6 +125,13 @@ const WEBSITES = [
                 or "" if there isn't one.
    --------------------------------------------------------------------- */
 const CERTIFICATES = [
+  {
+    title: "CapCut Video Editing Beginner to Expert",
+    issuer: "Udemy",
+    date: "Nov 18, 2026",
+    image: "img/certificates/udemy-capcut-video-editing.jpg",
+    verifyUrl: "https://ude.my/UC-e8eeb404-9994-4bc4-be9d-72f6aa174e6b"
+  },
   {
     title: "Applied Cyber Security Program (12 weeks)",
     issuer: "Tech Studio Academy",

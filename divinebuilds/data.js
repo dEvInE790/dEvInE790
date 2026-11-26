@@ -126,6 +126,13 @@ const WEBSITES = [
    --------------------------------------------------------------------- */
 const CERTIFICATES = [
   {
+    title: "CapCut Video Editing Beginner to Expert",
+    issuer: "Udemy",
+    date: "Nov 18, 2026",
+    image: "img/certificates/udemy-capcut-video-editing.jpg",
+    verifyUrl: "https://ude.my/UC-e8eeb404-9994-4bc4-be9d-72f6aa174e6b"
+  },
+  {
     title: "Applied Cyber Security Program (12 weeks)",
     issuer: "Tech Studio Academy",
     date: "Oct 2026",
